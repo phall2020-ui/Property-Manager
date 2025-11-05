@@ -1,8 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import PropertiesListPage from './pages/properties/PropertiesListPage';
+import PropertyCreatePage from './pages/properties/PropertyCreatePage';
+import PropertyDetailPage from './pages/properties/PropertyDetailPage';
+import TicketsListPage from './pages/tickets/TicketsListPage';
+import TicketCreatePage from './pages/tickets/TicketCreatePage';
 
 const queryClient = new QueryClient();
 
@@ -24,7 +30,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
+  return (
+    <Layout>
+      {children}
+    </Layout>
+  );
 }
 
 function App() {
@@ -39,6 +49,46 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/properties"
+              element={
+                <ProtectedRoute>
+                  <PropertiesListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/properties/new"
+              element={
+                <ProtectedRoute>
+                  <PropertyCreatePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/properties/:id"
+              element={
+                <ProtectedRoute>
+                  <PropertyDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tickets"
+              element={
+                <ProtectedRoute>
+                  <TicketsListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tickets/new"
+              element={
+                <ProtectedRoute>
+                  <TicketCreatePage />
                 </ProtectedRoute>
               }
             />
