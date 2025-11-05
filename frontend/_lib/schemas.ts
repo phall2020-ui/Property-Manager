@@ -7,25 +7,124 @@ import { z } from 'zod';
  * directly from the validation rules.
  */
 
+// ============================================================================
+// UK-SPECIFIC VALIDATORS
+// ============================================================================
+
+/**
+ * UK Postcode validation (basic pattern)
+ * Accepts formats like: SW1A 1AA, EC1A 1BB, W1A 0AX, GIR 0AA
+ */
+export const ukPostcode = z.string().regex(
+  /^(GIR 0AA|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})$/i,
+  'Enter a valid UK postcode'
+);
+
+/**
+ * UK Phone number validation (E.164 format)
+ */
+export const ukPhone = z.string().regex(
+  /^\+44\d{10}$/,
+  'Enter a valid UK phone number (e.g., +447700900000)'
+).optional();
+
+/**
+ * Money amount (GBP)
+ */
+export const moneyAmount = z.coerce.number().min(0, 'Amount must be positive');
+
+/**
+ * Deposit validation with 5 weeks rent warning
+ */
+export const depositSchema = (rentAmount?: number, frequency?: string) => {
+  const schema = moneyAmount;
+  if (rentAmount && frequency === 'Monthly') {
+    const weeklyRent = (rentAmount * 12) / 52;
+    const maxDeposit = weeklyRent * 5;
+    return schema.refine(
+      (val) => val <= maxDeposit,
+      `Deposit should not exceed £${maxDeposit.toFixed(2)} (5 weeks rent)`
+    );
+  }
+  return schema;
+};
+
+// ============================================================================
+// ADDRESS & PROPERTY
+// ============================================================================
+
 export const AddressSchema = z.object({
-  addressLine1: z.string().min(1, { message: 'Address line 1 is required' }),
-  addressLine2: z.string().optional(),
-  city: z.string().min(1, { message: 'City is required' }),
-  postcode: z.string().min(3, { message: 'Postcode is required' }),
+  address1: z.string().min(2, 'Address line 1 is required'),
+  address2: z.string().optional(),
+  city: z.string().min(2, 'City is required'),
+  postcode: ukPostcode,
 });
 
-export const CreatePropertySchema = AddressSchema;
+export const PropertyAttributesSchema = z.object({
+  propertyType: z.enum(['House', 'Flat', 'HMO', 'Maisonette', 'Bungalow', 'Other']).optional(),
+  bedrooms: z.coerce.number().int().min(0).optional(),
+  furnished: z.enum(['Unfurnished', 'Part', 'Full']).optional(),
+  epcRating: z.enum(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Unknown']).optional(),
+});
+
+export const CreatePropertySchema = AddressSchema.merge(PropertyAttributesSchema);
 export type CreatePropertyDTO = z.infer<typeof CreatePropertySchema>;
 
-export const CreateTenancySchema = z.object({
-  propertyId: z.string().min(1),
-  tenantEmail: z.string().email({ message: 'Tenant email is required' }),
-  startDate: z.string().min(1),
-  endDate: z.string().min(1),
-  rent: z.number().nonnegative(),
-  depositScheme: z.string().min(1),
+// ============================================================================
+// TENANCY & LEGAL
+// ============================================================================
+
+export const TenancyDetailsSchema = z.object({
+  startDate: z.string().min(1, 'Start date required'),
+  endDate: z.string().optional(),
+  rentAmount: moneyAmount,
+  rentFrequency: z.enum(['Monthly', 'Weekly', 'Other']),
+  rentDueDay: z.coerce.number().int().min(1).max(28),
+}).refine(
+  (data) => !data.endDate || new Date(data.startDate) <= new Date(data.endDate),
+  { message: 'End date must be after start date', path: ['endDate'] }
+);
+
+export const DepositLegalSchema = z.object({
+  depositAmount: moneyAmount,
+  depositScheme: z.enum(['DPS', 'TDS', 'MyDeposits', 'None']),
+  depositProtectedAt: z.string().optional(),
+  prescribedInfoServedAt: z.string().optional(),
+  howToRentServedAt: z.string().optional(),
+  rightToRentCheckedAt: z.string().optional(),
 });
+
+export const ComplianceSchema = z.object({
+  gasSafetyDueAt: z.string().optional(),
+  eicrDueAt: z.string().optional(),
+  epcExpiresAt: z.string().optional(),
+  hmo: z.boolean().default(false),
+  hmoLicenceNumber: z.string().optional(),
+  hmoLicenceExpiresAt: z.string().optional(),
+  selectiveLicence: z.boolean().default(false),
+  selectiveLicenceExpiresAt: z.string().optional(),
+  boilerServiceDueAt: z.string().optional(),
+  smokeAlarmsCheckedAt: z.string().optional(),
+  coAlarmsCheckedAt: z.string().optional(),
+  legionellaAssessmentAt: z.string().optional(),
+});
+
+export const TenantSchema = z.object({
+  fullName: z.string().min(2, 'Full name required'),
+  email: z.string().email('Valid email required'),
+  phone: ukPhone,
+});
+
+export const CreateTenancySchema = TenancyDetailsSchema
+  .merge(DepositLegalSchema)
+  .merge(ComplianceSchema)
+  .extend({
+    propertyId: z.string().min(1),
+    tenants: z.array(TenantSchema).min(1, 'At least one tenant required'),
+  });
+
 export type CreateTenancyDTO = z.infer<typeof CreateTenancySchema>;
+export type TenantDTO = z.infer<typeof TenantSchema>;
 
 export const CreateTicketSchema = z.object({
   propertyId: z.string().min(1),
@@ -45,6 +144,49 @@ export type SubmitQuoteDTO = z.infer<typeof SubmitQuoteSchema>;
 export const ApproveQuoteSchema = z.object({ approved: z.boolean() });
 export type ApproveQuoteDTO = z.infer<typeof ApproveQuoteSchema>;
 
+// ============================================================================
+// DOCUMENTS
+// ============================================================================
+
+export const DocumentTypeEnum = z.enum([
+  'EPC',
+  'Gas Safety (CP12)',
+  'EICR',
+  'Tenancy Agreement',
+  'Deposit Certificate',
+  'Prescribed Information',
+  'How to Rent',
+  'Right to Rent',
+  'HMO Licence',
+  'Selective Licence',
+  'Boiler Service',
+  'Insurance',
+  'Title Extract',
+  'Other',
+]);
+
+export const UploadDocumentSchema = z.object({
+  docType: DocumentTypeEnum,
+  filename: z.string().min(1),
+  url: z.string().url(),
+  expiryDate: z.string().optional(),
+});
+
+export type UploadDocumentDTO = z.infer<typeof UploadDocumentSchema>;
+
+// ============================================================================
+// LANDLORD PROFILE
+// ============================================================================
+
+export const LandlordProfileSchema = z.object({
+  name: z.string().min(2, 'Name required'),
+  phone: ukPhone,
+  notifyEmail: z.boolean().default(true),
+  notifySms: z.boolean().default(false),
+});
+
+export type LandlordProfileDTO = z.infer<typeof LandlordProfileSchema>;
+
 /**
  * Generic API response wrapper used for TanStack Query; you can extend this
  * pattern to include pagination metadata.
@@ -53,4 +195,5 @@ export const PaginatedResponse = <T extends z.ZodTypeAny>(schema: T) =>
   z.object({
     items: z.array(schema),
     total: z.number().optional(),
+    nextCursor: z.string().optional(),
   });

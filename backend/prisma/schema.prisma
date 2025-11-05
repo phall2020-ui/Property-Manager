@@ -33,6 +33,9 @@ model User {
   email        String   @unique
   name         String
   passwordHash String
+  phone        String?
+  notifyEmail  Boolean  @default(true)
+  notifySms    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -41,6 +44,7 @@ model User {
   ticketsCreated  Ticket[]       @relation("TicketCreator")
   ticketsAssigned Ticket[]       @relation("TicketAssignee")
   quotesCreated   Quote[]
+  notesCreated    PropertyNote[]
 }
 
 // Organisation membership with roles
@@ -81,19 +85,25 @@ model RefreshToken {
 
 // Properties owned by landlord organisations
 model Property {
-  id          String   @id @default(uuid())
-  address1    String
-  address2    String?
-  city        String?
-  postcode    String
-  bedrooms    Int?
-  ownerOrgId  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  address1      String
+  address2      String?
+  city          String?
+  postcode      String
+  bedrooms      Int?
+  propertyType  String?  // House, Flat, HMO, Maisonette, Bungalow, Other
+  furnished     String?  // Unfurnished, Part, Full
+  epcRating     String?  // A-G or Unknown
+  ownerOrgId    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  owner     Org        @relation("OwnedProperties", fields: [ownerOrgId], references: [id], onDelete: Cascade)
+  owner     Org              @relation("OwnedProperties", fields: [ownerOrgId], references: [id], onDelete: Cascade)
   tenancies Tenancy[]
   tickets   Ticket[]
+  documents PropertyDocument[]
+  notes     PropertyNote[]
+  auditLogs AuditLog[]
 
   @@index([ownerOrgId])
 }
@@ -105,9 +115,37 @@ model Tenancy {
   tenantOrgId  String
   startDate    DateTime
   endDate      DateTime?
-  rentPcm      Float
+  rentPcm      Float     // Keep for backward compatibility
+  rentAmount   Float?    // New field (optional for now)
+  rentFrequency String   @default("Monthly") // Monthly, Weekly, Other
+  rentDueDay   Int?     // 1-28
   deposit      Float
   status       String    // PENDING, ACTIVE, ENDED
+  
+  // Legal & Deposit
+  depositScheme           String?  // DPS, TDS, MyDeposits, None
+  depositProtectedAt      DateTime?
+  prescribedInfoServedAt  DateTime?
+  howToRentServedAt       DateTime?
+  rightToRentCheckedAt    DateTime?
+  
+  // Compliance dates
+  gasSafetyDueAt          DateTime?
+  eicrDueAt               DateTime?
+  epcExpiresAt            DateTime?
+  boilerServiceDueAt      DateTime?
+  smokeAlarmsCheckedAt    DateTime?
+  coAlarmsCheckedAt       DateTime?
+  legionellaAssessmentAt  DateTime?
+  
+  // HMO & Licensing
+  hmo                     Boolean  @default(false)
+  hmoLicenceNumber        String?
+  hmoLicenceExpiresAt     DateTime?
+  selectiveLicence        Boolean  @default(false)
+  selectiveLicenceExpiresAt DateTime?
+  
+  notes        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -115,6 +153,8 @@ model Tenancy {
   tenantOrg Org                 @relation("TenantOrg", fields: [tenantOrgId], references: [id], onDelete: Cascade)
   tickets   Ticket[]
   documents TenancyDocument[]
+  tenants   TenancyTenant[]
+  auditLogs AuditLog[]
 
   @@index([propertyId])
   @@index([tenantOrgId])
@@ -221,4 +261,72 @@ model TicketAttachment {
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
+}
+
+// ============================================================================
+// DOCUMENTS & TENANTS
+// ============================================================================
+
+// Documents attached to properties
+model PropertyDocument {
+  id         String    @id @default(uuid())
+  propertyId String
+  docType    String    // EPC, Insurance, Title, etc.
+  filename   String
+  filepath   String
+  url        String?
+  mimetype   String?
+  size       Int?
+  expiryDate DateTime?
+  createdAt  DateTime  @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+// Tenants linked to tenancies
+model TenancyTenant {
+  id         String    @id @default(uuid())
+  tenancyId  String
+  fullName   String
+  email      String
+  phone      String?
+  status     String    @default("INVITED") // INVITED, PENDING, ACTIVE
+  createdAt  DateTime  @default(now())
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  @@index([tenancyId])
+  @@index([email])
+}
+
+// Property notes
+model PropertyNote {
+  id         String   @id @default(uuid())
+  propertyId String
+  authorId   String
+  content    String
+  createdAt  DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id])
+
+  @@index([propertyId])
+}
+
+// Audit log for property & tenancy changes
+model AuditLog {
+  id         String    @id @default(uuid())
+  propertyId String?
+  tenancyId  String?
+  eventType  String    // property_created, tenancy_created, document_uploaded, etc.
+  details    String?   // JSON string with details
+  createdAt  DateTime  @default(now())
+
+  property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenancy  Tenancy?  @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([tenancyId])
 }
