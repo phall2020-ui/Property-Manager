@@ -3,8 +3,8 @@ import { registerAs } from '@nestjs/config';
 export default registerAs('app', () => ({
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '4000', 10),
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  corsOrigin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000', 'http://localhost:5173'],
   database: {
     url: process.env.DATABASE_URL,
   },

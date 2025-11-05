@@ -59,5 +59,6 @@ export function useAuth(): AuthContextValue {
  */
 export function useRole(role: Role): boolean {
   const { user } = useAuth();
-  return user?.role === role;
+  // Check if any of the user's organisations has the specified role
+  return user?.organisations?.some(org => org.role === role) ?? false;
 }
