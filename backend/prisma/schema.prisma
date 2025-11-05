@@ -578,6 +578,7 @@ model BankAccount {
   connection   BankConnection    @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   transactions BankTransaction[]
 
+  @@unique([landlordId, connectionId, name])
   @@index([landlordId])
   @@index([connectionId])
 }

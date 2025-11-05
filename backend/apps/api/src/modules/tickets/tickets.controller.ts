@@ -27,8 +27,21 @@ export class TicketsController {
   @ApiOperation({ summary: 'Create a maintenance ticket' })
   @ApiBearerAuth()
   async create(@Body() dto: CreateTicketDto, @CurrentUser() user: any) {
+    // Get landlordId from property or tenancy
+    let landlordId: string;
+    if (dto.propertyId) {
+      const property = await this.ticketsService.findProperty(dto.propertyId);
+      landlordId = property.ownerOrgId;
+    } else if (dto.tenancyId) {
+      const tenancy = await this.ticketsService.findTenancy(dto.tenancyId);
+      landlordId = tenancy.property.ownerOrgId;
+    } else {
+      throw new Error('Either propertyId or tenancyId must be provided');
+    }
+
     return this.ticketsService.create({
       ...dto,
+      landlordId,
       createdById: user.sub,
     });
   }
