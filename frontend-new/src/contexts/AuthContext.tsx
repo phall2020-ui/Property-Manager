@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { authApi } from '../lib/api';
 
 interface User {
@@ -45,18 +46,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const data = await authApi.login({ email, password });
-    setUser(data.user);
+    try {
+      const data = await authApi.login({ email, password });
+      setUser(data.user);
+    } catch (error) {
+      console.error('Login failed in AuthContext:', error);
+      throw error; // Re-throw to let caller handle it
+    }
   };
 
   const signup = async (email: string, password: string, name: string) => {
-    const data = await authApi.signup({ email, password, name });
-    setUser(data.user);
+    try {
+      const data = await authApi.signup({ email, password, name });
+      setUser(data.user);
+    } catch (error) {
+      console.error('Signup failed in AuthContext:', error);
+      throw error; // Re-throw to let caller handle it
+    }
   };
 
   const logout = async () => {
-    await authApi.logout();
-    setUser(null);
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Continue with logout even if API call fails
+    } finally {
+      setUser(null);
+    }
   };
 
   return (

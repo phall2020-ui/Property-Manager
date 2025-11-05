@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { isValidEmail, extractErrorMessage } from '../lib/validation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -13,13 +14,32 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Validate inputs before submission
+    if (!email || !email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    
+    if (!password || !password.trim()) {
+      setError('Password is required');
+      return;
+    }
+    
+    // Validate email format
+    if (!isValidEmail(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed');
+      console.error('Login error:', err);
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
