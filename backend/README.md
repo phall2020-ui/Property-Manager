@@ -16,9 +16,9 @@ This repository contains a multi‑tenant property management backend focused on
 
 ### Prerequisites
 
-1. **Node.js** 20 or later
-2. **Docker** and **Docker Compose** for running PostgreSQL and Redis locally
-3. **Yarn** or **npm** (the examples below use npm)
+1. **Node.js** 18 or later (v20+ recommended, see root `.nvmrc` file)
+2. **Docker** and **Docker Compose** (optional - only needed for PostgreSQL and Redis, SQLite is default)
+3. **npm** (examples use npm ci for reproducible installs)
 
 ### Environment Variables
 
@@ -30,22 +30,27 @@ cp .env.example .env
 
 The most important variables are:
 
-- `DATABASE_URL` – PostgreSQL connection string
-- `REDIS_URL` – Redis connection string
-- `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` – secrets for signing JWTs
-- `S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/`S3_BUCKET` – credentials for object storage
-- `SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`, etc. – credentials for email/SMS providers
+- `DATABASE_URL` – Database connection string (defaults to SQLite: `file:./dev.db`, no Docker required)
+- `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` – secrets for signing JWTs (change from defaults for production)
+- `REDIS_URL` – Redis connection string (optional, only needed for background jobs)
+- `S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/`S3_BUCKET` – credentials for object storage (optional)
+- `SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`, etc. – credentials for email/SMS providers (optional)
 
 ### Installation
 
-Install dependencies and generate the Prisma client:
+Install dependencies (using `npm ci` for reproducible builds):
 
 ```bash
-npm install
-npx prisma generate
+npm ci
 ```
 
-Start the supporting services with Docker Compose:
+Generate the Prisma client:
+
+```bash
+npx prisma generate --schema=prisma/schema.prisma
+```
+
+(Optional) Start the supporting services with Docker Compose if using PostgreSQL/Redis:
 
 ```bash
 docker compose up -d
