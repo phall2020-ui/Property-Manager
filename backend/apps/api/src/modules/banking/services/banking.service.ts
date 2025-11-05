@@ -203,9 +203,9 @@ export class BankingService {
             },
           });
           totalSynced++;
-        } catch (error) {
+        } catch (error: any) {
           // Duplicate transaction (hash already exists), skip
-          if (error.code === 'P2002') {
+          if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
             this.logger.debug(`Skipping duplicate transaction: ${hash}`);
           } else {
             throw error;

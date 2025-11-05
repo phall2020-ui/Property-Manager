@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
+// Constants for reconciliation matching
+const AMOUNT_TOLERANCE = 0.01; // Tolerance for amount matching (e.g., 0.01 for £0.01)
+const MIN_CONFIDENCE_THRESHOLD = 70; // Minimum confidence score to auto-match
+
 @Injectable()
 export class ReconciliationService {
   private readonly logger = new Logger(ReconciliationService.name);
@@ -142,7 +146,7 @@ export class ReconciliationService {
     });
 
     // If amounts match, mark invoice as PAID
-    if (Math.abs(transaction.amount - invoice.grandTotal) < 0.01) {
+    if (Math.abs(transaction.amount - invoice.grandTotal) < AMOUNT_TOLERANCE) {
       await this.prisma.invoice.update({
         where: { id: invoiceId },
         data: { status: 'PAID' },
@@ -245,7 +249,7 @@ export class ReconciliationService {
 
       // Check amount match (exact or very close)
       const amountDiff = Math.abs(transaction.amount - invoice.grandTotal);
-      if (amountDiff < 0.01) {
+      if (amountDiff < AMOUNT_TOLERANCE) {
         confidence += 50; // Exact amount match
         amountMatches = true;
       } else if (amountDiff / invoice.grandTotal < 0.01) {
@@ -295,8 +299,8 @@ export class ReconciliationService {
       }
     }
 
-    // Only return matches with confidence >= 70
-    if (bestMatch && bestMatch.confidence >= 70) {
+    // Only return matches with confidence >= threshold
+    if (bestMatch && bestMatch.confidence >= MIN_CONFIDENCE_THRESHOLD) {
       return bestMatch;
     }
 

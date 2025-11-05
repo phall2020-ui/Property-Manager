@@ -6,6 +6,7 @@ import {
   Body,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
@@ -36,7 +37,7 @@ export class TicketsController {
       const tenancy = await this.ticketsService.findTenancy(dto.tenancyId);
       landlordId = tenancy.property.ownerOrgId;
     } else {
-      throw new Error('Either propertyId or tenancyId must be provided');
+      throw new BadRequestException('Either propertyId or tenancyId must be provided');
     }
 
     return this.ticketsService.create({

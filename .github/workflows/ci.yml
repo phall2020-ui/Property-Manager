@@ -134,9 +134,17 @@ jobs:
       - name: Deploy to staging
         run: |
           echo "Deploying to staging environment..."
-          echo "This would deploy using fly.io, render.com, or similar"
-          # Example for Fly.io:
+          # TODO: Configure actual deployment commands for your chosen platform
+          # Uncomment and configure one of the following:
+          # 
+          # For Fly.io:
           # flyctl deploy --config fly.staging.toml --build-arg BUILD_SHA=${{ github.sha }}
+          #
+          # For Render:
+          # curl -X POST "$RENDER_DEPLOY_HOOK_URL"
+          #
+          # For Railway:
+          # railway up --environment staging
 
   deploy-production:
     name: Deploy to Production
@@ -153,6 +161,11 @@ jobs:
       - name: Deploy to production
         run: |
           echo "Deploying to production environment..."
+          # TODO: Configure actual deployment commands for your chosen platform
+          # Requires manual approval via GitHub environment protection rules
+          # 
+          # For Fly.io:
+          # flyctl deploy --config fly.toml --build-arg BUILD_SHA=${{ github.sha }}
           echo "This requires manual approval via GitHub environments"
           # Example for Fly.io:
           # flyctl deploy --config fly.toml --build-arg BUILD_SHA=${{ github.sha }}

@@ -37,23 +37,45 @@ export class FlagsService {
   }
 
   /**
-   * Create or update a feature flag
+   * Create a feature flag
    */
-  async setFlag(
-    landlordId: string,
-    dto: CreateFeatureFlagDto | UpdateFeatureFlagDto,
-  ) {
-    const key = (dto as CreateFeatureFlagDto).key;
-    
-    return this.prisma.featureFlag.upsert({
+  async createFlag(landlordId: string, dto: CreateFeatureFlagDto) {
+    return this.prisma.featureFlag.create({
+      data: {
+        landlordId,
+        ...dto,
+      },
+    });
+  }
+
+  /**
+   * Update a feature flag
+   */
+  async updateFlag(landlordId: string, key: string, dto: UpdateFeatureFlagDto) {
+    return this.prisma.featureFlag.update({
       where: {
         landlordId_key: { landlordId, key },
       },
+      data: dto,
+    });
+  }
+
+  /**
+   * Create or update a feature flag (upsert)
+   */
+  async upsertFlag(landlordId: string, dto: CreateFeatureFlagDto) {
+    return this.prisma.featureFlag.upsert({
+      where: {
+        landlordId_key: { landlordId, key: dto.key },
+      },
       create: {
         landlordId,
-        ...(dto as CreateFeatureFlagDto),
+        ...dto,
       },
-      update: dto,
+      update: {
+        enabled: dto.enabled,
+        variant: dto.variant,
+      },
     });
   }
 

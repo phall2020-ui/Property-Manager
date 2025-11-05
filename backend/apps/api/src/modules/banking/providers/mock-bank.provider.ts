@@ -27,6 +27,22 @@ export interface IBankProvider {
   ): Promise<BankTransactionData[]>;
 }
 
+/**
+ * Mock bank provider for testing and development
+ * 
+ * This provider simulates a banking API without requiring actual bank connections.
+ * It generates realistic test data including:
+ * - 2 bank accounts (rental and deposits accounts)
+ * - 5-10 randomized transactions per account within the requested date range
+ * - Transaction amounts between £800-£1300 (typical rent payments)
+ * - References including invoice numbers for testing reconciliation
+ * 
+ * Use this provider for:
+ * - Local development
+ * - Automated testing
+ * - Demonstrations
+ * - Sandbox environments
+ */
 @Injectable()
 export class MockBankProvider implements IBankProvider {
   private readonly logger = new Logger(MockBankProvider.name);

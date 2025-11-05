@@ -42,7 +42,7 @@ export class FlagsController {
   @ApiOperation({ summary: 'Create or update feature flag' })
   async setFlag(@Request() req, @Body() dto: CreateFeatureFlagDto) {
     const landlordId = req.user.orgId;
-    return this.flagsService.setFlag(landlordId, dto);
+    return this.flagsService.upsertFlag(landlordId, dto);
   }
 
   @Put(':key')
@@ -53,7 +53,7 @@ export class FlagsController {
     @Body() dto: UpdateFeatureFlagDto,
   ) {
     const landlordId = req.user.orgId;
-    return this.flagsService.setFlag(landlordId, { key, ...dto } as any);
+    return this.flagsService.updateFlag(landlordId, key, dto);
   }
 
   @Post(':key/toggle')
