@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -7,6 +8,9 @@ const prisma = new PrismaClient();
  * Test fixtures for database models
  * These fixtures can be used in tests to create consistent test data
  */
+
+// Configurable salt rounds for bcrypt hashing
+const BCRYPT_SALT_ROUNDS = 10;
 
 export const DbFixtures = {
   /**
@@ -35,11 +39,11 @@ export const DbFixtures = {
       ? await prisma.org.findUnique({ where: { id: data.orgId } })
       : await DbFixtures.createOrg();
 
-    const passwordHash = await bcrypt.hash(data?.password || 'password123', 10);
+    const passwordHash = await bcrypt.hash(data?.password || 'password123', BCRYPT_SALT_ROUNDS);
 
     return prisma.user.create({
       data: {
-        email: data?.email || `test-${Date.now()}@example.com`,
+        email: data?.email || `test-${randomUUID()}@example.com`,
         name: data?.name || 'Test User',
         passwordHash,
         orgMemberships: {
