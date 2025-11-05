@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { propertiesApi, complianceApi } from '../../lib/api';
 import ComplianceCard from '../../components/compliance/ComplianceCard';
+import EmptyState from '../../components/compliance/EmptyState';
 
 interface Property {
   id: string;
@@ -256,13 +257,10 @@ export default function PropertyDetailPage() {
               )}
             </>
           ) : (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
-              <span className="text-6xl mb-4 block">🎉</span>
-              <h3 className="text-green-900 font-semibold text-lg">All Up to Date!</h3>
-              <p className="text-green-700 mt-2">
-                No compliance items are currently set for this property.
-              </p>
-            </div>
+            <EmptyState
+              title="All Up to Date!"
+              message="No compliance items are currently set for this property."
+            />
           )}
         </div>
       )}

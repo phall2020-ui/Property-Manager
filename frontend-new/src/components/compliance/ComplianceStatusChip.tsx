@@ -6,25 +6,25 @@ const statusConfig = {
   OK: {
     label: 'OK',
     bgColor: 'bg-green-50',
-    textColor: 'text-green-800',
+    textColor: 'text-green-700',
     dotColor: 'bg-green-500',
   },
   DUE_SOON: {
     label: 'Due soon',
     bgColor: 'bg-amber-50',
-    textColor: 'text-amber-800',
+    textColor: 'text-amber-700',
     dotColor: 'bg-amber-500',
   },
   OVERDUE: {
     label: 'Overdue',
     bgColor: 'bg-red-50',
-    textColor: 'text-red-800',
+    textColor: 'text-red-700',
     dotColor: 'bg-red-500',
   },
   MISSING: {
     label: 'Missing',
-    bgColor: 'bg-gray-50',
-    textColor: 'text-gray-800',
+    bgColor: 'bg-gray-100',
+    textColor: 'text-gray-700',
     dotColor: 'bg-gray-500',
   },
 };

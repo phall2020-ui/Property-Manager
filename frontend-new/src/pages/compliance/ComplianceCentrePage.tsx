@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { complianceApi } from '../../lib/api';
 import ComplianceStatusChip from '../../components/compliance/ComplianceStatusChip';
 import KPIStatCard from '../../components/compliance/KPIStatCard';
+import EmptyState from '../../components/compliance/EmptyState';
 
 interface ComplianceItem {
   id: string;
@@ -68,11 +69,14 @@ export default function ComplianceCentrePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Compliance Centre</h1>
-        <p className="text-gray-600 mt-2">
-          Manage and track all regulatory compliance across your portfolio
-        </p>
+      <div className="flex items-center gap-3">
+        <span className="text-4xl">🛡️</span>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Compliance Centre</h1>
+          <p className="text-gray-600 mt-1">
+            Manage and track all regulatory compliance across your portfolio
+          </p>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -182,15 +186,15 @@ export default function ComplianceCentrePage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <div className="text-gray-500">
-                      <p className="text-lg font-medium">No compliance items found</p>
-                      <p className="text-sm mt-1">
-                        {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
-                          ? 'Try adjusting your filters'
-                          : 'All items are up to date 🎉'}
-                      </p>
-                    </div>
+                  <td colSpan={6} className="px-6 py-8">
+                    {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' ? (
+                      <div className="text-center text-gray-500">
+                        <p className="text-lg font-medium">No compliance items found</p>
+                        <p className="text-sm mt-1">Try adjusting your filters</p>
+                      </div>
+                    ) : (
+                      <EmptyState />
+                    )}
                   </td>
                 </tr>
               ) : (
