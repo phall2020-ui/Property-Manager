@@ -235,7 +235,7 @@ export class FinanceMetricsService {
 
         return {
           tenancyId: tenancy.id,
-          propertyAddress: `${tenancy.property.address1}, ${tenancy.property.postcode}`,
+          propertyAddress: `${tenancy.property.addressLine1}, ${tenancy.property.postcode}`,
           tenantName: tenancy.tenantOrg.name,
           expectedRent,
           receivedRent,
@@ -327,7 +327,7 @@ export class FinanceMetricsService {
 
         return {
           tenancyId: tenancy.id,
-          propertyAddress: `${tenancy.property.address1}, ${tenancy.property.postcode}`,
+          propertyAddress: `${tenancy.property.addressLine1}, ${tenancy.property.postcode}`,
           tenantName: primaryTenant?.fullName || tenancy.tenantOrg.name,
           tenantEmail: primaryTenant?.email,
           tenantPhone: primaryTenant?.phone,

@@ -23,10 +23,12 @@ export class MandateService {
     const mandate = await this.prisma.mandate.create({
       data: {
         landlordId,
+        tenancyId: dto.tenancyId, // Required field from Step 6
         tenantUserId: dto.tenantUserId,
-        provider: dto.provider,
-        status: 'PENDING',
+        provider: dto.provider.toLowerCase(), // gocardless|stripe
+        providerRef: `MOCK-${dto.provider}-${Date.now()}`, // Required field
         reference: `MOCK-${dto.provider}-${Date.now()}`,
+        status: 'PENDING',
       },
     });
 

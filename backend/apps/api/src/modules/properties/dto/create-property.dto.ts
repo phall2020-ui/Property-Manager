@@ -3,15 +3,15 @@ import { IsNotEmpty, IsOptional, IsString, IsInt, Min } from 'class-validator';
 export class CreatePropertyDto {
   @IsString()
   @IsNotEmpty()
-  address1: string;
+  addressLine1: string;
 
   @IsOptional()
   @IsString()
   address2?: string;
 
-  @IsOptional()
   @IsString()
-  city?: string;
+  @IsNotEmpty()
+  city: string;
 
   @IsString()
   @IsNotEmpty()
@@ -21,4 +21,8 @@ export class CreatePropertyDto {
   @IsInt()
   @Min(0)
   bedrooms?: number;
+
+  @IsOptional()
+  @IsString()
+  councilTaxBand?: string;
 }

@@ -139,7 +139,8 @@ async function main() {
   const rentAccount = await prisma.ledgerAccount.create({
     data: {
       landlordId: landlordOrg.id,
-      type: 'RENT',
+      code: 'RENT-001',
+      type: 'INCOME',
       name: 'Rent Receivable',
       currency: 'GBP',
     },
@@ -156,6 +157,7 @@ async function main() {
       number: 'INV-2024-000001',
       issueDate: new Date('2024-10-25'),
       dueDate: new Date('2024-11-01'),
+      amount: 1500,
       lineTotal: 1500,
       taxTotal: 0,
       grandTotal: 1500,
@@ -179,13 +181,15 @@ async function main() {
   const payment1 = await prisma.payment.create({
     data: {
       landlordId: landlordOrg.id,
+      invoiceId: invoice1.id,
       propertyId: property.id,
       tenancyId: tenancy.id,
       tenantUserId: tenantUser.id,
+      provider: 'stripe',
       method: 'BANK_TRANSFER',
       amount: 1500,
       receivedAt: paidDate,
-      status: 'SUCCEEDED',
+      status: 'CONFIRMED',
     },
   });
 
@@ -207,10 +211,11 @@ async function main() {
       number: 'INV-2024-000002',
       issueDate: new Date('2024-11-25'),
       dueDate: new Date('2024-12-01'),
+      amount: 1500,
       lineTotal: 1500,
       taxTotal: 0,
       grandTotal: 1500,
-      status: 'PART_PAID',
+      status: 'SENT',
       lines: {
         create: [
           {
@@ -230,13 +235,15 @@ async function main() {
   const payment2 = await prisma.payment.create({
     data: {
       landlordId: landlordOrg.id,
+      invoiceId: invoice2.id,
       propertyId: property.id,
       tenancyId: tenancy.id,
       tenantUserId: tenantUser.id,
+      provider: 'stripe',
       method: 'BANK_TRANSFER',
       amount: 750,
       receivedAt: new Date('2024-12-01'),
-      status: 'SUCCEEDED',
+      status: 'CONFIRMED',
     },
   });
 
@@ -258,10 +265,11 @@ async function main() {
       number: 'INV-2024-000003',
       issueDate: new Date('2024-10-01'),
       dueDate: new Date('2024-10-07'),
+      amount: 1500,
       lineTotal: 1500,
       taxTotal: 0,
       grandTotal: 1500,
-      status: 'ISSUED',
+      status: 'SENT',
       lines: {
         create: [
           {
@@ -281,10 +289,12 @@ async function main() {
   const mandate = await prisma.mandate.create({
     data: {
       landlordId: landlordOrg.id,
+      tenancyId: tenancy.id,
       tenantUserId: tenantUser.id,
-      provider: 'GOCARDLESS',
-      status: 'ACTIVE',
+      provider: 'gocardless',
+      providerRef: 'MD-MOCK-12345',
       reference: 'MD-MOCK-12345',
+      status: 'ACTIVE',
       activatedAt: new Date('2024-01-15'),
     },
   });

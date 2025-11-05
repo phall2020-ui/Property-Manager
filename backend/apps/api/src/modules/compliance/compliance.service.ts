@@ -38,7 +38,7 @@ export class ComplianceService {
 
     for (const property of properties) {
       const activeTenancy = property.tenancies[0];
-      const propertyAddress = `${property.address1}${property.city ? ', ' + property.city : ''}`;
+      const propertyAddress = `${property.addressLine1}${property.city ? ', ' + property.city : ''}`;
 
       // Gas Safety
       if (activeTenancy?.gasSafetyDueAt) {
@@ -232,7 +232,7 @@ export class ComplianceService {
 
     const complianceItems: ComplianceItem[] = [];
     const activeTenancy = property.tenancies[0];
-    const propertyAddress = `${property.address1}${property.city ? ', ' + property.city : ''}`;
+    const propertyAddress = `${property.addressLine1}${property.city ? ', ' + property.city : ''}`;
 
     // Define all compliance types with explicit type mapping
     const complianceTypes: Array<{
