@@ -45,6 +45,7 @@ model User {
   ticketsAssigned Ticket[]       @relation("TicketAssignee")
   quotesCreated   Quote[]
   notesCreated    PropertyNote[]
+  mandates        Mandate[]
 }
 
 // Organisation membership with roles
@@ -94,6 +95,7 @@ model Property {
   propertyType  String?  // House, Flat, HMO, Maisonette, Bungalow, Other
   furnished     String?  // Unfurnished, Part, Full
   epcRating     String?  // A-G or Unknown
+  propertyValue Float?   // For yield calculations
   ownerOrgId    String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -329,4 +331,280 @@ model AuditLog {
 
   @@index([propertyId])
   @@index([tenancyId])
+}
+
+// ============================================================================
+// FINANCE MODELS
+// ============================================================================
+
+// Chart of accounts for double-entry bookkeeping
+model LedgerAccount {
+  id         String   @id @default(uuid())
+  landlordId String   // Maps to Org.id where type='LANDLORD'
+  type       String   // RENT, DEPOSIT, FEE, VAT, OTHER
+  name       String
+  currency   String   @default("GBP")
+  createdAt  DateTime @default(now())
+
+  entries LedgerEntry[]
+
+  @@index([landlordId])
+  @@index([landlordId, type])
+}
+
+// Double-entry ledger for all financial transactions
+model LedgerEntry {
+  id            String    @id @default(uuid())
+  landlordId    String
+  propertyId    String?
+  tenancyId     String?
+  tenantUserId  String?   // References User.id where role=TENANT
+  accountId     String
+  direction     String    // DEBIT, CREDIT
+  amount        Float     // Store as pence/cents * 100 in app logic for precision
+  description   String
+  refType       String?   // invoice, payment, payout, etc.
+  refId         String?   // Reference to related entity
+  eventAt       DateTime
+  createdAt     DateTime  @default(now())
+
+  account LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([landlordId, accountId, eventAt])
+  @@index([propertyId, eventAt])
+  @@index([tenancyId])
+}
+
+// Invoices for rent and other charges
+model Invoice {
+  id            String   @id @default(uuid())
+  landlordId    String
+  propertyId    String
+  tenancyId     String
+  tenantUserId  String?  // Primary tenant for this invoice
+  number        String   // INV-YYYY-000001
+  issueDate     DateTime
+  dueDate       DateTime
+  lineTotal     Float
+  taxTotal      Float
+  grandTotal    Float
+  status        String   // DRAFT, ISSUED, PART_PAID, PAID, VOID
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lines       InvoiceLine[]
+  creditNotes CreditNote[]
+  allocations PaymentAllocation[]
+
+  @@unique([landlordId, number])
+  @@index([landlordId, status])
+  @@index([propertyId])
+  @@index([tenancyId])
+  @@index([tenantUserId])
+}
+
+// Line items on invoices
+model InvoiceLine {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  description String
+  qty         Float   @default(1.0)
+  unitPrice   Float
+  taxRate     Float   @default(0.0)
+  lineTotal   Float
+  taxTotal    Float
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+// Credit notes for invoice adjustments
+model CreditNote {
+  id         String   @id @default(uuid())
+  invoiceId  String?  // Optional - can be general credit
+  landlordId String
+  amount     Float
+  reason     String
+  createdAt  DateTime @default(now())
+
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([landlordId])
+  @@index([invoiceId])
+}
+
+// Payments received from tenants
+model Payment {
+  id           String    @id @default(uuid())
+  landlordId   String
+  propertyId   String?
+  tenancyId    String?
+  tenantUserId String?
+  method       String    // GOCARDLESS, STRIPE, BANK_TRANSFER, CASH, OTHER
+  amount       Float
+  receivedAt   DateTime
+  externalId   String?   // Provider reference
+  status       String    // PENDING, SUCCEEDED, FAILED, REFUNDED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  allocations PaymentAllocation[]
+
+  @@index([landlordId, status])
+  @@index([propertyId])
+  @@index([tenancyId])
+  @@index([tenantUserId])
+  @@index([externalId])
+}
+
+// Allocations of payments to invoices (partial payments supported)
+model PaymentAllocation {
+  id        String   @id @default(uuid())
+  paymentId String
+  invoiceId String
+  amount    Float
+  createdAt DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([invoiceId])
+}
+
+// Direct Debit mandates and recurring payment methods
+model Mandate {
+  id           String    @id @default(uuid())
+  landlordId   String
+  tenantUserId String    // References User.id
+  provider     String    // GOCARDLESS, STRIPE
+  status       String    // PENDING, ACTIVE, FAILED, CANCELLED
+  reference    String?   // Provider mandate ID
+  createdAt    DateTime  @default(now())
+  activatedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+
+  tenantUser User @relation(fields: [tenantUserId], references: [id], onDelete: Restrict)
+
+  @@index([landlordId])
+  @@index([tenantUserId])
+  @@index([status])
+}
+
+// Payouts to landlord bank accounts
+model Payout {
+  id              String   @id @default(uuid())
+  landlordId      String
+  amount          Float
+  bankAccountLast4 String?
+  paidAt          DateTime
+  provider        String?  // STRIPE, GOCARDLESS, MANUAL
+  reference       String?
+  createdAt       DateTime @default(now())
+
+  @@index([landlordId])
+  @@index([paidAt])
+}
+
+// Bank transactions from Open Banking feeds
+model BankTransaction {
+  id            String   @id @default(uuid())
+  landlordId    String
+  bankAccountId String   // Internal reference to connected account
+  postedAt      DateTime
+  description   String
+  amount        Float
+  currency      String   @default("GBP")
+  hash          String   @unique // For deduplication
+  rawJson       String?  // Store original transaction data
+  createdAt     DateTime @default(now())
+
+  reconciliations Reconciliation[]
+
+  @@index([landlordId, bankAccountId])
+  @@index([postedAt])
+  @@index([hash])
+}
+
+// Reconciliation matches between bank transactions and payments/invoices
+model Reconciliation {
+  id                String   @id @default(uuid())
+  landlordId        String
+  bankTransactionId String
+  matchType         String   // AUTO, MANUAL
+  confidence        Float    // 0.00 to 100.00
+  matchedEntityType String?  // payment, invoice
+  matchedEntityId   String?  // ID of payment or invoice
+  createdAt         DateTime @default(now())
+
+  bankTransaction BankTransaction @relation(fields: [bankTransactionId], references: [id], onDelete: Cascade)
+
+  @@index([landlordId])
+  @@index([bankTransactionId])
+}
+
+// Charge rules for rent schedules and late fees
+model ChargeRule {
+  id         String   @id @default(uuid())
+  landlordId String
+  type       String   // RENT, LATE_FEE, SERVICE_CHARGE, OTHER
+  calc       String   // JSON config: { frequency, amount, dayOfMonth, lateFeePercent, etc }
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([landlordId, type])
+  @@index([isActive])
+}
+
+// Periodic snapshots of account balances for performance
+model BalanceSnapshot {
+  id         String    @id @default(uuid())
+  landlordId String
+  propertyId String?
+  tenancyId  String?
+  asOf       DateTime
+  rentAR     Float     @default(0.0) // Accounts receivable for rent
+  feesAR     Float     @default(0.0) // Accounts receivable for fees
+  deposits   Float     @default(0.0) // Deposit liability
+  credits    Float     @default(0.0) // Credit balance
+  createdAt  DateTime  @default(now())
+
+  @@index([landlordId, asOf])
+  @@index([propertyId, asOf])
+  @@index([tenancyId, asOf])
+}
+
+// Finance settings per landlord
+model FinanceSettings {
+  id                 String   @id @default(uuid())
+  landlordId         String   @unique
+  invoicePrefix      String   @default("INV")
+  defaultDueDays     Int      @default(7)
+  lateFeeEnabled     Boolean  @default(false)
+  lateFeePercent     Float?   // Daily percentage
+  lateFeeFixed       Float?   // Or fixed amount per day
+  lateFeeGraceDays   Int      @default(0)
+  lateFeeCap         Float?   // Max late fee per invoice
+  vatOnFeesEnabled   Boolean  @default(false)
+  vatRate            Float    @default(20.0)
+  currency           String   @default("GBP")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([landlordId])
+}
+
+// Idempotency keys for financial operations
+model IdempotencyKey {
+  id         String   @id @default(uuid())
+  key        String   @unique
+  hash       String   // Hash of request body
+  response   String?  // Cached response
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([key])
+  @@index([expiresAt])
 }
