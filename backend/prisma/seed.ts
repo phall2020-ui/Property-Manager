@@ -70,7 +70,7 @@ async function main() {
   // Create Property
   const property = await prisma.property.create({
     data: {
-      address1: '123 Main Street',
+      addressLine1: '123 Main Street',
       address2: 'Apt 4B',
       city: 'London',
       postcode: 'SW1A 1AA',
@@ -84,9 +84,13 @@ async function main() {
     data: {
       propertyId: property.id,
       tenantOrgId: tenantOrg.id,
+      start: new Date('2024-01-01'),
       startDate: new Date('2024-01-01'),
+      end: new Date('2025-01-01'),
       endDate: new Date('2025-01-01'),
+      rent: 1500,
       rentPcm: 1500,
+      frequency: 'MONTHLY',
       deposit: 3000,
       status: 'ACTIVE',
     },
@@ -334,10 +338,13 @@ async function main() {
         tenantUserId: tenantUser.id,
         accountId: rentAccount.id,
         direction: 'DEBIT',
+        drCr: 'DR',
         amount: 1500,
         description: 'Invoice INV-2024-000001',
+        memo: 'Invoice INV-2024-000001',
         refType: 'invoice',
         refId: invoice1.id,
+        bookedAt: new Date('2024-10-25'),
         eventAt: new Date('2024-10-25'),
       },
       {
@@ -347,10 +354,13 @@ async function main() {
         tenantUserId: tenantUser.id,
         accountId: rentAccount.id,
         direction: 'CREDIT',
+        drCr: 'CR',
         amount: 1500,
         description: 'Payment via BANK_TRANSFER',
+        memo: 'Payment via BANK_TRANSFER',
         refType: 'payment',
         refId: payment1.id,
+        bookedAt: paidDate,
         eventAt: paidDate,
       },
       {
@@ -360,10 +370,13 @@ async function main() {
         tenantUserId: tenantUser.id,
         accountId: rentAccount.id,
         direction: 'DEBIT',
+        drCr: 'DR',
         amount: 1500,
         description: 'Invoice INV-2024-000002',
+        memo: 'Invoice INV-2024-000002',
         refType: 'invoice',
         refId: invoice2.id,
+        bookedAt: new Date('2024-11-25'),
         eventAt: new Date('2024-11-25'),
       },
       {
@@ -373,10 +386,13 @@ async function main() {
         tenantUserId: tenantUser.id,
         accountId: rentAccount.id,
         direction: 'CREDIT',
+        drCr: 'CR',
         amount: 750,
         description: 'Payment via BANK_TRANSFER',
+        memo: 'Payment via BANK_TRANSFER',
         refType: 'payment',
         refId: payment2.id,
+        bookedAt: new Date('2024-12-01'),
         eventAt: new Date('2024-12-01'),
       },
       {
@@ -386,10 +402,13 @@ async function main() {
         tenantUserId: tenantUser.id,
         accountId: rentAccount.id,
         direction: 'DEBIT',
+        drCr: 'DR',
         amount: 1500,
         description: 'Invoice INV-2024-000003',
+        memo: 'Invoice INV-2024-000003',
         refType: 'invoice',
         refId: invoice3.id,
+        bookedAt: new Date('2024-10-01'),
         eventAt: new Date('2024-10-01'),
       },
     ],
@@ -413,7 +432,7 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════');
   console.log('📊 SAMPLE DATA');
   console.log('═══════════════════════════════════════════════════════════\n');
-  console.log(`🏠 Property:  ${property.address1}, ${property.city} ${property.postcode}`);
+  console.log(`🏠 Property:  ${property.addressLine1}, ${property.city} ${property.postcode}`);
   console.log(`📝 Tenancy:   Active (${tenancy.rentPcm}/month)`);
   console.log(`🎫 Ticket:    "${ticket.title}" (${ticket.status})`);
   console.log(`\n💰 FINANCE DATA:`);
