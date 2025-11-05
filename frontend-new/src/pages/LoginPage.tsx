@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { isValidEmail, extractErrorMessage } from '../lib/validation';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -25,9 +26,8 @@ export default function LoginPage() {
       return;
     }
     
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
+    // Validate email format
+    if (!isValidEmail(email)) {
       setError('Please enter a valid email address');
       return;
     }
@@ -39,23 +39,7 @@ export default function LoginPage() {
       navigate('/dashboard');
     } catch (err: any) {
       console.error('Login error:', err);
-      // Handle different error scenarios
-      if (err.response) {
-        // Server responded with error
-        const errorMessage = err.response.data?.detail || 
-                           err.response.data?.message || 
-                           err.response.data?.error ||
-                           `Login failed with status ${err.response.status}`;
-        setError(errorMessage);
-      } else if (err.request) {
-        // Request was made but no response
-        setError('Unable to connect to server. Please check your connection and try again.');
-      } else if (err.message) {
-        // Something else happened
-        setError(err.message);
-      } else {
-        setError('Login failed. Please try again.');
-      }
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
