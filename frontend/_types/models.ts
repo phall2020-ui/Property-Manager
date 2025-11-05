@@ -22,14 +22,20 @@ export enum TicketStatus {
   REJECTED = 'REJECTED',
 }
 
+export interface Organisation {
+  orgId: string;
+  orgName: string;
+  role: Role;
+}
+
 export interface User {
   id: string;
-  displayName: string;
+  name: string;  // Backend returns 'name' not 'displayName'
   email: string;
-  role: Role;
-  landlordId?: string;
-  contractorId?: string;
+  organisations: Organisation[];
   createdAt?: string;
+  // Computed property for backward compatibility
+  role?: Role;
 }
 
 export interface Property {

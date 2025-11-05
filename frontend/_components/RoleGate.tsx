@@ -22,12 +22,22 @@ export default function RoleGate({ role, children }: RoleGateProps) {
     if (!loading) {
       if (!user) {
         router.replace('/login');
-      } else if (user.role !== role) {
-        router.replace('/login');
+      } else {
+        // Check the first organisation's role (primary role)
+        const primaryRole = user.organisations?.[0]?.role;
+        if (primaryRole !== role) {
+          router.replace('/login');
+        }
       }
     }
   }, [loading, user, role, router]);
+  
   if (loading) return null;
-  if (!user || user.role !== role) return null;
+  if (!user) return null;
+  
+  // Check the first organisation's role (primary role)
+  const primaryRole = user.organisations?.[0]?.role;
+  if (primaryRole !== role) return null;
+  
   return <>{children}</>;
 }
