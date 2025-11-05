@@ -17,14 +17,14 @@ datasource db {
 model Org {
   id        String   @id @default(uuid())
   name      String
-  type      String   // LANDLORD, TENANT
+  type      String // LANDLORD, TENANT
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  members            OrgMember[]
-  propertiesOwned    Property[]       @relation("OwnedProperties")
-  tenanciesAsTenant  Tenancy[]        @relation("TenantOrg")
-  invitesSent        Invite[]
+  members           OrgMember[]
+  propertiesOwned   Property[]  @relation("OwnedProperties")
+  tenanciesAsTenant Tenancy[]   @relation("TenantOrg")
+  invitesSent       Invite[]
 }
 
 // User accounts
@@ -53,7 +53,7 @@ model OrgMember {
   id        String   @id @default(uuid())
   orgId     String
   userId    String
-  role      String   // LANDLORD, TENANT, CONTRACTOR, ADMIN
+  role      String // LANDLORD, TENANT, CONTRACTOR, ADMIN
   createdAt DateTime @default(now())
 
   org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -66,13 +66,13 @@ model OrgMember {
 
 // Refresh token storage for rotation
 model RefreshToken {
-  id          String    @id @default(uuid())
-  userId      String
-  jti         String    @unique
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  replacedBy  String?
-  createdAt   DateTime  @default(now())
+  id         String    @id @default(uuid())
+  userId     String
+  jti        String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -92,15 +92,15 @@ model Property {
   city          String?
   postcode      String
   bedrooms      Int?
-  propertyType  String?  // House, Flat, HMO, Maisonette, Bungalow, Other
-  furnished     String?  // Unfurnished, Part, Full
-  epcRating     String?  // A-G or Unknown
-  propertyValue Float?   // For yield calculations
+  propertyType  String? // House, Flat, HMO, Maisonette, Bungalow, Other
+  furnished     String? // Unfurnished, Part, Full
+  epcRating     String? // A-G or Unknown
+  propertyValue Float? // For yield calculations
   ownerOrgId    String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  owner     Org              @relation("OwnedProperties", fields: [ownerOrgId], references: [id], onDelete: Cascade)
+  owner     Org                @relation("OwnedProperties", fields: [ownerOrgId], references: [id], onDelete: Cascade)
   tenancies Tenancy[]
   tickets   Ticket[]
   documents PropertyDocument[]
@@ -112,47 +112,47 @@ model Property {
 
 // Tenancies linking properties to tenant organisations
 model Tenancy {
-  id           String    @id @default(uuid())
-  propertyId   String
-  tenantOrgId  String
-  startDate    DateTime
-  endDate      DateTime?
-  rentPcm      Float     // Keep for backward compatibility
-  rentAmount   Float?    // New field (optional for now)
-  rentFrequency String   @default("Monthly") // Monthly, Weekly, Other
-  rentDueDay   Int?     // 1-28
-  deposit      Float
-  status       String    // PENDING, ACTIVE, ENDED
-  
-  // Legal & Deposit
-  depositScheme           String?  // DPS, TDS, MyDeposits, None
-  depositProtectedAt      DateTime?
-  prescribedInfoServedAt  DateTime?
-  howToRentServedAt       DateTime?
-  rightToRentCheckedAt    DateTime?
-  
-  // Compliance dates
-  gasSafetyDueAt          DateTime?
-  eicrDueAt               DateTime?
-  epcExpiresAt            DateTime?
-  boilerServiceDueAt      DateTime?
-  smokeAlarmsCheckedAt    DateTime?
-  coAlarmsCheckedAt       DateTime?
-  legionellaAssessmentAt  DateTime?
-  
-  // HMO & Licensing
-  hmo                     Boolean  @default(false)
-  hmoLicenceNumber        String?
-  hmoLicenceExpiresAt     DateTime?
-  selectiveLicence        Boolean  @default(false)
-  selectiveLicenceExpiresAt DateTime?
-  
-  notes        String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  propertyId    String
+  tenantOrgId   String
+  startDate     DateTime
+  endDate       DateTime?
+  rentPcm       Float // Keep for backward compatibility
+  rentAmount    Float? // New field (optional for now)
+  rentFrequency String    @default("Monthly") // Monthly, Weekly, Other
+  rentDueDay    Int? // 1-28
+  deposit       Float
+  status        String // PENDING, ACTIVE, ENDED
 
-  property  Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  tenantOrg Org                 @relation("TenantOrg", fields: [tenantOrgId], references: [id], onDelete: Cascade)
+  // Legal & Deposit
+  depositScheme          String? // DPS, TDS, MyDeposits, None
+  depositProtectedAt     DateTime?
+  prescribedInfoServedAt DateTime?
+  howToRentServedAt      DateTime?
+  rightToRentCheckedAt   DateTime?
+
+  // Compliance dates
+  gasSafetyDueAt         DateTime?
+  eicrDueAt              DateTime?
+  epcExpiresAt           DateTime?
+  boilerServiceDueAt     DateTime?
+  smokeAlarmsCheckedAt   DateTime?
+  coAlarmsCheckedAt      DateTime?
+  legionellaAssessmentAt DateTime?
+
+  // HMO & Licensing
+  hmo                       Boolean   @default(false)
+  hmoLicenceNumber          String?
+  hmoLicenceExpiresAt       DateTime?
+  selectiveLicence          Boolean   @default(false)
+  selectiveLicenceExpiresAt DateTime?
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  property  Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantOrg Org               @relation("TenantOrg", fields: [tenantOrgId], references: [id], onDelete: Cascade)
   tickets   Ticket[]
   documents TenancyDocument[]
   tenants   TenancyTenant[]
@@ -164,13 +164,13 @@ model Tenancy {
 
 // Documents attached to tenancies (stored on disk)
 model TenancyDocument {
-  id         String   @id @default(uuid())
-  tenancyId  String
-  filename   String
-  filepath   String
-  mimetype   String?
-  size       Int?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  tenancyId String
+  filename  String
+  filepath  String
+  mimetype  String?
+  size      Int?
+  createdAt DateTime @default(now())
 
   tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
 
@@ -183,46 +183,70 @@ model TenancyDocument {
 
 // Tenant invitations
 model Invite {
-  id          String    @id @default(uuid())
-  token       String    @unique
-  email       String
-  tenancyId   String?
-  inviterOrgId String
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  id           String    @id @default(uuid())
+  landlordId   String // Maps to Org.id where type='LANDLORD'
+  tenancyId    String
+  email        String
+  token        String    @unique
+  status       String    @default("SENT") // SENT, ACCEPTED, EXPIRED
+  expiresAt    DateTime
+  inviterOrgId String // Keep for backward compatibility
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
 
   inviterOrg Org @relation(fields: [inviterOrgId], references: [id], onDelete: Cascade)
 
+  @@index([landlordId])
   @@index([token])
   @@index([email])
+  @@index([tenancyId])
+  @@index([status])
 }
 
 // ============================================================================
 // MAINTENANCE TICKETS
 // ============================================================================
 
+// Vendors (contractors) for maintenance work
+model Vendor {
+  id         String   @id @default(uuid())
+  landlordId String
+  name       String
+  categories String // JSON array as string: ["plumbing", "electrical"]
+  email      String?
+  phone      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  quotes Quote[] @relation("VendorQuotes")
+
+  @@index([landlordId])
+}
+
 // Maintenance tickets
 model Ticket {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
+  landlordId   String // For tenant isolation
   propertyId   String?
   tenancyId    String?
   title        String
   description  String
   createdById  String
   assignedToId String?
-  priority     String    // LOW, MEDIUM, HIGH
-  status       String    // OPEN, QUOTING, APPROVAL, SCHEDULED, DONE
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  priority     String // LOW, MEDIUM, HIGH
+  status       String // OPEN, QUOTED, APPROVED, IN_PROGRESS, COMPLETE, CANCELLED
+  attachments  String? // JSON array as string
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  property      Property?           @relation(fields: [propertyId], references: [id])
-  tenancy       Tenancy?            @relation(fields: [tenancyId], references: [id])
-  createdBy     User                @relation("TicketCreator", fields: [createdById], references: [id])
-  assignedTo    User?               @relation("TicketAssignee", fields: [assignedToId], references: [id])
-  quotes        Quote[]
-  attachments   TicketAttachment[]
+  property        Property?          @relation(fields: [propertyId], references: [id])
+  tenancy         Tenancy?           @relation(fields: [tenancyId], references: [id])
+  createdBy       User               @relation("TicketCreator", fields: [createdById], references: [id])
+  assignedTo      User?              @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  quotes          Quote[]
+  attachmentFiles TicketAttachment[] @relation("TicketAttachments")
 
+  @@index([landlordId])
   @@index([propertyId])
   @@index([tenancyId])
   @@index([createdById])
@@ -233,21 +257,24 @@ model Ticket {
 model Quote {
   id              String    @id @default(uuid())
   ticketId        String
-  contractorId    String
+  vendorId        String? // References Vendor.id
+  contractorId    String // Keep for backward compatibility (User contractor)
   amount          Float
   notes           String?
-  status          String    // PENDING, APPROVED, REJECTED
+  status          String // PROPOSED, APPROVED, REJECTED
   approvedAt      DateTime?
   completedAt     DateTime?
   completionNotes String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  contractor User   @relation(fields: [contractorId], references: [id])
+  ticket     Ticket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  contractor User    @relation(fields: [contractorId], references: [id])
+  vendor     Vendor? @relation("VendorQuotes", fields: [vendorId], references: [id])
 
   @@index([ticketId])
   @@index([contractorId])
+  @@index([vendorId])
 }
 
 // Attachments for tickets (stored on disk)
@@ -260,9 +287,21 @@ model TicketAttachment {
   size      Int?
   createdAt DateTime @default(now())
 
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket Ticket @relation("TicketAttachments", fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
+}
+
+// Approval rules for ticket quotes
+model ApprovalRule {
+  id                   String   @id @default(uuid())
+  landlordId           String
+  autoApproveThreshold Float // Amount in currency
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([landlordId])
+  @@index([landlordId])
 }
 
 // ============================================================================
@@ -273,7 +312,7 @@ model TicketAttachment {
 model PropertyDocument {
   id         String    @id @default(uuid())
   propertyId String
-  docType    String    // EPC, Insurance, Title, etc.
+  docType    String // EPC, Insurance, Title, etc.
   filename   String
   filepath   String
   url        String?
@@ -289,13 +328,13 @@ model PropertyDocument {
 
 // Tenants linked to tenancies
 model TenancyTenant {
-  id         String    @id @default(uuid())
-  tenancyId  String
-  fullName   String
-  email      String
-  phone      String?
-  status     String    @default("INVITED") // INVITED, PENDING, ACTIVE
-  createdAt  DateTime  @default(now())
+  id        String   @id @default(uuid())
+  tenancyId String
+  fullName  String
+  email     String
+  phone     String?
+  status    String   @default("INVITED") // INVITED, PENDING, ACTIVE
+  createdAt DateTime @default(now())
 
   tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
 
@@ -319,12 +358,12 @@ model PropertyNote {
 
 // Audit log for property & tenancy changes
 model AuditLog {
-  id         String    @id @default(uuid())
+  id         String   @id @default(uuid())
   propertyId String?
   tenancyId  String?
-  eventType  String    // property_created, tenancy_created, document_uploaded, etc.
-  details    String?   // JSON string with details
-  createdAt  DateTime  @default(now())
+  eventType  String // property_created, tenancy_created, document_uploaded, etc.
+  details    String? // JSON string with details
+  createdAt  DateTime @default(now())
 
   property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   tenancy  Tenancy?  @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
@@ -340,8 +379,8 @@ model AuditLog {
 // Chart of accounts for double-entry bookkeeping
 model LedgerAccount {
   id         String   @id @default(uuid())
-  landlordId String   // Maps to Org.id where type='LANDLORD'
-  type       String   // RENT, DEPOSIT, FEE, VAT, OTHER
+  landlordId String // Maps to Org.id where type='LANDLORD'
+  type       String // RENT, DEPOSIT, FEE, VAT, OTHER
   name       String
   currency   String   @default("GBP")
   createdAt  DateTime @default(now())
@@ -354,19 +393,19 @@ model LedgerAccount {
 
 // Double-entry ledger for all financial transactions
 model LedgerEntry {
-  id            String    @id @default(uuid())
-  landlordId    String
-  propertyId    String?
-  tenancyId     String?
-  tenantUserId  String?   // References User.id where role=TENANT
-  accountId     String
-  direction     String    // DEBIT, CREDIT
-  amount        Float     // Store as pence/cents * 100 in app logic for precision
-  description   String
-  refType       String?   // invoice, payment, payout, etc.
-  refId         String?   // Reference to related entity
-  eventAt       DateTime
-  createdAt     DateTime  @default(now())
+  id           String   @id @default(uuid())
+  landlordId   String
+  propertyId   String?
+  tenancyId    String?
+  tenantUserId String? // References User.id where role=TENANT
+  accountId    String
+  direction    String // DEBIT, CREDIT
+  amount       Float // Store as pence/cents * 100 in app logic for precision
+  description  String
+  refType      String? // invoice, payment, payout, etc.
+  refId        String? // Reference to related entity
+  eventAt      DateTime
+  createdAt    DateTime @default(now())
 
   account LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
 
@@ -377,20 +416,20 @@ model LedgerEntry {
 
 // Invoices for rent and other charges
 model Invoice {
-  id            String   @id @default(uuid())
-  landlordId    String
-  propertyId    String
-  tenancyId     String
-  tenantUserId  String?  // Primary tenant for this invoice
-  number        String   // INV-YYYY-000001
-  issueDate     DateTime
-  dueDate       DateTime
-  lineTotal     Float
-  taxTotal      Float
-  grandTotal    Float
-  status        String   // DRAFT, ISSUED, PART_PAID, PAID, VOID
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  landlordId   String
+  propertyId   String
+  tenancyId    String
+  tenantUserId String? // Primary tenant for this invoice
+  number       String // INV-YYYY-000001
+  issueDate    DateTime
+  dueDate      DateTime
+  lineTotal    Float
+  taxTotal     Float
+  grandTotal   Float
+  status       String // DRAFT, ISSUED, PART_PAID, PAID, VOID
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   lines       InvoiceLine[]
   creditNotes CreditNote[]
@@ -405,12 +444,12 @@ model Invoice {
 
 // Line items on invoices
 model InvoiceLine {
-  id          String  @id @default(uuid())
+  id          String @id @default(uuid())
   invoiceId   String
   description String
-  qty         Float   @default(1.0)
+  qty         Float  @default(1.0)
   unitPrice   Float
-  taxRate     Float   @default(0.0)
+  taxRate     Float  @default(0.0)
   lineTotal   Float
   taxTotal    Float
 
@@ -422,7 +461,7 @@ model InvoiceLine {
 // Credit notes for invoice adjustments
 model CreditNote {
   id         String   @id @default(uuid())
-  invoiceId  String?  // Optional - can be general credit
+  invoiceId  String? // Optional - can be general credit
   landlordId String
   amount     Float
   reason     String
@@ -436,18 +475,18 @@ model CreditNote {
 
 // Payments received from tenants
 model Payment {
-  id           String    @id @default(uuid())
+  id           String   @id @default(uuid())
   landlordId   String
   propertyId   String?
   tenancyId    String?
   tenantUserId String?
-  method       String    // GOCARDLESS, STRIPE, BANK_TRANSFER, CASH, OTHER
+  method       String // GOCARDLESS, STRIPE, BANK_TRANSFER, CASH, OTHER
   amount       Float
   receivedAt   DateTime
-  externalId   String?   // Provider reference
-  status       String    // PENDING, SUCCEEDED, FAILED, REFUNDED
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  externalId   String? // Provider reference
+  status       String // PENDING, SUCCEEDED, FAILED, REFUNDED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   allocations PaymentAllocation[]
 
@@ -477,10 +516,10 @@ model PaymentAllocation {
 model Mandate {
   id           String    @id @default(uuid())
   landlordId   String
-  tenantUserId String    // References User.id
-  provider     String    // GOCARDLESS, STRIPE
-  status       String    // PENDING, ACTIVE, FAILED, CANCELLED
-  reference    String?   // Provider mandate ID
+  tenantUserId String // References User.id
+  provider     String // GOCARDLESS, STRIPE
+  status       String // PENDING, ACTIVE, FAILED, CANCELLED
+  reference    String? // Provider mandate ID
   createdAt    DateTime  @default(now())
   activatedAt  DateTime?
   updatedAt    DateTime  @updatedAt
@@ -494,37 +533,78 @@ model Mandate {
 
 // Payouts to landlord bank accounts
 model Payout {
-  id              String   @id @default(uuid())
-  landlordId      String
-  amount          Float
+  id               String   @id @default(uuid())
+  landlordId       String
+  amount           Float
   bankAccountLast4 String?
-  paidAt          DateTime
-  provider        String?  // STRIPE, GOCARDLESS, MANUAL
-  reference       String?
-  createdAt       DateTime @default(now())
+  paidAt           DateTime
+  provider         String? // STRIPE, GOCARDLESS, MANUAL
+  reference        String?
+  createdAt        DateTime @default(now())
 
   @@index([landlordId])
   @@index([paidAt])
 }
 
+// Bank connection to external provider
+model BankConnection {
+  id         String   @id @default(uuid())
+  landlordId String
+  provider   String // MOCK, PLAID, TRUELAYER, etc.
+  status     String // PENDING, ACTIVE, ERROR, DISCONNECTED
+  meta       String? // JSON metadata
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  accounts BankAccount[]
+
+  @@index([landlordId])
+  @@index([status])
+}
+
+// Bank account from provider
+model BankAccount {
+  id            String    @id @default(uuid())
+  landlordId    String
+  connectionId  String
+  name          String
+  iban          String?
+  accountNumber String?
+  sortCode      String?
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  connection   BankConnection    @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  transactions BankTransaction[]
+
+  @@index([landlordId])
+  @@index([connectionId])
+}
+
 // Bank transactions from Open Banking feeds
 model BankTransaction {
-  id            String   @id @default(uuid())
-  landlordId    String
-  bankAccountId String   // Internal reference to connected account
-  postedAt      DateTime
-  description   String
-  amount        Float
-  currency      String   @default("GBP")
-  hash          String   @unique // For deduplication
-  rawJson       String?  // Store original transaction data
-  createdAt     DateTime @default(now())
+  id               String   @id @default(uuid())
+  landlordId       String
+  bankAccountId    String // Internal reference to connected account
+  postedAt         DateTime
+  description      String
+  reference        String? // Payment reference from transaction
+  amount           Float
+  currency         String   @default("GBP")
+  hash             String   @unique // For deduplication
+  matchedInvoiceId String? // Direct reference to matched invoice
+  confidence       Int? // 0-100 confidence score for auto-match
+  rawJson          String? // Store original transaction data
+  createdAt        DateTime @default(now())
 
+  bankAccount     BankAccount      @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
   reconciliations Reconciliation[]
 
   @@index([landlordId, bankAccountId])
   @@index([postedAt])
   @@index([hash])
+  @@index([matchedInvoiceId])
 }
 
 // Reconciliation matches between bank transactions and payments/invoices
@@ -532,10 +612,10 @@ model Reconciliation {
   id                String   @id @default(uuid())
   landlordId        String
   bankTransactionId String
-  matchType         String   // AUTO, MANUAL
-  confidence        Float    // 0.00 to 100.00
-  matchedEntityType String?  // payment, invoice
-  matchedEntityId   String?  // ID of payment or invoice
+  matchType         String // AUTO, MANUAL
+  confidence        Float // 0.00 to 100.00
+  matchedEntityType String? // payment, invoice
+  matchedEntityId   String? // ID of payment or invoice
   createdAt         DateTime @default(now())
 
   bankTransaction BankTransaction @relation(fields: [bankTransactionId], references: [id], onDelete: Cascade)
@@ -548,8 +628,8 @@ model Reconciliation {
 model ChargeRule {
   id         String   @id @default(uuid())
   landlordId String
-  type       String   // RENT, LATE_FEE, SERVICE_CHARGE, OTHER
-  calc       String   // JSON config: { frequency, amount, dayOfMonth, lateFeePercent, etc }
+  type       String // RENT, LATE_FEE, SERVICE_CHARGE, OTHER
+  calc       String // JSON config: { frequency, amount, dayOfMonth, lateFeePercent, etc }
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -560,16 +640,16 @@ model ChargeRule {
 
 // Periodic snapshots of account balances for performance
 model BalanceSnapshot {
-  id         String    @id @default(uuid())
+  id         String   @id @default(uuid())
   landlordId String
   propertyId String?
   tenancyId  String?
   asOf       DateTime
-  rentAR     Float     @default(0.0) // Accounts receivable for rent
-  feesAR     Float     @default(0.0) // Accounts receivable for fees
-  deposits   Float     @default(0.0) // Deposit liability
-  credits    Float     @default(0.0) // Credit balance
-  createdAt  DateTime  @default(now())
+  rentAR     Float    @default(0.0) // Accounts receivable for rent
+  feesAR     Float    @default(0.0) // Accounts receivable for fees
+  deposits   Float    @default(0.0) // Deposit liability
+  credits    Float    @default(0.0) // Credit balance
+  createdAt  DateTime @default(now())
 
   @@index([landlordId, asOf])
   @@index([propertyId, asOf])
@@ -578,33 +658,98 @@ model BalanceSnapshot {
 
 // Finance settings per landlord
 model FinanceSettings {
-  id                 String   @id @default(uuid())
-  landlordId         String   @unique
-  invoicePrefix      String   @default("INV")
-  defaultDueDays     Int      @default(7)
-  lateFeeEnabled     Boolean  @default(false)
-  lateFeePercent     Float?   // Daily percentage
-  lateFeeFixed       Float?   // Or fixed amount per day
-  lateFeeGraceDays   Int      @default(0)
-  lateFeeCap         Float?   // Max late fee per invoice
-  vatOnFeesEnabled   Boolean  @default(false)
-  vatRate            Float    @default(20.0)
-  currency           String   @default("GBP")
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id               String   @id @default(uuid())
+  landlordId       String   @unique
+  invoicePrefix    String   @default("INV")
+  defaultDueDays   Int      @default(7)
+  lateFeeEnabled   Boolean  @default(false)
+  lateFeePercent   Float? // Daily percentage
+  lateFeeFixed     Float? // Or fixed amount per day
+  lateFeeGraceDays Int      @default(0)
+  lateFeeCap       Float? // Max late fee per invoice
+  vatOnFeesEnabled Boolean  @default(false)
+  vatRate          Float    @default(20.0)
+  currency         String   @default("GBP")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([landlordId])
 }
 
 // Idempotency keys for financial operations
 model IdempotencyKey {
-  id         String   @id @default(uuid())
-  key        String   @unique
-  hash       String   // Hash of request body
-  response   String?  // Cached response
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
+  id        String   @id @default(uuid())
+  key       String   @unique
+  hash      String // Hash of request body
+  response  String? // Cached response
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 
   @@index([key])
   @@index([expiresAt])
+}
+
+// Request log for tracking and idempotency
+model RequestLog {
+  id             String   @id @default(uuid())
+  idempotencyKey String?  @unique
+  method         String
+  path           String
+  statusCode     Int?
+  requestBody    String? // JSON
+  responseBody   String? // JSON
+  userId         String?
+  landlordId     String?
+  createdAt      DateTime @default(now())
+
+  @@index([idempotencyKey])
+  @@index([landlordId])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// FEATURE FLAGS & EXPERIMENTS (Step 13)
+// ============================================================================
+
+// Feature flags per landlord
+model FeatureFlag {
+  id         String   @id @default(uuid())
+  landlordId String
+  key        String // enable_bank_feeds, enable_ticketing, auto_invoicing, etc.
+  enabled    Boolean  @default(false)
+  variant    String? // Optional variant for A/B testing
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([landlordId, key])
+  @@index([landlordId])
+  @@index([key])
+}
+
+// Experiment assignments for A/B testing
+model ExperimentAssignment {
+  id            String   @id @default(uuid())
+  landlordId    String
+  experimentKey String // dunning_timing, invoice_reminder, etc.
+  variant       String // control, variant_a, variant_b, etc.
+  assignedAt    DateTime @default(now())
+
+  @@unique([landlordId, experimentKey])
+  @@index([landlordId])
+  @@index([experimentKey])
+}
+
+// Upsell opportunities for business development
+model UpsellOpportunity {
+  id         String   @id @default(uuid())
+  landlordId String
+  type       String // PREMIUM_FEATURES, ADDITIONAL_UNITS, MANAGED_SERVICE, etc.
+  status     String // IDENTIFIED, CONTACTED, QUALIFIED, WON, LOST
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([landlordId])
+  @@index([status])
+  @@index([type])
 }
