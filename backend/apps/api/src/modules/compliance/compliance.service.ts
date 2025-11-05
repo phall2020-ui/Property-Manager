@@ -234,19 +234,23 @@ export class ComplianceService {
     const activeTenancy = property.tenancies[0];
     const propertyAddress = `${property.address1}${property.city ? ', ' + property.city : ''}`;
 
-    // Define all compliance types
-    const complianceTypes = [
-      { field: 'gasSafetyDueAt', type: 'Gas Safety', docType: 'GAS_SAFETY' },
-      { field: 'eicrDueAt', type: 'EICR', docType: 'EICR' },
-      { field: 'epcExpiresAt', type: 'EPC', docType: 'EPC' },
-      { field: 'boilerServiceDueAt', type: 'Boiler Service', docType: 'BOILER_SERVICE' },
-      { field: 'smokeAlarmsCheckedAt', type: 'Smoke Alarms', docType: null },
-      { field: 'coAlarmsCheckedAt', type: 'CO Alarms', docType: null },
-      { field: 'legionellaAssessmentAt', type: 'Legionella', docType: 'LEGIONELLA' },
+    // Define all compliance types with explicit type mapping
+    const complianceTypes: Array<{
+      type: string;
+      getDueDate: (tenancy: any) => Date | null;
+      docType: string | null;
+    }> = [
+      { type: 'Gas Safety', getDueDate: (t) => t.gasSafetyDueAt, docType: 'GAS_SAFETY' },
+      { type: 'EICR', getDueDate: (t) => t.eicrDueAt, docType: 'EICR' },
+      { type: 'EPC', getDueDate: (t) => t.epcExpiresAt, docType: 'EPC' },
+      { type: 'Boiler Service', getDueDate: (t) => t.boilerServiceDueAt, docType: 'BOILER_SERVICE' },
+      { type: 'Smoke Alarms', getDueDate: (t) => t.smokeAlarmsCheckedAt, docType: null },
+      { type: 'CO Alarms', getDueDate: (t) => t.coAlarmsCheckedAt, docType: null },
+      { type: 'Legionella', getDueDate: (t) => t.legionellaAssessmentAt, docType: 'LEGIONELLA' },
     ];
 
     for (const compliance of complianceTypes) {
-      const dueDate = activeTenancy?.[compliance.field] as Date | undefined;
+      const dueDate = activeTenancy ? compliance.getDueDate(activeTenancy) : null;
       const doc = compliance.docType ? property.documents.find(d => d.docType === compliance.docType) : null;
       
       complianceItems.push({
@@ -320,6 +324,9 @@ export class ComplianceService {
     return complianceItems;
   }
 
+  private readonly MILLISECONDS_PER_DAY = 1000 * 60 * 60 * 24;
+  private readonly DUE_SOON_THRESHOLD_DAYS = 30;
+
   /**
    * Calculate compliance status based on due date
    */
@@ -328,10 +335,10 @@ export class ComplianceService {
 
     const now = new Date();
     const due = new Date(dueDate);
-    const diffDays = Math.floor((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const diffDays = Math.floor((due.getTime() - now.getTime()) / this.MILLISECONDS_PER_DAY);
 
     if (diffDays < 0) return 'OVERDUE';
-    if (diffDays <= 30) return 'DUE_SOON';
+    if (diffDays <= this.DUE_SOON_THRESHOLD_DAYS) return 'DUE_SOON';
     return 'OK';
   }
 

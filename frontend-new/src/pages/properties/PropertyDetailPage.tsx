@@ -227,11 +227,11 @@ export default function PropertyDetailPage() {
                     hasEvidence={item.hasEvidence}
                     onUpload={() => {
                       // TODO: Implement upload modal
-                      alert('Upload functionality coming soon');
+                      console.log('Upload evidence for:', item.type);
                     }}
                     onMarkDone={() => {
-                      // TODO: Implement mark done
-                      alert('Mark done functionality coming soon');
+                      // TODO: Implement mark done functionality
+                      console.log('Mark done:', item.type);
                     }}
                   />
                 ))}
