@@ -9,6 +9,7 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Badge } from '@/components/Badge';
 import { Tabs, Tab } from '@/components/Tabs';
+import { getPropertyAddress1, getPropertyAddress2 } from '@/lib/propertyHelpers';
 
 /**
  * Property Detail Page with Tabbed Interface
@@ -96,10 +97,10 @@ export default function PropertyDetailPage() {
           </Button>
           
           <h1 className="text-3xl font-bold text-gray-900">
-            {property.address1 || property.addressLine1}
+            {getPropertyAddress1(property)}
           </h1>
-          {(property.address2 || property.addressLine2) && (
-            <p className="text-gray-600">{property.address2 || property.addressLine2}</p>
+          {getPropertyAddress2(property) && (
+            <p className="text-gray-600">{getPropertyAddress2(property)}</p>
           )}
           <p className="text-gray-600">
             {property.city}, {property.postcode}
@@ -112,7 +113,13 @@ export default function PropertyDetailPage() {
           </div>
         </div>
 
-        <Button variant="primary" onClick={() => alert('Edit property (TODO)')}>
+        <Button
+          variant="primary"
+          onClick={() => {
+            // TODO: Navigate to edit page or open edit modal
+            router.push(`/properties/${propertyId}/edit`);
+          }}
+        >
           Edit Property
         </Button>
       </div>
@@ -156,8 +163,8 @@ function OverviewTab({ property }: { property: Property }) {
           <div>
             <dt className="text-sm text-gray-500">Address</dt>
             <dd className="text-sm font-medium text-gray-900">
-              {property.address1 || property.addressLine1}
-              {(property.address2 || property.addressLine2) && <>, {property.address2 || property.addressLine2}</>}
+              {getPropertyAddress1(property)}
+              {getPropertyAddress2(property) && <>, {getPropertyAddress2(property)}</>}
               <br />
               {property.city}, {property.postcode}
             </dd>

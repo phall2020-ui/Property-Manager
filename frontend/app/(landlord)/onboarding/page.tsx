@@ -110,13 +110,24 @@ export default function OnboardingPage() {
     if (!validateStep(step)) return;
 
     try {
-      // TODO: Implement API calls to create property and tenancy
-      // For now, just redirect to properties list
-      alert('Onboarding complete! (API integration pending)');
-      router.push('/properties');
+      // TODO: Implement API call to create property and tenancy
+      // const response = await apiRequest('/onboarding', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(formData),
+      // });
+      
+      // Temporary: Show success message and redirect
+      // In production, this should be a proper modal/toast notification
+      console.log('Onboarding data:', formData);
+      
+      // Redirect to properties list
+      // TODO: Replace with success toast notification
+      router.push('/properties?onboarding=success');
     } catch (error) {
       console.error('Failed to complete onboarding:', error);
-      alert('Failed to complete onboarding. Please try again.');
+      // TODO: Replace with proper error toast notification
+      setErrors({ general: 'Failed to complete onboarding. Please try again.' });
     }
   };
 

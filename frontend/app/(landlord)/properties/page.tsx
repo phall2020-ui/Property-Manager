@@ -9,6 +9,7 @@ import { Property } from '@/types/models';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
+import { getPropertyAddress1, getPropertyAddress2 } from '@/lib/propertyHelpers';
 
 /**
  * Properties Portfolio List Page
@@ -114,10 +115,10 @@ export default function PropertiesPage() {
               {/* Address */}
               <div>
                 <h3 className="font-semibold text-lg text-gray-900">
-                  {property.address1 || property.addressLine1}
+                  {getPropertyAddress1(property)}
                 </h3>
-                {(property.address2 || property.addressLine2) && (
-                  <p className="text-sm text-gray-600">{property.address2 || property.addressLine2}</p>
+                {getPropertyAddress2(property) && (
+                  <p className="text-sm text-gray-600">{getPropertyAddress2(property)}</p>
                 )}
                 <p className="text-sm text-gray-600">
                   {property.city}, {property.postcode}

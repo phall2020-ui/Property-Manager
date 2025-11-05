@@ -14,10 +14,11 @@ import { z } from 'zod';
 /**
  * UK Postcode validation (basic pattern)
  * Accepts formats like: SW1A 1AA, EC1A 1BB, W1A 0AX, GIR 0AA
+ * Enforces single space between inward and outward codes
  */
 export const ukPostcode = z.string().regex(
-  /^(GIR 0AA|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})$/i,
-  'Enter a valid UK postcode'
+  /^(GIR 0AA|[A-Z]{1,2}\d[A-Z\d]?\s\d[A-Z]{2})$/i,
+  'Enter a valid UK postcode (e.g., SW1A 1AA)'
 );
 
 /**

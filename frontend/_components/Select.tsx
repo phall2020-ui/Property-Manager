@@ -41,7 +41,7 @@ export function Select({
         aria-describedby={error ? `${selectId}-error` : helperText ? `${selectId}-helper` : undefined}
         {...props}
       >
-        {!props.value && <option value="">Select...</option>}
+        {props.value === undefined && <option value="">Select...</option>}
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}

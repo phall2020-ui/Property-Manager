@@ -81,7 +81,7 @@ export function Tabs({ tabs, defaultTab, onChange }: TabsProps) {
                 `}
               >
                 {tab.label}
-                {tab.badge !== undefined && (
+                {tab.badge !== undefined && tab.badge !== 0 && tab.badge !== '' && (
                   <span
                     className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
                       isActive
