@@ -211,3 +211,21 @@ export const ticketsApi = {
     return response.data;
   },
 };
+
+// Compliance API
+export const complianceApi = {
+  getPortfolioCompliance: async () => {
+    const response = await api.get('/compliance/portfolio');
+    return response.data;
+  },
+
+  getComplianceStats: async () => {
+    const response = await api.get('/compliance/portfolio/stats');
+    return response.data;
+  },
+
+  getPropertyCompliance: async (propertyId: string) => {
+    const response = await api.get(`/compliance/property/${propertyId}`);
+    return response.data;
+  },
+};

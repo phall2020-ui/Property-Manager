@@ -9,6 +9,7 @@ import { PropertiesModule } from './modules/properties/properties.module';
 import { TenanciesModule } from './modules/tenancies/tenancies.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { FinanceModule } from './modules/finance/finance.module';
+import { ComplianceModule } from './modules/compliance/compliance.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -25,6 +26,7 @@ import { AppController } from './app.controller';
     TenanciesModule,
     TicketsModule,
     FinanceModule,
+    ComplianceModule,
   ],
   controllers: [AppController],
   providers: [

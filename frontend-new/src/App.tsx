@@ -9,6 +9,7 @@ import PropertyCreatePage from './pages/properties/PropertyCreatePage';
 import PropertyDetailPage from './pages/properties/PropertyDetailPage';
 import TicketsListPage from './pages/tickets/TicketsListPage';
 import TicketCreatePage from './pages/tickets/TicketCreatePage';
+import ComplianceCentrePage from './pages/compliance/ComplianceCentrePage';
 
 const queryClient = new QueryClient();
 
@@ -89,6 +90,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <TicketCreatePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/compliance"
+              element={
+                <ProtectedRoute>
+                  <ComplianceCentrePage />
                 </ProtectedRoute>
               }
             />
