@@ -40,11 +40,20 @@ export interface User {
 
 export interface Property {
   id: string;
-  addressLine1: string;
-  addressLine2?: string;
+  address1: string;
+  addressLine1?: string; // Alias for backward compatibility
+  address2?: string;
+  addressLine2?: string; // Alias for backward compatibility
   city: string;
   postcode: string;
-  landlordId: string;
+  bedrooms?: number;
+  propertyType?: string;
+  furnished?: string;
+  epcRating?: string;
+  landlordId?: string;
+  ownerOrgId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Tenancy {
