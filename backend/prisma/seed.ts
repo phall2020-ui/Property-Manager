@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import * as argon2 from 'argon2';
 
 const prisma = new PrismaClient();
 
@@ -27,7 +27,7 @@ async function main() {
     data: {
       email: 'landlord@example.com',
       name: 'Alice Landlord',
-      passwordHash: await bcrypt.hash('password123', 10),
+      passwordHash: await argon2.hash('password123'),
       orgMemberships: {
         create: {
           orgId: landlordOrg.id,
@@ -42,7 +42,7 @@ async function main() {
     data: {
       email: 'tenant@example.com',
       name: 'Bob Tenant',
-      passwordHash: await bcrypt.hash('password123', 10),
+      passwordHash: await argon2.hash('password123'),
       orgMemberships: {
         create: {
           orgId: tenantOrg.id,
@@ -57,7 +57,7 @@ async function main() {
     data: {
       email: 'contractor@example.com',
       name: 'Charlie Contractor',
-      passwordHash: await bcrypt.hash('password123', 10),
+      passwordHash: await argon2.hash('password123'),
       orgMemberships: {
         create: {
           orgId: landlordOrg.id, // Contractors work with landlord org
