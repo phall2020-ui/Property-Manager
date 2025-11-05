@@ -94,7 +94,7 @@ export default function TicketCreatePage() {
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select a property</option>
-              {properties.map((property: any) => (
+              {properties.map((property: { id: string; address1: string; city?: string; postcode?: string }) => (
                 <option key={property.id} value={property.id}>
                   {property.address1}, {property.city || property.postcode}
                 </option>

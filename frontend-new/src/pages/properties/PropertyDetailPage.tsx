@@ -93,7 +93,7 @@ export default function PropertyDetailPage() {
               </div>
             )}
 
-            {property.bedrooms !== undefined && (
+            {property.bedrooms != null && (
               <div>
                 <label className="block text-sm font-medium text-gray-500">Bedrooms</label>
                 <p className="mt-1 text-sm text-gray-900">{property.bedrooms}</p>

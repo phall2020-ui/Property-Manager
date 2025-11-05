@@ -23,8 +23,9 @@ export default function TicketsListPage() {
     queryFn: () => ticketsApi.list(),
   });
 
-  const isTenant = user?.organisations[0]?.role === 'TENANT';
-  const isLandlord = user?.organisations[0]?.role === 'LANDLORD';
+  const primaryOrg = user?.organisations?.[0];
+  const isTenant = primaryOrg?.role === 'TENANT';
+  const isLandlord = primaryOrg?.role === 'LANDLORD';
 
   if (isLoading) {
     return (
@@ -125,7 +126,7 @@ export default function TicketsListPage() {
                     >
                       {ticket.title}
                     </Link>
-                    <p className="text-sm text-gray-500 mt-1 line-clamp-1">
+                    <p className="text-sm text-gray-500 mt-1 truncate max-w-xs">
                       {ticket.description}
                     </p>
                   </td>
@@ -156,7 +157,7 @@ export default function TicketsListPage() {
                         ticket.status
                       )}`}
                     >
-                      {ticket.status.replace('_', ' ')}
+                      {ticket.status.replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
