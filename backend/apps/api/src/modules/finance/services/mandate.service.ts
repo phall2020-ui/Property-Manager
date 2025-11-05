@@ -119,9 +119,11 @@ export class MandateService {
    * Update mandate status (typically called by webhook)
    */
   async updateMandateStatus(mandateId: string, status: string, reference?: string) {
+    const mandate = await this.prisma.mandate.findUnique({ where: { id: mandateId } });
+    
     const updateData: any = { status };
     
-    if (status === 'ACTIVE' && !reference) {
+    if (status === 'ACTIVE' && !mandate?.activatedAt) {
       updateData.activatedAt = new Date();
     }
     

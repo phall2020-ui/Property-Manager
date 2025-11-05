@@ -223,7 +223,9 @@ export class FinanceMetricsService {
         const receivedRent = payments.reduce((sum, p) => sum + p.amount, 0);
         const variance = receivedRent - expectedRent;
 
-        // Check for active mandate
+        // Check for active mandate for this tenancy
+        // In a real system, we'd match tenants properly
+        // For now, check if any mandate exists for this landlord with active status
         const mandate = await this.prisma.mandate.findFirst({
           where: {
             landlordId,
@@ -238,7 +240,7 @@ export class FinanceMetricsService {
           expectedRent,
           receivedRent,
           variance,
-          hasMandate: !!mandate,
+          hasMandate: !!mandate, // TODO: Link to specific tenancy tenants when User-Tenant relationship is established
         };
       }),
     );
