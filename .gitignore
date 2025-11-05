@@ -42,6 +42,8 @@ Thumbs.db
 
 # Prisma
 prisma/migrations/**/migration.sql.bak
+*.db
+*.db-journal
 
 # Docker
 .docker/
