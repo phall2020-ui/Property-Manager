@@ -192,8 +192,23 @@ npx prisma generate --schema=prisma/schema.prisma
 
 Clean up and rebuild:
 
+**Unix/Linux/macOS:**
 ```bash
 rm -rf dist node_modules
+npm ci
+npm run build
+```
+
+**Windows (PowerShell):**
+```powershell
+Remove-Item -Recurse -Force dist, node_modules
+npm ci
+npm run build
+```
+
+**Cross-platform (using npm):**
+```bash
+npm run clean  # if available, or manually delete dist and node_modules
 npm ci
 npm run build
 ```
