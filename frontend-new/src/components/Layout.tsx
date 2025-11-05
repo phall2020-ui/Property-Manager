@@ -48,6 +48,12 @@ export default function Layout({ children }: LayoutProps) {
                       Properties
                     </Link>
                     <Link
+                      to="/compliance"
+                      className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                    >
+                      Compliance
+                    </Link>
+                    <Link
                       to="/tickets"
                       className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
                     >
