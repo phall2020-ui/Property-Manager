@@ -16,7 +16,7 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
               <Link href="/report-issue" className="hover:underline">
                 Report Issue
               </Link>
-              <Link href="/tickets" className="hover:underline">
+              <Link href="/my-tickets" className="hover:underline">
                 My Tickets
               </Link>
             </nav>
