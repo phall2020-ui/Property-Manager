@@ -22,6 +22,9 @@ export default function LandlordLayout({ children }: { children: React.ReactNode
               <Link href="/tickets" className="hover:underline">
                 Tickets
               </Link>
+              <Link href="/finance/dashboard" className="hover:underline">
+                Money
+              </Link>
             </nav>
           </div>
         </header>
