@@ -229,3 +229,85 @@ export const complianceApi = {
     return response.data;
   },
 };
+
+// Enhanced Properties API with extended data
+export const enhancedPropertiesApi = {
+  list: async () => {
+    try {
+      const response = await api.get('/properties');
+      return response.data;
+    } catch (error) {
+      // Fallback mock data for development
+      console.warn('Using mock property data');
+      return [
+        {
+          id: '1',
+          name: '12A High St',
+          address: { line1: '12A High St', city: 'London', postcode: 'EC1A 1BB' },
+          lat: 51.5206,
+          lng: -0.0986,
+          monthlyRent: 1800,
+          estimatedValue: 450000,
+          occupancyRate: 0.98,
+          status: 'Occupied',
+          bedrooms: 2,
+          bathrooms: 1,
+          floorAreaM2: 70,
+        },
+        {
+          id: '2',
+          name: '2B Park Avenue',
+          address: { line1: '2B Park Ave', city: 'London', postcode: 'W1K 2AB' },
+          lat: 51.515,
+          lng: -0.141,
+          monthlyRent: 2400,
+          estimatedValue: 650000,
+          occupancyRate: 1,
+          status: 'Occupied',
+          bedrooms: 3,
+          bathrooms: 2,
+          floorAreaM2: 92,
+        },
+        {
+          id: '3',
+          name: 'Flat 7, Wharf',
+          address: { line1: 'Flat 7 Wharf', city: 'London', postcode: 'E14 9SH' },
+          lat: 51.505,
+          lng: -0.02,
+          monthlyRent: 1600,
+          estimatedValue: 400000,
+          occupancyRate: 0.9,
+          status: 'Vacant',
+          bedrooms: 1,
+          bathrooms: 1,
+          floorAreaM2: 55,
+        },
+        {
+          id: '4',
+          name: '45 Queen Street',
+          address: { line1: '45 Queen Street', city: 'London', postcode: 'SW1A 2BX' },
+          lat: 51.5074,
+          lng: -0.1278,
+          monthlyRent: 2100,
+          estimatedValue: 550000,
+          occupancyRate: 1,
+          status: 'Let Agreed',
+          bedrooms: 2,
+          bathrooms: 2,
+          floorAreaM2: 80,
+        },
+      ];
+    }
+  },
+
+  getById: async (id: string) => {
+    try {
+      const response = await api.get(`/properties/${id}`);
+      return response.data;
+    } catch (error) {
+      // Fallback to mock data
+      const mockProperties = await enhancedPropertiesApi.list();
+      return mockProperties.find((p: any) => p.id === id) || null;
+    }
+  },
+};
