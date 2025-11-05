@@ -1,0 +1,47 @@
+# Fly.io deployment configuration
+# See https://fly.io/docs/reference/configuration/
+
+app = "property-manager-api"
+primary_region = "lhr" # London
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "4000"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/health"
+
+[checks]
+  [checks.alive]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    timeout = "10s"
+    path = "/health"
+
+# Database connection via Fly Postgres
+# Set DATABASE_URL secret: flyctl secrets set DATABASE_URL=postgresql://...
+
+# Redis connection via Upstash
+# Set REDIS_URL secret: flyctl secrets set REDIS_URL=redis://...
+
+# Required secrets to set:
+# flyctl secrets set JWT_ACCESS_SECRET=your-secret
+# flyctl secrets set JWT_REFRESH_SECRET=your-secret
+# flyctl secrets set DATABASE_URL=postgresql://...
+# flyctl secrets set FRONTEND_URL=https://...
