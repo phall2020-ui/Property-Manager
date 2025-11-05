@@ -54,3 +54,21 @@ All client requests are proxied through `/api` and authenticated using a JWT acc
 ## License
 
 MIT
+
+## Quick start
+1. Copy `.env.example` → `.env` and set:
+   - NEXT_PUBLIC_API_BASE (e.g. http://localhost:4000/api)
+   - MAX_UPLOAD_MB (e.g. 10)
+2. npm ci
+3. npm run dev → http://localhost:3000
+
+## Deploy to Vercel
+1. Push this repo to GitHub.
+2. In Vercel → Add New Project → Import this repo.
+3. Set Project Environment Variables:
+   - NEXT_PUBLIC_API_BASE = https://your-backend.example.com/api
+   - MAX_UPLOAD_MB = 10
+4. Deploy. Vercel gives you a live URL.
+
+### Cookies/CORS
+If your backend uses httpOnly refresh cookies, allow the Vercel domain in CORS and set cookie flags correctly for your environment.
