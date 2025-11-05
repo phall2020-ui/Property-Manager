@@ -13,13 +13,49 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Validate inputs before submission
+    if (!email || !email.trim()) {
+      setError('Email is required');
+      return;
+    }
+    
+    if (!password || !password.trim()) {
+      setError('Password is required');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed');
+      console.error('Login error:', err);
+      // Handle different error scenarios
+      if (err.response) {
+        // Server responded with error
+        const errorMessage = err.response.data?.detail || 
+                           err.response.data?.message || 
+                           err.response.data?.error ||
+                           `Login failed with status ${err.response.status}`;
+        setError(errorMessage);
+      } else if (err.request) {
+        // Request was made but no response
+        setError('Unable to connect to server. Please check your connection and try again.');
+      } else if (err.message) {
+        // Something else happened
+        setError(err.message);
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

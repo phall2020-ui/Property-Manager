@@ -60,20 +60,44 @@ api.interceptors.response.use(
 // Auth API
 export const authApi = {
   signup: async (data: { email: string; password: string; name: string }) => {
-    const response = await api.post('/auth/signup', data);
-    localStorage.setItem('accessToken', response.data.accessToken);
-    return response.data;
+    try {
+      const response = await api.post('/auth/signup', data);
+      if (response.data && response.data.accessToken) {
+        localStorage.setItem('accessToken', response.data.accessToken);
+        return response.data;
+      } else {
+        throw new Error('Invalid response from server: missing access token');
+      }
+    } catch (error: any) {
+      console.error('Signup API error:', error);
+      throw error;
+    }
   },
 
   login: async (data: { email: string; password: string }) => {
-    const response = await api.post('/auth/login', data);
-    localStorage.setItem('accessToken', response.data.accessToken);
-    return response.data;
+    try {
+      const response = await api.post('/auth/login', data);
+      if (response.data && response.data.accessToken) {
+        localStorage.setItem('accessToken', response.data.accessToken);
+        return response.data;
+      } else {
+        throw new Error('Invalid response from server: missing access token');
+      }
+    } catch (error: any) {
+      console.error('Login API error:', error);
+      throw error;
+    }
   },
 
   logout: async () => {
-    await api.post('/auth/logout');
-    localStorage.removeItem('accessToken');
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.error('Logout API error:', error);
+      // Continue with local cleanup even if API call fails
+    } finally {
+      localStorage.removeItem('accessToken');
+    }
   },
 
   getMe: async () => {

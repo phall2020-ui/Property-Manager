@@ -22,7 +22,7 @@ export default function LoginPage() {
       await login(data);
       const user = await getMe();
       if (!user) {
-        setError('Failed to fetch user data');
+        setError('Failed to fetch user data. Please try logging in again.');
         return;
       }
       // Navigate based on primary role (first org membership)
@@ -44,7 +44,14 @@ export default function LoginPage() {
           router.push('/');
       }
     } catch (err: any) {
-      setError(err.detail || err.message || 'Login failed');
+      console.error('Login error:', err);
+      // Handle different error scenarios
+      const errorMessage = err.detail || 
+                          err.message || 
+                          err.response?.data?.detail ||
+                          err.response?.data?.message ||
+                          'Login failed. Please check your credentials and try again.';
+      setError(errorMessage);
     }
   };
   return (
