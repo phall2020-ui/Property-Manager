@@ -1,0 +1,189 @@
+import axios from 'axios';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true, // Important for httpOnly cookies
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to add access token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor to handle token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If 401 and not already retried, try to refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const { data } = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+
+        // Store new access token
+        localStorage.setItem('accessToken', data.accessToken);
+
+        // Retry original request with new token
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Refresh failed, clear token and redirect to login
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Auth API
+export const authApi = {
+  signup: async (data: { email: string; password: string; name: string }) => {
+    const response = await api.post('/auth/signup', data);
+    localStorage.setItem('accessToken', response.data.accessToken);
+    return response.data;
+  },
+
+  login: async (data: { email: string; password: string }) => {
+    const response = await api.post('/auth/login', data);
+    localStorage.setItem('accessToken', response.data.accessToken);
+    return response.data;
+  },
+
+  logout: async () => {
+    await api.post('/auth/logout');
+    localStorage.removeItem('accessToken');
+  },
+
+  getMe: async () => {
+    const response = await api.get('/users/me');
+    return response.data;
+  },
+};
+
+// Properties API
+export const propertiesApi = {
+  list: async () => {
+    const response = await api.get('/properties');
+    return response.data;
+  },
+
+  create: async (data: {
+    address1: string;
+    address2?: string;
+    city?: string;
+    postcode: string;
+    bedrooms?: number;
+  }) => {
+    const response = await api.post('/properties', data);
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/properties/${id}`);
+    return response.data;
+  },
+};
+
+// Tenancies API
+export const tenanciesApi = {
+  list: async () => {
+    const response = await api.get('/tenancies');
+    return response.data;
+  },
+
+  create: async (data: {
+    propertyId: string;
+    tenantOrgId: string;
+    startDate: string;
+    endDate?: string;
+    rentPcm: number;
+    deposit: number;
+  }) => {
+    const response = await api.post('/tenancies', data);
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/tenancies/${id}`);
+    return response.data;
+  },
+
+  uploadDocument: async (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/tenancies/${id}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+};
+
+// Tickets API
+export const ticketsApi = {
+  list: async () => {
+    const response = await api.get('/tickets');
+    return response.data;
+  },
+
+  create: async (data: {
+    propertyId?: string;
+    tenancyId?: string;
+    title: string;
+    description: string;
+    priority: string;
+  }) => {
+    const response = await api.post('/tickets', data);
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/tickets/${id}`);
+    return response.data;
+  },
+
+  createQuote: async (id: string, data: { amount: number; notes?: string }) => {
+    const response = await api.post(`/tickets/${id}/quote`, data);
+    return response.data;
+  },
+
+  approveQuote: async (quoteId: string) => {
+    const response = await api.post(`/tickets/quotes/${quoteId}/approve`);
+    return response.data;
+  },
+
+  complete: async (id: string, completionNotes?: string) => {
+    const response = await api.post(`/tickets/${id}/complete`, { completionNotes });
+    return response.data;
+  },
+
+  uploadAttachment: async (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await api.post(`/tickets/${id}/attachments`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+};

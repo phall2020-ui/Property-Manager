@@ -1,0 +1,93 @@
+import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
+
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwt: JwtService,
+    private readonly config: ConfigService,
+  ) {}
+
+  /**
+   * Registers a new user. For landlords and contractors, creates the corresponding entity.
+   */
+  async signup({ email, password, displayName, role, name }: { email: string; password: string; displayName: string; role: string; name?: string; }) {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new BadRequestException('Email already in use');
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        displayName,
+        role,
+      },
+    });
+    if (role === 'LANDLORD') {
+      const landlord = await this.prisma.landlord.create({ data: { userId: user.id, name: name ?? displayName } });
+      await this.prisma.user.update({ where: { id: user.id }, data: { landlordId: landlord.id } });
+    } else if (role === 'CONTRACTOR') {
+      const contractor = await this.prisma.contractor.create({
+        data: { id: user.id, name: name ?? displayName, email },
+      });
+      await this.prisma.user.update({ where: { id: user.id }, data: { contractorId: contractor.id } });
+    }
+    return this.login({ email, password });
+  }
+
+  /**
+   * Authenticates a user with email and password.
+   */
+  async login({ email, password }: { email: string; password: string; }) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const match = await bcrypt.compare(password, user.passwordHash);
+    if (!match) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return this.generateTokens(user);
+  }
+
+  /**
+   * Generates access and refresh JWT tokens for a user.
+   */
+  private async generateTokens(user: { id: string; role: string; }) {
+    const payload = { sub: user.id, role: user.role };
+    const accessToken = await this.jwt.signAsync(payload, {
+      secret: this.config.get<string>('app.jwt.accessSecret'),
+      expiresIn: this.config.get<string>('app.jwt.accessExpiresIn'),
+    });
+    const refreshToken = await this.jwt.signAsync(payload, {
+      secret: this.config.get<string>('app.jwt.refreshSecret'),
+      expiresIn: this.config.get<string>('app.jwt.refreshExpiresIn'),
+    });
+    return { accessToken, refreshToken };
+  }
+
+  /**
+   * Issues new tokens using a refresh token.
+   */
+  async refresh(refreshToken: string) {
+    try {
+      const payload = await this.jwt.verifyAsync(refreshToken, {
+        secret: this.config.get<string>('app.jwt.refreshSecret'),
+      });
+      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+      return this.generateTokens(user);
+    } catch (err) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+}

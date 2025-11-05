@@ -1,0 +1,257 @@
+// Prisma schema for Property Management MVP
+// Database: SQLite (no Docker)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE MODELS
+// ============================================================================
+
+// Organisation (multi-tenant isolation)
+model Org {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // LANDLORD, TENANT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members            OrgMember[]
+  propertiesOwned    Property[]       @relation("OwnedProperties")
+  tenanciesAsTenant  Tenancy[]        @relation("TenantOrg")
+  invitesSent        Invite[]
+}
+
+// User accounts
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orgMemberships  OrgMember[]
+  refreshTokens   RefreshToken[]
+  ticketsCreated  Ticket[]       @relation("TicketCreator")
+  ticketsAssigned Ticket[]       @relation("TicketAssignee")
+  quotesCreated   Quote[]
+}
+
+// Organisation membership with roles
+model OrgMember {
+  id        String   @id @default(uuid())
+  orgId     String
+  userId    String
+  role      String   // LANDLORD, TENANT, CONTRACTOR, ADMIN
+  createdAt DateTime @default(now())
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@index([orgId])
+}
+
+// Refresh token storage for rotation
+model RefreshToken {
+  id          String    @id @default(uuid())
+  userId      String
+  jti         String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  replacedBy  String?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([jti])
+}
+
+// ============================================================================
+// PROPERTY & TENANCY MODELS
+// ============================================================================
+
+// Properties owned by landlord organisations
+model Property {
+  id          String   @id @default(uuid())
+  address1    String
+  address2    String?
+  city        String?
+  postcode    String
+  bedrooms    Int?
+  ownerOrgId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner     Org        @relation("OwnedProperties", fields: [ownerOrgId], references: [id], onDelete: Cascade)
+  tenancies Tenancy[]
+  tickets   Ticket[]
+
+  @@index([ownerOrgId])
+}
+
+// Tenancies linking properties to tenant organisations
+model Tenancy {
+  id           String    @id @default(uuid())
+  propertyId   String
+  tenantOrgId  String
+  startDate    DateTime
+  endDate      DateTime?
+  rentPcm      Float
+  deposit      Float
+  status       String    // PENDING, ACTIVE, ENDED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  property  Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantOrg Org                 @relation("TenantOrg", fields: [tenantOrgId], references: [id], onDelete: Cascade)
+  tickets   Ticket[]
+  documents TenancyDocument[]
+
+  @@index([propertyId])
+  @@index([tenantOrgId])
+}
+
+// Documents attached to tenancies (stored on disk)
+model TenancyDocument {
+  id         String   @id @default(uuid())
+  tenancyId  String
+  filename   String
+  filepath   String
+  mimetype   String?
+  size       Int?
+  createdAt  DateTime @default(now())
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  @@index([tenancyId])
+}
+
+// ============================================================================
+// INVITE SYSTEM
+// ============================================================================
+
+// Tenant invitations
+model Invite {
+  id          String    @id @default(uuid())
+  token       String    @unique
+  email       String
+  tenancyId   String?
+  inviterOrgId String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  inviterOrg Org @relation(fields: [inviterOrgId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([email])
+}
+
+// ============================================================================
+// MAINTENANCE TICKETS
+// ============================================================================
+
+// Maintenance tickets
+model Ticket {
+  id           String    @id @default(uuid())
+  propertyId   String?
+  tenancyId    String?
+  createdById  String
+  assignedToId String?
+  category     String
+  priority     String
+  status       String
+  slaDueAt     DateTime?
+  quoteAmount  Float?
+  approvedAt   DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  property   Property        @relation(fields: [propertyId], references: [id])
+  tenancy    Tenancy?        @relation(fields: [tenancyId], references: [id])
+  createdBy  User            @relation("CreatedTickets", fields: [createdById], references: [id])
+  assignedTo User?           @relation("AssignedTickets", fields: [assignedToId], references: [id])
+  contractor Contractor?     @relation(fields: [contractorId], references: [id])
+  timeline   TimelineEvent[]
+
+  @@index([propertyId, status])
+  @@index([tenancyId])
+  @@index([createdById])
+}
+
+// Documents uploaded by users or related to resources
+model Document {
+  id         String    @id @default(uuid())
+  ownerType  String
+  ownerId    String
+  docType    String
+  url        String
+  hash       String?
+  expiryDate DateTime?
+  extracted  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([ownerType, ownerId])
+}
+
+// Timeline events capturing changes in a ticket
+model TimelineEvent {
+  id        String   @id @default(uuid())
+  ticketId  String
+  type      String
+  data      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+}
+
+// Notifications queued and delivered to users
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  channel   String
+  subject   String?
+  body      String?
+  sentAt    DateTime?
+  status    String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+// Invitation for tenants to join a tenancy via magic link
+model TenantInvite {
+  id         String    @id @default(uuid())
+  tenancyId  String
+  email      String
+  token      String    @unique
+  createdAt  DateTime  @default(now())
+  acceptedAt DateTime?
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id])
+
+  @@index([tenancyId])
+}
+
+/// RLS policy examples (commented out). Enable row‑level security in PostgreSQL and use these policies to enforce landlord scoping.
+/// Example: allow landlords to access only rows where landlordId matches their landlordId. 
+///
+/// -- Enable RLS on tables
+/// -- ALTER TABLE "Property" ENABLE ROW LEVEL SECURITY;
+/// -- CREATE POLICY landlord_isolation ON "Property"
+/// --   USING ("landlordId" = current_setting('app.current_landlord_id'));
+///
+/// For other tables referencing landlordId indirectly, join via propertyId or tenancyId. The application currently enforces this at the service layer.

@@ -1,0 +1,224 @@
+// Prisma schema for Property Management MVP
+// Database: SQLite (no Docker)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE MODELS
+// ============================================================================
+
+// Organisation (multi-tenant isolation)
+model Org {
+  id        String   @id @default(uuid())
+  name      String
+  type      String   // LANDLORD, TENANT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members            OrgMember[]
+  propertiesOwned    Property[]       @relation("OwnedProperties")
+  tenanciesAsTenant  Tenancy[]        @relation("TenantOrg")
+  invitesSent        Invite[]
+}
+
+// User accounts
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orgMemberships  OrgMember[]
+  refreshTokens   RefreshToken[]
+  ticketsCreated  Ticket[]       @relation("TicketCreator")
+  ticketsAssigned Ticket[]       @relation("TicketAssignee")
+  quotesCreated   Quote[]
+}
+
+// Organisation membership with roles
+model OrgMember {
+  id        String   @id @default(uuid())
+  orgId     String
+  userId    String
+  role      String   // LANDLORD, TENANT, CONTRACTOR, ADMIN
+  createdAt DateTime @default(now())
+
+  org  Org  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@index([orgId])
+}
+
+// Refresh token storage for rotation
+model RefreshToken {
+  id          String    @id @default(uuid())
+  userId      String
+  jti         String    @unique
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  replacedBy  String?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([jti])
+}
+
+// ============================================================================
+// PROPERTY & TENANCY MODELS
+// ============================================================================
+
+// Properties owned by landlord organisations
+model Property {
+  id          String   @id @default(uuid())
+  address1    String
+  address2    String?
+  city        String?
+  postcode    String
+  bedrooms    Int?
+  ownerOrgId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner     Org        @relation("OwnedProperties", fields: [ownerOrgId], references: [id], onDelete: Cascade)
+  tenancies Tenancy[]
+  tickets   Ticket[]
+
+  @@index([ownerOrgId])
+}
+
+// Tenancies linking properties to tenant organisations
+model Tenancy {
+  id           String    @id @default(uuid())
+  propertyId   String
+  tenantOrgId  String
+  startDate    DateTime
+  endDate      DateTime?
+  rentPcm      Float
+  deposit      Float
+  status       String    // PENDING, ACTIVE, ENDED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  property  Property            @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantOrg Org                 @relation("TenantOrg", fields: [tenantOrgId], references: [id], onDelete: Cascade)
+  tickets   Ticket[]
+  documents TenancyDocument[]
+
+  @@index([propertyId])
+  @@index([tenantOrgId])
+}
+
+// Documents attached to tenancies (stored on disk)
+model TenancyDocument {
+  id         String   @id @default(uuid())
+  tenancyId  String
+  filename   String
+  filepath   String
+  mimetype   String?
+  size       Int?
+  createdAt  DateTime @default(now())
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  @@index([tenancyId])
+}
+
+// ============================================================================
+// INVITE SYSTEM
+// ============================================================================
+
+// Tenant invitations
+model Invite {
+  id          String    @id @default(uuid())
+  token       String    @unique
+  email       String
+  tenancyId   String?
+  inviterOrgId String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  inviterOrg Org @relation(fields: [inviterOrgId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([email])
+}
+
+// ============================================================================
+// MAINTENANCE TICKETS
+// ============================================================================
+
+// Maintenance tickets
+model Ticket {
+  id           String    @id @default(uuid())
+  propertyId   String?
+  tenancyId    String?
+  title        String
+  description  String
+  createdById  String
+  assignedToId String?
+  priority     String    // LOW, MEDIUM, HIGH
+  status       String    // OPEN, QUOTING, APPROVAL, SCHEDULED, DONE
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  property      Property?           @relation(fields: [propertyId], references: [id])
+  tenancy       Tenancy?            @relation(fields: [tenancyId], references: [id])
+  createdBy     User                @relation("TicketCreator", fields: [createdById], references: [id])
+  assignedTo    User?               @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  quotes        Quote[]
+  attachments   TicketAttachment[]
+
+  @@index([propertyId])
+  @@index([tenancyId])
+  @@index([createdById])
+  @@index([status])
+}
+
+// Quotes for tickets
+model Quote {
+  id              String    @id @default(uuid())
+  ticketId        String
+  contractorId    String
+  amount          Float
+  notes           String?
+  status          String    // PENDING, APPROVED, REJECTED
+  approvedAt      DateTime?
+  completedAt     DateTime?
+  completionNotes String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  contractor User   @relation(fields: [contractorId], references: [id])
+
+  @@index([ticketId])
+  @@index([contractorId])
+}
+
+// Attachments for tickets (stored on disk)
+model TicketAttachment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  filename  String
+  filepath  String
+  mimetype  String?
+  size      Int?
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}

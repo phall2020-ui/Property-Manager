@@ -1,0 +1,43 @@
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+
+/**
+ * Guard that ensures the authenticated landlord only accesses resources they own.
+ * It inspects route params `id` or `propertyId` or `tenancyId` and verifies
+ * that the associated property's landlordId matches the landlord's id.
+ */
+@Injectable()
+export class LandlordResourceGuard implements CanActivate {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
+    if (!user || user.role !== 'LANDLORD') {
+      throw new ForbiddenException('Only landlords can access this resource');
+    }
+    const params = request.params;
+    const propertyId: string | undefined = params.propertyId || (params.id && request.route.path.includes('properties') ? params.id : undefined);
+    const tenancyId: string | undefined = params.tenancyId || (params.id && request.route.path.includes('tenancies') ? params.id : undefined);
+    // Determine resource type
+    if (propertyId) {
+      const property = await this.prisma.property.findUnique({ where: { id: propertyId } });
+      if (!property) {
+        throw new NotFoundException('Property not found');
+      }
+      if (property.landlordId !== user.landlordId) {
+        throw new ForbiddenException('Access denied');
+      }
+    } else if (tenancyId) {
+      const tenancy = await this.prisma.tenancy.findUnique({ where: { id: tenancyId }, include: { property: true } });
+      if (!tenancy) {
+        throw new NotFoundException('Tenancy not found');
+      }
+      if (tenancy.property.landlordId !== user.landlordId) {
+        throw new ForbiddenException('Access denied');
+      }
+    }
+    return true;
+  }
+}

@@ -1,74 +1,294 @@
-# Property Management App
+# Property Management Platform
 
-This is a multi‑tenant property management platform built with **Next.js** (App Router), **TypeScript**, **Tailwind CSS**, **TanStack Query** and **React Hook Form**. The application supports landlords, tenants, contractors and ops teams with role‑based portals for onboarding and maintenance ticketing.
+A full-stack multi-tenant property management platform with role-based access control for landlords, tenants, contractors, and operations teams.
 
-## Project Structure
+## 🏗️ Architecture
 
-The project is organized as follows:
+**Frontend:** Next.js 14 (App Router) + TypeScript + Tailwind CSS + TanStack Query  
+**Backend:** NestJS + Prisma + PostgreSQL + Redis + BullMQ  
+**Authentication:** JWT (access + refresh tokens)
 
-```text
-property-management-app/
-├─ app/                    # App Router pages and layouts
-│  ├─ (public)/           # Public pages (login, signup)
-│  ├─ (landlord)/         # Landlord portal
-│  ├─ (tenant)/           # Tenant portal
-│  ├─ (contractor)/       # Contractor portal
-│  └─ (ops)/              # Operations portal
-├─ _components/           # Reusable UI components
-├─ _lib/                  # API client, auth helpers, zod schemas
-├─ _hooks/                # Custom hooks (e.g. authentication)
-├─ _styles/               # Global and component styles
-├─ _types/                # Shared TypeScript type definitions
-├─ package.json           # Project dependencies and scripts
-├─ tsconfig.json          # TypeScript configuration
-├─ next.config.js         # Next.js configuration
-├─ tailwind.config.js     # Tailwind CSS configuration
-├─ postcss.config.js      # PostCSS configuration
-└─ README.md
+## 📁 Project Structure
+
+```
+Property-Manager/
+├── frontend/              # Next.js frontend application
+│   ├── app/              # App Router pages and layouts
+│   │   ├── (public)/     # Public pages (login, signup)
+│   │   ├── (landlord)/   # Landlord portal
+│   │   ├── (tenant)/     # Tenant portal
+│   │   ├── (contractor)/ # Contractor portal
+│   │   └── (ops)/        # Operations portal
+│   ├── _components/      # Reusable UI components
+│   ├── _lib/            # API client, auth helpers, schemas
+│   ├── _hooks/          # Custom React hooks
+│   ├── _types/          # TypeScript type definitions
+│   └── _styles/         # Global styles
+│
+├── backend/              # NestJS backend application
+│   ├── apps/api/src/    # API source code
+│   │   ├── modules/     # Feature modules
+│   │   │   ├── auth/    # Authentication
+│   │   │   ├── users/   # User management
+│   │   │   ├── properties/
+│   │   │   ├── tenancies/
+│   │   │   ├── tickets/
+│   │   │   ├── documents/
+│   │   │   └── notifications/
+│   │   └── common/      # Guards, interceptors, filters
+│   ├── prisma/          # Database schema and migrations
+│   └── docker-compose.yml
+│
+├── setup.sh             # Automated setup script
+├── start-backend.sh     # Start backend server
+└── start-frontend.sh    # Start frontend server
 ```
 
-## Getting Started
+## 🚀 Quick Start
 
-To run the app locally you'll need **Node.js** (>= 18) installed. Install dependencies and run the development server:
+### Prerequisites
+
+- **Node.js** 20 or later
+- **Docker** and **Docker Compose**
+- **npm** or **yarn**
+
+### Automated Setup
+
+Run the setup script to install dependencies and configure the database:
 
 ```bash
+./setup.sh
+```
+
+This will:
+1. Install backend and frontend dependencies
+2. Start PostgreSQL and Redis via Docker
+3. Run database migrations
+4. Generate Prisma client
+5. Optionally seed the database
+
+### Manual Setup
+
+#### 1. Backend Setup
+
+```bash
+cd backend
+
+# Install dependencies
 npm install
+
+# Start PostgreSQL and Redis
+docker compose up -d
+
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate deploy
+
+# (Optional) Seed database
+npm run seed
+
+# Start backend server
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`. Environment variables such as `NEXT_PUBLIC_API_BASE` and `MAX_UPLOAD_MB` should be configured in a `.env.local` file. See `.env.example` for defaults.
+Backend runs on: [http://localhost:4000](http://localhost:4000)  
+API docs: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
 
-## Testing
-
-This project includes unit tests (powered by **Vitest** and **Testing Library**) and end‑to‑end tests (powered by **Playwright**). To run tests:
+#### 2. Frontend Setup
 
 ```bash
-npm test         # Run unit tests
-npm run test:e2e # Run E2E tests
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
 ```
 
-## API Contract
+Frontend runs on: [http://localhost:3000](http://localhost:3000)
 
-All client requests are proxied through `/api` and authenticated using a JWT access token in memory and a refresh token via httpOnly cookies. See `_lib/apiClient.ts` for more details.
+## 🔧 Configuration
 
-## License
+### Backend Environment Variables
+
+Located in `backend/.env`:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/property_management
+REDIS_URL=redis://localhost:6379
+JWT_ACCESS_SECRET=dev-access-secret-change-in-production
+JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
+PORT=4000
+NODE_ENV=development
+```
+
+### Frontend Environment Variables
+
+Located in `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_API_BASE=http://localhost:4000/api
+MAX_UPLOAD_MB=10
+```
+
+## 🎯 Key Features
+
+### Role-Based Access Control
+- **Landlords:** Manage properties, tenancies, approve maintenance quotes
+- **Tenants:** Report issues, track maintenance tickets
+- **Contractors:** View assigned jobs, submit quotes
+- **Ops Teams:** Manage ticket queues and assignments
+
+### Authentication Flow
+1. User logs in → Backend returns access + refresh tokens
+2. Access token stored in memory, refresh token in localStorage
+3. Automatic token refresh on 401 responses
+4. Role-based route protection via `RoleGate` component
+
+### API Integration
+- Centralized API client with automatic token management
+- Zod schema validation for type safety
+- React Query for server state management
+- Automatic error handling and retry logic
+
+## 🧪 Testing
+
+### Backend Tests
+```bash
+cd backend
+npm test
+```
+
+### Frontend Tests
+```bash
+cd frontend
+npm test         # Unit tests (Vitest)
+npm run test:e2e # E2E tests (Playwright)
+```
+
+## 📚 API Documentation
+
+Interactive API documentation is available at:
+[http://localhost:4000/api/docs](http://localhost:4000/api/docs)
+
+Key endpoints:
+- `POST /api/auth/signup` - Register new user
+- `POST /api/auth/login` - Authenticate user
+- `POST /api/auth/refresh` - Refresh access token
+- `GET /api/users/me` - Get current user
+- `GET /api/properties` - List properties
+- `POST /api/tickets` - Create maintenance ticket
+
+## 🔄 Development Workflow
+
+### Starting Both Servers
+
+**Terminal 1 (Backend):**
+```bash
+./start-backend.sh
+# or
+cd backend && npm run dev
+```
+
+**Terminal 2 (Frontend):**
+```bash
+./start-frontend.sh
+# or
+cd frontend && npm run dev
+```
+
+### Database Management
+
+```bash
+cd backend
+
+# Create new migration
+npx prisma migrate dev --name migration_name
+
+# Reset database
+npx prisma migrate reset
+
+# Open Prisma Studio
+npx prisma studio
+```
+
+## 🐳 Docker Services
+
+PostgreSQL and Redis run in Docker containers:
+
+```bash
+# Start services
+docker compose up -d
+
+# Stop services
+docker compose down
+
+# View logs
+docker compose logs -f
+
+# Reset volumes
+docker compose down -v
+```
+
+## 🔐 Security Notes
+
+- Change JWT secrets in production
+- Use environment-specific configurations
+- Enable CORS only for trusted domains
+- Store sensitive credentials in secure vaults
+- Implement rate limiting (already configured)
+- Use HTTPS in production
+
+## 📝 Common Tasks
+
+### Adding a New Feature Module
+
+1. **Backend:** Create module in `backend/apps/api/src/modules/`
+2. **Frontend:** Add pages in `frontend/app/(role)/`
+3. Update Prisma schema if needed
+4. Create API client functions in `frontend/_lib/`
+5. Add types to `frontend/_types/models.ts`
+
+### Updating Database Schema
+
+1. Modify `backend/prisma/schema.prisma`
+2. Run `npx prisma migrate dev --name change_description`
+3. Update TypeScript types in frontend
+4. Regenerate Prisma client: `npx prisma generate`
+
+## 🚢 Deployment
+
+### Backend (Railway/Render/Heroku)
+1. Set environment variables
+2. Connect PostgreSQL and Redis
+3. Run migrations: `npx prisma migrate deploy`
+4. Start: `npm run build && npm start`
+
+### Frontend (Vercel/Netlify)
+1. Connect GitHub repository
+2. Set build command: `npm run build`
+3. Set environment variables:
+   - `NEXT_PUBLIC_API_BASE=https://your-api.com/api`
+4. Deploy
+
+## 🐛 Troubleshooting
+
+**Database connection failed:**
+- Ensure Docker is running: `docker ps`
+- Check DATABASE_URL in `.env`
+
+**Frontend can't reach backend:**
+- Verify backend is running on port 4000
+- Check NEXT_PUBLIC_API_BASE in `.env.local`
+- Ensure CORS is configured in backend
+
+**Token refresh failing:**
+- Clear localStorage: `localStorage.clear()`
+- Check JWT secrets match in backend `.env`
+
+## 📄 License
 
 MIT
-
-## Quick start
-1. Copy `.env.example` → `.env` and set:
-   - NEXT_PUBLIC_API_BASE (e.g. http://localhost:4000/api)
-   - MAX_UPLOAD_MB (e.g. 10)
-2. npm ci
-3. npm run dev → http://localhost:3000
-
-## Deploy to Vercel
-1. Push this repo to GitHub.
-2. In Vercel → Add New Project → Import this repo.
-3. Set Project Environment Variables:
-   - NEXT_PUBLIC_API_BASE = https://your-backend.example.com/api
-   - MAX_UPLOAD_MB = 10
-4. Deploy. Vercel gives you a live URL.
-
-### Cookies/CORS
-If your backend uses httpOnly refresh cookies, allow the Vercel domain in CORS and set cookie flags correctly for your environment.
