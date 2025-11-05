@@ -48,8 +48,9 @@ Property-Manager/
 
 ### Prerequisites
 
-- **Node.js** 20 or later
-- **Docker** and **Docker Compose**
+- **Node.js** 18 or later (v20+ recommended, `.nvmrc` file included)
+  - If using [nvm](https://github.com/nvm-sh/nvm), run `nvm use` in the project root
+- **Docker** and **Docker Compose** (optional - only needed for PostgreSQL/Redis, SQLite is default)
 - **npm** or **yarn**
 
 ### Automated Setup
