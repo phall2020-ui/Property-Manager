@@ -118,6 +118,328 @@ npx prisma migrate dev
 
 For future enforcement of row‑level security, see `prisma/RLS.sql` which contains SQL policy examples scoped by `landlordId`. These policies are currently commented out because the application layer enforces scoping, but they can be enabled once you set up RLS in PostgreSQL.
 
+## API Documentation
+
+### Interactive API Docs
+
+The API includes OpenAPI/Swagger documentation available at `http://localhost:4000/api/docs` when running in development mode.
+
+### Authentication Flow
+
+All endpoints (except those marked `@Public()`) require a Bearer token in the Authorization header.
+
+#### Sign Up
+```bash
+POST /api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "landlord@example.com",
+  "password": "password123",
+  "name": "John Landlord"
+}
+
+Response:
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "uuid",
+    "email": "landlord@example.com",
+    "name": "John Landlord",
+    "organisations": [
+      {
+        "orgId": "uuid",
+        "orgName": "John Landlord's Organisation",
+        "role": "LANDLORD"
+      }
+    ]
+  }
+}
+```
+
+#### Login
+```bash
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "landlord@example.com",
+  "password": "password123"
+}
+
+Response: Same as signup
+```
+
+#### Refresh Token
+```bash
+POST /api/auth/refresh
+Cookie: refresh_token=...
+
+Response:
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+#### Logout
+```bash
+POST /api/auth/logout
+Cookie: refresh_token=...
+
+Response:
+{
+  "message": "Logged out successfully"
+}
+```
+
+### Core API Endpoints
+
+All protected endpoints require: `Authorization: Bearer {accessToken}`
+
+#### Users
+
+**Get Current User**
+```bash
+GET /api/users/me
+Authorization: Bearer {accessToken}
+
+Response:
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "name": "User Name",
+  "orgMemberships": [...]
+}
+```
+
+#### Properties (Landlord Only)
+
+**Create Property**
+```bash
+POST /api/properties
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "address1": "123 Main Street",
+  "address2": "Apt 4B",
+  "city": "London",
+  "postcode": "SW1A 1AA",
+  "bedrooms": 2
+}
+
+Response:
+{
+  "id": "uuid",
+  "address1": "123 Main Street",
+  "address2": "Apt 4B",
+  "city": "London",
+  "postcode": "SW1A 1AA",
+  "bedrooms": 2,
+  "ownerOrgId": "uuid",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+**List Properties**
+```bash
+GET /api/properties?page=1&limit=20
+Authorization: Bearer {accessToken}
+
+Response: Array of properties
+```
+
+**Get Property by ID**
+```bash
+GET /api/properties/{id}
+Authorization: Bearer {accessToken}
+
+Response: Single property object
+```
+
+#### Tenancies (Landlord Only)
+
+**Create Tenancy**
+```bash
+POST /api/tenancies
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "propertyId": "uuid",
+  "tenantOrgId": "uuid",
+  "startDate": "2024-01-01",
+  "endDate": "2025-01-01",
+  "rentPcm": 1500,
+  "deposit": 3000,
+  "status": "ACTIVE"
+}
+```
+
+**List Tenancies**
+```bash
+GET /api/tenancies
+Authorization: Bearer {accessToken}
+```
+
+**Get Tenancy by ID**
+```bash
+GET /api/tenancies/{id}
+Authorization: Bearer {accessToken}
+```
+
+**Upload Tenancy Document**
+```bash
+POST /api/tenancies/{id}/documents
+Authorization: Bearer {accessToken}
+Content-Type: multipart/form-data
+
+file: [binary file data]
+```
+
+#### Tickets (All Roles)
+
+**Create Ticket (Tenant)**
+```bash
+POST /api/tickets
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "propertyId": "uuid",
+  "tenancyId": "uuid",
+  "title": "Leaking kitchen tap",
+  "description": "The tap has been dripping for a week",
+  "priority": "HIGH"
+}
+
+Response:
+{
+  "id": "uuid",
+  "title": "Leaking kitchen tap",
+  "description": "The tap has been dripping for a week",
+  "priority": "HIGH",
+  "status": "OPEN",
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  ...
+}
+```
+
+**List Tickets**
+```bash
+GET /api/tickets
+Authorization: Bearer {accessToken}
+
+Response: Array of tickets (filtered by user role and org)
+```
+
+**Get Ticket by ID**
+```bash
+GET /api/tickets/{id}
+Authorization: Bearer {accessToken}
+```
+
+**Submit Quote (Contractor)**
+```bash
+POST /api/tickets/{id}/quote
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "amount": 250.00,
+  "notes": "Replace tap and fix pipe connection"
+}
+
+Response: Quote object with status "PENDING"
+```
+
+**Approve Quote (Landlord)**
+```bash
+POST /api/tickets/quotes/{quoteId}/approve
+Authorization: Bearer {accessToken}
+
+Response: Updated quote with status "APPROVED"
+```
+
+**Complete Ticket (Contractor)**
+```bash
+POST /api/tickets/{id}/complete
+Authorization: Bearer {accessToken}
+Content-Type: application/json
+
+{
+  "completionNotes": "Tap replaced, tested for 30 minutes"
+}
+```
+
+**Upload Ticket Attachment**
+```bash
+POST /api/tickets/{id}/attachments
+Authorization: Bearer {accessToken}
+Content-Type: multipart/form-data
+
+file: [binary file data]
+```
+
+### Role-Based Access Control
+
+The API implements role-based access control with the following roles:
+- **LANDLORD**: Can create properties, tenancies, and approve quotes
+- **TENANT**: Can create tickets and view their tenancies
+- **CONTRACTOR**: Can submit quotes and mark tickets as complete
+- **ADMIN**: Has administrative privileges within an organization
+
+### Error Responses
+
+All endpoints return consistent error responses:
+
+```json
+{
+  "statusCode": 400,
+  "message": "Error description",
+  "error": "Bad Request"
+}
+```
+
+Common status codes:
+- `400`: Bad Request (validation error)
+- `401`: Unauthorized (missing or invalid token)
+- `403`: Forbidden (insufficient permissions)
+- `404`: Not Found
+- `409`: Conflict (e.g., duplicate email)
+- `500`: Internal Server Error
+
+### Testing with curl
+
+Example workflow testing the API:
+
+```bash
+# 1. Sign up as landlord
+curl -X POST http://localhost:4000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "password123",
+    "name": "Test User"
+  }'
+
+# Save the accessToken from response
+
+# 2. Create a property
+curl -X POST http://localhost:4000/api/properties \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {accessToken}" \
+  -d '{
+    "address1": "123 Test St",
+    "postcode": "SW1A 1AA"
+  }'
+
+# 3. List properties
+curl -X GET http://localhost:4000/api/properties \
+  -H "Authorization: Bearer {accessToken}"
+```
+
 ## License
 
 This project is provided as a reference implementation and does not include any license. Adapt it to your needs.

@@ -19,8 +19,13 @@ export class RolesGuard implements CanActivate {
     if (!user) {
       throw new ForbiddenException('User not loaded');
     }
-    if (!requiredRoles.includes(user.role)) {
-      throw new ForbiddenException('Insufficient role');
+    
+    // Check if user has any of the required roles in any of their orgs
+    const userRoles = user.orgs?.map((org: any) => org.role) || [];
+    const hasRole = requiredRoles.some(role => userRoles.includes(role));
+    
+    if (!hasRole) {
+      throw new ForbiddenException('Insufficient permissions');
     }
     return true;
   }
