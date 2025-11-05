@@ -115,13 +115,36 @@ export const TenantSchema = z.object({
   phone: ukPhone,
 });
 
-export const CreateTenancySchema = TenancyDetailsSchema
-  .merge(DepositLegalSchema)
-  .merge(ComplianceSchema)
-  .extend({
-    propertyId: z.string().min(1),
-    tenants: z.array(TenantSchema).min(1, 'At least one tenant required'),
-  });
+export const CreateTenancySchema = z.object({
+  propertyId: z.string().min(1),
+  startDate: z.string().min(1, 'Start date required'),
+  endDate: z.string().optional(),
+  rentAmount: moneyAmount,
+  rentFrequency: z.enum(['Monthly', 'Weekly', 'Other']),
+  rentDueDay: z.coerce.number().int().min(1).max(28),
+  depositAmount: moneyAmount,
+  depositScheme: z.enum(['DPS', 'TDS', 'MyDeposits', 'None']),
+  depositProtectedAt: z.string().optional(),
+  prescribedInfoServedAt: z.string().optional(),
+  howToRentServedAt: z.string().optional(),
+  rightToRentCheckedAt: z.string().optional(),
+  gasSafetyDueAt: z.string().optional(),
+  eicrDueAt: z.string().optional(),
+  epcExpiresAt: z.string().optional(),
+  hmo: z.boolean().default(false),
+  hmoLicenceNumber: z.string().optional(),
+  hmoLicenceExpiresAt: z.string().optional(),
+  selectiveLicence: z.boolean().default(false),
+  selectiveLicenceExpiresAt: z.string().optional(),
+  boilerServiceDueAt: z.string().optional(),
+  smokeAlarmsCheckedAt: z.string().optional(),
+  coAlarmsCheckedAt: z.string().optional(),
+  legionellaAssessmentAt: z.string().optional(),
+  tenants: z.array(TenantSchema).min(1, 'At least one tenant required'),
+}).refine(
+  (data) => !data.endDate || new Date(data.startDate) <= new Date(data.endDate),
+  { message: 'End date must be after start date', path: ['endDate'] }
+);
 
 export type CreateTenancyDTO = z.infer<typeof CreateTenancySchema>;
 export type TenantDTO = z.infer<typeof TenantSchema>;
