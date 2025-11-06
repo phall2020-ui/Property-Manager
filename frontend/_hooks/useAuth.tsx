@@ -32,6 +32,7 @@ const AuthInner: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     queryKey: ['me'],
     queryFn: getMe,
     staleTime: Infinity,
+    retry: false, // Don't retry if user is not authenticated
   });
   const queryClient = useQueryClient();
   const signOut = async () => {

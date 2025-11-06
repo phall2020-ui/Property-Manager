@@ -198,7 +198,7 @@ export default function LandlordTicketsPage() {
               },
               { header: 'Category', accessor: 'category' },
               { header: 'Property', accessor: 'propertyId', render: (ticket) => (
-                <span className="text-sm text-gray-600">{ticket.propertyId.substring(0, 8)}...</span>
+                <span className="text-sm text-gray-600">{ticket.propertyId?.substring(0, 8) || 'N/A'}...</span>
               )},
               {
                 header: 'Created',

@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { listTenantInvoices } from '@/_lib/financeClient';
+import { listTenantInvoices } from '@/lib/financeClient';
 
 export default function TenantPaymentsPage() {
   const router = useRouter();

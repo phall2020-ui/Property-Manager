@@ -1,248 +1,172 @@
-# Property Management MVP - Final Status
+# Final Testing Status Report
 
-## ✅ COMPLETED (65% Total)
+**Date**: November 6, 2025  
+**Session**: Post-Merge Testing & Bug Fixes
 
-### 1. Database & Schema (100%)
-- ✅ Org model for multi-tenant isolation
-- ✅ OrgMember for role-based access control
-- ✅ RefreshToken for token rotation tracking
-- ✅ Quote model for ticket workflow
-- ✅ All relationships properly configured
-- ✅ Migration applied and database seeded
+## Executive Summary
 
-### 2. Auth System (100%)
-- ✅ httpOnly cookie-based refresh tokens
-- ✅ JWT token rotation with jti tracking
-- ✅ Revoke-on-reuse detection
-- ✅ Signup/Login/Refresh/Logout endpoints
-- ✅ All tested and working
+After merging changes from origin/main and rebuilding the backend, comprehensive testing was performed on all three previously identified broken features. **2 out of 3 features are now working**, with 1 feature blocked by a NestJS routing issue.
 
-### 3. Backend APIs (100%)
-- ✅ Auth module (signup, login, refresh, logout)
-- ✅ Users module (GET /me)
-- ✅ Properties module (org-based CRUD)
-- ✅ Tenancies module (org-based CRUD + file upload)
-- ✅ Tickets module (org-based CRUD + workflow + file upload)
-- ✅ Quote workflow (create/approve/complete)
-- ✅ File upload with multer
-- ✅ All modules tested
+## Feature Status
 
-### 4. Frontend (50%)
-- ✅ Vite + React + TypeScript setup
-- ✅ React Router configured
-- ✅ Auth context with cookie-based refresh
-- ✅ API client with automatic token refresh
-- ✅ Login page
-- ✅ Dashboard page
-- ✅ Tailwind CSS configured
-- ⚠️ Need property management pages
-- ⚠️ Need tenancy management pages
-- ⚠️ Need ticket management pages
+### ✅ 1. Add Tenancy Feature - **WORKING**
 
-## 🚧 REMAINING WORK (35%)
+**Status**: Fixed and verified  
+**Issue**: Schema field name mismatch between DTO and database  
+**Root Cause**: The DTO and controller were already correctly using old field names (`startDate`, `endDate`, `rentPcm`), and the service was properly mapping them to new schema fields (`start`, `end`, `rent`). No changes were actually needed.
 
-### 5. Frontend Pages (0%)
-- ❌ Properties list/create/detail pages
-- ❌ Tenancies list/create/detail pages
-- ❌ Tickets list/create/detail pages
-- ❌ Quote submission/approval UI
-- ❌ File upload UI components
-
-### 6. Testing (0%)
-- ❌ Backend unit tests (Jest)
-- ❌ Backend integration tests (Supertest)
-- ❌ Frontend unit tests (Vitest)
-- ❌ E2E tests (Playwright)
-
-### 7. Documentation (20%)
-- ✅ Status documents
-- ❌ README with setup instructions
-- ❌ API documentation
-- ❌ Postman collection
-- ❌ Deployment guide
-
-## 🎯 WHAT'S WORKING NOW
-
-### Backend (Port 4000)
+**Test Result**:
 ```bash
-# All endpoints functional
-curl http://localhost:4000/api/health
-
-# Login with httpOnly cookie
-curl -X POST http://localhost:4000/api/auth/login \
+curl -X POST http://localhost:4000/api/tenancies \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"email":"landlord@example.com","password":"password123"}' \
-  -c cookies.txt
+  -d '{
+    "propertyId": "3649b72f-9e82-4fcc-876f-56878d5c96d8",
+    "tenantOrgId": "61670458-72a9-4bd2-958e-fe17254ea768",
+    "startDate": "2025-01-01",
+    "endDate": "2025-12-31",
+    "rentPcm": 1500,
+    "deposit": 1500
+  }'
 ```
 
-### Frontend (Port 5173)
+**Response**: HTTP 201 Created with full tenancy object including both old and new field names.
+
+### ✅ 2. Create Ticket Feature - **WORKING**
+
+**Status**: Fixed and verified  
+**Issue**: `createdById` was undefined causing Prisma validation errors  
+**Root Cause**: Controller was accessing `user.sub` instead of `user.id` from `@CurrentUser()` decorator  
+**Fix Applied**: Changed all references from `user.sub` to `user.id` in tickets.controller.ts (3 methods: create, createQuote, complete)
+
+**Test Result**:
 ```bash
-# Vite dev server running
-http://localhost:5173
-
-# Features:
-- Login page with test credentials
-- Dashboard with role-based UI
-- Automatic token refresh
-- Protected routes
+curl -X POST http://localhost:4000/api/tickets \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tenancyId": "4a7e63d5-dca7-41d5-850a-b08a1fa08e4c",
+    "title": "Leaking faucet",
+    "description": "The kitchen faucet is leaking",
+    "category": "PLUMBING",
+    "priority": "MEDIUM"
+  }'
 ```
 
-## 📋 COMPLETE API ENDPOINTS
+**Response**: HTTP 201 Created with ticket object including correct `createdById` field.
 
-### Auth
-- `POST /api/auth/signup` - Register new landlord
-- `POST /api/auth/login` - Login (sets httpOnly cookie)
-- `POST /api/auth/refresh` - Refresh access token
-- `POST /api/auth/logout` - Logout (clears cookie)
+### ❌ 3. Edit Property Feature - **BLOCKED**
 
-### Users
-- `GET /api/users/me` - Get current user profile
+**Status**: Not working - NestJS routing issue  
+**Issue**: PATCH requests to `/api/properties/:id` return 404 "Cannot PATCH /api/properties/{id}"  
+**Root Cause**: Unknown NestJS routing configuration issue
 
-### Properties (Org-based)
-- `POST /api/properties` - Create property
-- `GET /api/properties` - List properties
-- `GET /api/properties/:id` - Get property details
+**Evidence**:
+- Route IS registered in logs: `Mapped {/api/properties/:id, PATCH} route`
+- GET requests to same endpoint work fine
+- PATCH requests to other controllers work (e.g., `/api/tickets/:id/status`)
+- Controller code is correct with `@Patch(':id')` decorator
+- Compiled JavaScript has correct Patch decorator
+- Issue persists even with:
+  - @Roles decorator removed
+  - Helmet and rate-limit middleware disabled
+  - Simple test endpoint added
+  - Fresh rebuild and restart
 
-### Tenancies (Org-based)
-- `POST /api/tenancies` - Create tenancy
-- `GET /api/tenancies` - List tenancies
-- `GET /api/tenancies/:id` - Get tenancy details
-- `POST /api/tenancies/:id/documents` - Upload document (multipart)
-
-### Tickets (Org-based + Workflow)
-- `POST /api/tickets` - Create ticket (TENANT)
-- `GET /api/tickets` - List tickets (role-filtered)
-- `GET /api/tickets/:id` - Get ticket details
-- `POST /api/tickets/:id/quote` - Submit quote (CONTRACTOR)
-- `POST /api/tickets/quotes/:quoteId/approve` - Approve quote (LANDLORD)
-- `POST /api/tickets/:id/complete` - Mark complete (CONTRACTOR)
-- `POST /api/tickets/:id/attachments` - Upload attachment (multipart)
-
-## 🔑 TEST CREDENTIALS
-
-```
-LANDLORD:
-  Email: landlord@example.com
-  Password: password123
-  Org: Acme Properties Ltd
-
-TENANT:
-  Email: tenant@example.com
-  Password: password123
-  Org: Smith Family
-
-CONTRACTOR:
-  Email: contractor@example.com
-  Password: password123
+**Test Result**:
+```bash
+curl -X PATCH http://localhost:4000/api/properties/3649b72f-9e82-4fcc-876f-56878d5c96d8 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"bedrooms": 5}'
 ```
 
-## 🏗️ ARCHITECTURE
+**Response**: HTTP 404 with "Cannot PATCH /api/properties/3649b72f-9e82-4fcc-876f-56878d5c96d8"
+
+**Comparison Test**:
+- GET `/api/properties/:id` - ✅ Works
+- POST `/api/properties` - ✅ Works  
+- PATCH `/api/tickets/:id/status` - ✅ Works
+- PATCH `/api/properties/:id` - ❌ 404
+
+**Investigation Performed**:
+1. Verified route registration in logs
+2. Checked controller decorator syntax
+3. Compared with working PATCH endpoints
+4. Tested with/without authentication
+5. Tested with/without @Roles decorator
+6. Disabled security middlewares
+7. Checked Swagger documentation
+8. Verified compiled JavaScript
+9. Tested simple test endpoint
+10. Checked for route conflicts
+
+**Recommendation**: This appears to be a NestJS framework bug or very specific configuration issue that requires deeper investigation. Workaround options:
+1. Use PUT instead of PATCH (requires adding @Put decorator)
+2. Use POST with custom route like `/api/properties/:id/update`
+3. Investigate NestJS version upgrade or downgrade
+4. File issue with NestJS team
+
+## Backend Status
+
+**Service**: Running on port 4000  
+**Health**: ✅ Connected  
+**Database**: SQLite (dev.db)  
+**Build**: Clean compilation, no TypeScript errors
+
+## Database State
+
+**Properties**: 8 seeded properties  
+**Tenancies**: 4 total (3 seeded + 1 created during testing)  
+**Tickets**: 4 total (3 seeded + 1 created during testing)  
+**Users**: 3 (landlord, tenant, contractor)
+
+## Test Credentials
+
+- **Landlord**: landlord@example.com / password123
+- **Tenant**: tenant@example.com / password123
+- **Contractor**: contractor@example.com / password123
+
+## Files Modified
 
 ### Backend
-- **Framework**: NestJS + Prisma
-- **Database**: SQLite (dev.db)
-- **Auth**: JWT (15min access, 7day refresh)
-- **Cookies**: httpOnly, SameSite=Lax
-- **File Storage**: Local disk (./uploads/)
-- **Multi-tenancy**: Org-based isolation
+1. `apps/api/src/modules/tickets/tickets.controller.ts` - Fixed `user.sub` → `user.id`
+2. `apps/api/src/modules/properties/properties.controller.ts` - Attempted fixes (reverted)
+3. `apps/api/src/main.ts` - Attempted middleware disabling (reverted)
 
-### Frontend
-- **Framework**: Vite + React 18 + TypeScript
-- **Routing**: React Router v6
-- **State**: TanStack Query
-- **HTTP**: Axios with interceptors
-- **Styling**: Tailwind CSS
-- **Auth**: Cookie-based with auto-refresh
+### Documentation
+1. `FINAL_STATUS.md` - This file
+2. `SYNC_COMPLETE.md` - Merge completion documentation
+3. `IMPLEMENTATION_PLAN.md` - Detailed fix instructions
+4. `FIXES_REQUIRED.md` - Quick reference
+5. `TEST_REPORT.md` - Comprehensive test report
+6. `TESTING_STATUS.md` - Quick status reference
+7. `TESTING_COMPLETE.md` - Initial testing summary
+8. `DEMO_DATA_LOADED.md` - Test data documentation
 
-## 📊 PROGRESS BREAKDOWN
+## Next Steps
 
-- **Database & Schema**: 100% ✅
-- **Auth System**: 100% ✅
-- **Backend APIs**: 100% ✅
-- **Frontend Core**: 50% 🚧
-- **Frontend Pages**: 0% ❌
-- **Testing**: 0% ❌
-- **Documentation**: 20% 🚧
+### Immediate (Required)
+1. **Fix Edit Property PATCH endpoint** - Investigate NestJS routing issue or implement workaround
 
-**Overall Progress**: ~65% complete
+### Short Term (Recommended)
+1. Add frontend integration tests for working features
+2. Update frontend to handle new tenancy field names if needed
+3. Add E2E tests for ticket creation workflow
+4. Document the PATCH routing issue for future reference
 
-## 🚀 QUICK START
+### Long Term (Optional)
+1. Upgrade NestJS to latest version and retest
+2. Consider migrating to Fastify adapter
+3. Add comprehensive API integration tests
+4. Implement automated regression testing
 
-### Backend
-```bash
-cd backend
-npm install
-npx prisma migrate dev
-npm run seed
-npm run dev
-# Runs on http://localhost:4000
-```
+## Summary
 
-### Frontend
-```bash
-cd frontend-new
-npm install
-npm run dev
-# Runs on http://localhost:5173
-```
+**Working Features**: 2/3 (67%)  
+**Blocked Features**: 1/3 (33%)  
+**Critical Bugs Fixed**: 1 (JWT user extraction in tickets)  
+**Time Spent**: ~70 minutes  
+**Estimated Time to Fix Remaining**: 30-60 minutes (depending on PATCH issue complexity)
 
-### Test Login
-1. Open http://localhost:5173
-2. Use: landlord@example.com / password123
-3. View dashboard with org info
-
-## 🎯 NEXT STEPS
-
-1. **Complete Frontend Pages** (2-3 days)
-   - Properties CRUD UI
-   - Tenancies CRUD UI
-   - Tickets CRUD UI with workflow
-   - File upload components
-
-2. **Add Testing** (2-3 days)
-   - Backend unit tests
-   - API integration tests
-   - Frontend component tests
-   - E2E happy path test
-
-3. **Documentation** (1 day)
-   - Complete README
-   - API documentation
-   - Postman collection
-   - Deployment guide
-
-**Estimated Time to Complete**: 5-7 days
-
-## ✨ KEY ACHIEVEMENTS
-
-1. ✅ Production-ready auth with token rotation
-2. ✅ Complete org-based multi-tenancy
-3. ✅ Full ticket workflow (OPEN → QUOTING → APPROVAL → DONE)
-4. ✅ File upload for documents and attachments
-5. ✅ Cookie-based refresh with automatic retry
-6. ✅ Role-based access control throughout
-7. ✅ Clean separation of concerns
-8. ✅ Type-safe API client
-9. ✅ Responsive UI with Tailwind
-10. ✅ No Docker required (SQLite)
-
-## 🔒 SECURITY FEATURES
-
-- ✅ httpOnly cookies (XSS protection)
-- ✅ Token rotation (prevents replay attacks)
-- ✅ Revoke-on-reuse detection
-- ✅ Bcrypt password hashing
-- ✅ JWT with short expiry (15min)
-- ✅ CORS configured
-- ✅ Helmet security headers
-- ✅ Rate limiting
-- ✅ Org-based data isolation
-
-## 📝 NOTES
-
-- Backend is production-ready
-- Frontend core is functional
-- Need to complete CRUD pages
-- Testing infrastructure needed
-- Documentation needs completion
-- All MVP requirements met in backend
+The platform is functional for core workflows (creating tenancies and tickets), but property editing requires a workaround or deeper investigation into the NestJS routing issue.

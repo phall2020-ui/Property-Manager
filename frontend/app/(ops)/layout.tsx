@@ -8,7 +8,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function OpsLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, signOut: logout } = useAuth();
   
   return (
     <RoleGate role={Role.OPS}>

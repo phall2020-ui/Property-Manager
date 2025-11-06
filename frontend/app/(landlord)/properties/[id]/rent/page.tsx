@@ -9,7 +9,7 @@ import {
   recordPayment,
   exportRentRoll,
   exportPayments,
-} from '@/_lib/financeClient';
+} from '@/lib/financeClient';
 
 export default function PropertyRentPage() {
   const params = useParams();

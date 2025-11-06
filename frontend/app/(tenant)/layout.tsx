@@ -8,7 +8,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function TenantLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, signOut: logout } = useAuth();
   
   return (
     <RoleGate role={Role.TENANT}>
@@ -17,8 +17,8 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
           <div className="container mx-auto flex items-center justify-between px-4">
             <h1 className="text-lg font-semibold">Tenant Portal</h1>
             <nav className="flex items-center space-x-4 text-sm">
-              <Link href="/dashboard" className="hover:underline">
-                Dashboard
+              <Link href="/tenant-home" className="hover:underline">
+                Home
               </Link>
               <Link href="/report-issue" className="hover:underline">
                 Report Issue

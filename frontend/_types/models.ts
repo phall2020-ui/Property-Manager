@@ -76,14 +76,26 @@ export interface Document {
 
 export interface Ticket {
   id: string;
-  propertyId: string;
-  tenantId: string;
-  contractorId?: string;
-  status: TicketStatus;
-  category: string;
+  landlordId: string;
+  propertyId?: string;
+  tenancyId?: string;
+  title: string;
+  category?: string;
   description: string;
+  createdById: string;
+  assignedToId?: string;
+  priority: string;
+  status: TicketStatus | string;
+  attachments?: string;
   createdAt: string;
   updatedAt: string;
+  property?: any;
+  tenancy?: any;
+  createdBy?: any;
+  assignedTo?: any;
+  quotes?: any[];
+  quoteAmount?: number;
+  quoteNotes?: string;
 }
 
 export interface Notification {

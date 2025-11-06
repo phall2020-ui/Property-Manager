@@ -9,7 +9,7 @@ import { RealtimeConnection } from '@/components/RealtimeConnection';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function LandlordLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, signOut: logout } = useAuth();
   
   return (
     <RoleGate role={Role.LANDLORD}>

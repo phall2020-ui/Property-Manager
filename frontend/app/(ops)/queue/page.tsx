@@ -31,7 +31,7 @@ export default function OpsQueuePage() {
               header: 'Ticket',
               accessor: 'id',
               render: (ticket) => (
-                <Link href={`/tickets/${ticket.id}`} className="text-primary underline">
+                <Link href={`/queue-tickets/${ticket.id}`} className="text-primary underline">
                   {ticket.id}
                 </Link>
               ),

@@ -122,7 +122,7 @@ export async function getDashboardMetrics() {
     method: 'GET',
   });
   // TODO: Optional runtime validation with DashboardMetricsSchema.parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -134,7 +134,7 @@ export async function getRentRoll(month?: string): Promise<RentRollItem[]> {
     method: 'GET',
   });
   // TODO: Optional runtime validation with z.array(RentRollItemSchema).parse(res)
-  return res;
+  return res as RentRollItem[];
 }
 
 /**
@@ -146,7 +146,7 @@ export async function getArrears(bucket?: string): Promise<ArrearsItem[]> {
     method: 'GET',
   });
   // TODO: Optional runtime validation with z.array(ArrearsItemSchema).parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -157,7 +157,7 @@ export async function getArrearsAging() {
     method: 'GET',
   });
   // TODO: Optional runtime validation with z.record(z.number()).parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -181,7 +181,7 @@ export async function listInvoices(params?: {
     method: 'GET',
   });
   // TODO: Optional runtime validation with z.object({...}).parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -192,7 +192,7 @@ export async function getInvoice(id: string) {
     method: 'GET',
   });
   // TODO: Optional runtime validation with InvoiceSchema.parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -213,7 +213,7 @@ export async function createInvoice(data: {
     headers: { 'Content-Type': 'application/json' },
   });
   // TODO: Optional runtime validation with InvoiceSchema.parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -224,7 +224,7 @@ export async function voidInvoice(id: string) {
     method: 'POST',
   });
   // TODO: Optional runtime validation with InvoiceSchema.parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -248,7 +248,7 @@ export async function listPayments(params?: {
     method: 'GET',
   });
   // TODO: Optional runtime validation with z.object({...}).parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -259,7 +259,7 @@ export async function getPayment(id: string) {
     method: 'GET',
   });
   // TODO: Optional runtime validation with PaymentSchema.parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -281,7 +281,7 @@ export async function recordPayment(data: {
     headers: { 'Content-Type': 'application/json' },
   });
   // TODO: Optional runtime validation with PaymentSchema.parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -303,7 +303,7 @@ export async function listMandates(params?: {
     method: 'GET',
   });
   // TODO: Optional runtime validation with z.object({...}).parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -314,7 +314,7 @@ export async function getMandate(id: string) {
     method: 'GET',
   });
   // TODO: Optional runtime validation with MandateSchema.parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -330,7 +330,7 @@ export async function createMandate(data: {
     headers: { 'Content-Type': 'application/json' },
   });
   // TODO: Optional runtime validation with z.object({...}).parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -341,7 +341,7 @@ export async function getTenancyBalance(tenancyId: string) {
     method: 'GET',
   });
   // TODO: Optional runtime validation with TenancyBalanceSchema.parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -352,7 +352,7 @@ export async function getFinanceSettings() {
     method: 'GET',
   });
   // TODO: Optional runtime validation with z.any().parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -365,7 +365,7 @@ export async function updateFinanceSettings(data: any) {
     headers: { 'Content-Type': 'application/json' },
   });
   // TODO: Optional runtime validation with z.any().parse(res)
-  return res;
+  return res as any;
 }
 
 /**
@@ -375,7 +375,7 @@ export async function getPropertyRentSummary(propertyId: string) {
   const res = await apiRequest(`/finance/properties/${propertyId}/rent/summary`, {
     method: 'GET',
   });
-  return res;
+  return res as any;
 }
 
 /**
@@ -386,7 +386,7 @@ export async function exportRentRoll(month?: string) {
   const res = await apiRequest(`/finance/exports/rent-roll${params}`, {
     method: 'GET',
   });
-  return res;
+  return res as any;
 }
 
 /**
@@ -400,7 +400,7 @@ export async function exportPayments(from?: string, to?: string) {
   const res = await apiRequest(`/finance/exports/payments${query}`, {
     method: 'GET',
   });
-  return res;
+  return res as any;
 }
 
 /**
@@ -420,7 +420,7 @@ export async function listTenantInvoices(params?: {
   const res = await apiRequest(`/tenant/payments/invoices${queryString}`, {
     method: 'GET',
   });
-  return res;
+  return res as any;
 }
 
 /**
@@ -430,7 +430,7 @@ export async function getTenantInvoice(id: string) {
   const res = await apiRequest(`/tenant/payments/invoices/${id}`, {
     method: 'GET',
   });
-  return res;
+  return res as any;
 }
 
 /**
@@ -440,7 +440,7 @@ export async function getTenantReceipt(id: string) {
   const res = await apiRequest(`/tenant/payments/receipts/${id}`, {
     method: 'GET',
   });
-  return res;
+  return res as any;
 }
 
 /**
@@ -459,5 +459,5 @@ export async function simulatePaymentWebhook(data: {
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
   });
-  return res;
+  return res as any;
 }

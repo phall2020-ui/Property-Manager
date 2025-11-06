@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { getTenantInvoice, getTenantReceipt } from '@/_lib/financeClient';
+import { getTenantInvoice, getTenantReceipt } from '@/lib/financeClient';
 
 export default function TenantInvoiceDetailPage() {
   const params = useParams();
