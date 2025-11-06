@@ -32,7 +32,7 @@ export default function LoginPage() {
           router.push('/dashboard');
           break;
         case 'TENANT':
-          router.push('/report-issue');
+          router.push('/dashboard');
           break;
         case 'CONTRACTOR':
           router.push('/jobs');
