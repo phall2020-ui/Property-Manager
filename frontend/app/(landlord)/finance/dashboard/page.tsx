@@ -10,12 +10,12 @@ export default function FinanceDashboard() {
   const { data: metrics, isLoading: metricsLoading } = useQuery<DashboardMetrics>({
     queryKey: ['finance', 'dashboard'],
     queryFn: getDashboardMetrics,
-  });
+  }) as { data: DashboardMetrics | undefined; isLoading: boolean };
 
   const { data: aging, isLoading: agingLoading } = useQuery<Record<string, number>>({
     queryKey: ['finance', 'arrears-aging'],
     queryFn: getArrearsAging,
-  });
+  }) as { data: Record<string, number> | undefined; isLoading: boolean };
 
   if (metricsLoading || agingLoading) {
     return (
