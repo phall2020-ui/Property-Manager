@@ -44,7 +44,7 @@ import { AppController } from './app.controller';
     FlagsModule,
     EventsModule,
     NotificationsModule,
-    JobsModule,
+    JobsModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [

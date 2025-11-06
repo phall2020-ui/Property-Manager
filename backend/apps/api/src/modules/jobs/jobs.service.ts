@@ -4,16 +4,52 @@ import { Queue } from 'bullmq';
 
 /**
  * Jobs Service - Enqueues background jobs for processing
+ * Gracefully handles Redis not being available by logging instead of crashing
  */
 @Injectable()
 export class JobsService {
   private readonly logger = new Logger(JobsService.name);
+  private redisAvailable = true;
 
   constructor(
     @InjectQueue('tickets') private ticketsQueue: Queue,
     @InjectQueue('notifications') private notificationsQueue: Queue,
     @InjectQueue('dead-letter') private deadLetterQueue: Queue,
-  ) {}
+  ) {
+    // Check if Redis is available on startup
+    this.checkRedisConnection();
+  }
+
+  private async checkRedisConnection() {
+    try {
+      const client = await this.ticketsQueue.client;
+      await client.ping();
+      this.redisAvailable = true;
+      this.logger.log('✅ Redis connected - Background jobs enabled');
+    } catch (error) {
+      this.redisAvailable = false;
+      this.logger.warn('⚠️  Redis not available - Jobs will be logged but not processed');
+      this.logger.warn('⚠️  To enable background jobs, start Redis and set REDIS_URL');
+    }
+  }
+
+  private async enqueueOrLog(queueName: string, jobName: string, data: unknown, options?: unknown) {
+    if (!this.redisAvailable) {
+      this.logger.log(`[NO REDIS] Would enqueue ${jobName}: ${JSON.stringify(data)}`);
+      return null;
+    }
+
+    try {
+      const queue = queueName === 'tickets' ? this.ticketsQueue : 
+                    queueName === 'notifications' ? this.notificationsQueue :
+                    this.deadLetterQueue;
+      return await queue.add(jobName, data, options);
+    } catch (error) {
+      this.logger.warn(`Failed to enqueue ${jobName}, logging instead: ${error.message}`);
+      this.logger.log(`[QUEUE ERROR] Job ${jobName}: ${JSON.stringify(data)}`);
+      return null;
+    }
+  }
 
   /**
    * Enqueue a job when a ticket is created
@@ -25,7 +61,7 @@ export class JobsService {
     landlordId: string;
   }) {
     this.logger.log(`Enqueuing ticket.created job for ticket ${data.ticketId}`);
-    await this.ticketsQueue.add('ticket.created', data, {
+    return this.enqueueOrLog('tickets', 'ticket.created', data, {
       jobId: `ticket-created-${data.ticketId}`,
     });
   }
@@ -41,7 +77,7 @@ export class JobsService {
     landlordId: string;
   }) {
     this.logger.log(`Enqueuing ticket.quoted job for ticket ${data.ticketId}`);
-    await this.ticketsQueue.add('ticket.quoted', data, {
+    return this.enqueueOrLog('tickets', 'ticket.quoted', data, {
       jobId: `ticket-quoted-${data.ticketId}-${data.quoteId}`,
     });
   }
@@ -56,7 +92,7 @@ export class JobsService {
     landlordId: string;
   }) {
     this.logger.log(`Enqueuing ticket.approved job for ticket ${data.ticketId}`);
-    await this.ticketsQueue.add('ticket.approved', data, {
+    return this.enqueueOrLog('tickets', 'ticket.approved', data, {
       jobId: `ticket-approved-${data.ticketId}-${data.quoteId}`,
     });
   }
@@ -71,7 +107,7 @@ export class JobsService {
     landlordId: string;
   }) {
     this.logger.log(`Enqueuing ticket.assigned job for ticket ${data.ticketId}`);
-    await this.ticketsQueue.add('ticket.assigned', data, {
+    return this.enqueueOrLog('tickets', 'ticket.assigned', data, {
       jobId: `ticket-assigned-${data.ticketId}-${data.assignedToId}`,
     });
   }
@@ -87,7 +123,7 @@ export class JobsService {
     metadata?: Record<string, unknown>;
   }) {
     this.logger.log(`Enqueuing ${data.type} notification for user ${data.recipientId}`);
-    await this.notificationsQueue.add('send-notification', data);
+    return this.enqueueOrLog('notifications', 'send-notification', data, undefined);
   }
 
   /**
@@ -95,10 +131,10 @@ export class JobsService {
    */
   async moveToDeadLetter(jobData: unknown, error: string) {
     this.logger.error(`Moving job to dead letter queue: ${error}`);
-    await this.deadLetterQueue.add('failed-job', {
+    return this.enqueueOrLog('dead-letter', 'failed-job', {
       originalData: jobData,
       error,
       timestamp: new Date().toISOString(),
-    });
+    }, undefined);
   }
 }
