@@ -5,7 +5,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class PropertiesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: { address1: string; address2?: string; city?: string; postcode: string; bedrooms?: number; ownerOrgId: string; }) {
+  async create(data: { addressLine1: string; address2?: string; city: string; postcode: string; bedrooms?: number; councilTaxBand?: string; ownerOrgId: string; }) {
     return this.prisma.property.create({ data });
   }
 

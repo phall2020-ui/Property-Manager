@@ -9,6 +9,10 @@ export enum MandateProvider {
 export class CreateMandateDto {
   @ApiProperty()
   @IsString()
+  tenancyId: string;
+
+  @ApiProperty()
+  @IsString()
   tenantUserId: string;
 
   @ApiProperty({ enum: MandateProvider })

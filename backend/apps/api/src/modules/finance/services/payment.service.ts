@@ -32,11 +32,13 @@ export class PaymentService {
         propertyId: tenancy.propertyId,
         tenancyId: dto.tenancyId,
         tenantUserId: dto.tenantUserId || null,
+        provider: 'stripe', // Required field - default to stripe
         method: dto.method,
+        providerRef: dto.externalId || null,
         amount: dto.amount,
         receivedAt: new Date(dto.receivedAt),
         externalId: dto.externalId || null,
-        status: 'SUCCEEDED',
+        status: 'CONFIRMED', // Use CONFIRMED instead of SUCCEEDED
       },
     });
 
@@ -113,7 +115,7 @@ export class PaymentService {
     const rentAccount = await this.prisma.ledgerAccount.findFirst({
       where: {
         landlordId: payment.landlordId,
-        type: 'RENT',
+        type: 'INCOME', // Changed from RENT to INCOME
       },
     });
 
@@ -123,15 +125,18 @@ export class PaymentService {
     await this.prisma.ledgerEntry.create({
       data: {
         landlordId: payment.landlordId,
-        propertyId: payment.propertyId,
-        tenancyId: payment.tenancyId,
+        propertyId: payment.propertyId || null,
+        tenancyId: payment.tenancyId || null,
         tenantUserId: payment.tenantUserId,
         accountId: rentAccount.id,
         direction: 'CREDIT',
+        drCr: 'CR', // Required field
         amount: payment.amount,
-        description: `Payment via ${payment.method}`,
+        description: `Payment via ${payment.method || payment.provider}`,
+        memo: `Payment via ${payment.method || payment.provider}`, // Required field
         refType: 'payment',
         refId: payment.id,
+        bookedAt: payment.receivedAt || new Date(), // Required field
         eventAt: payment.receivedAt,
       },
     });

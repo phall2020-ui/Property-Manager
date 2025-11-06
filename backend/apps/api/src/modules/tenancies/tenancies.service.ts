@@ -27,9 +27,13 @@ export class TenanciesService {
       data: {
         propertyId: data.propertyId,
         tenantOrgId: data.tenantOrgId,
+        start: data.startDate, // New required field
         startDate: data.startDate,
+        end: data.endDate,
         endDate: data.endDate,
+        rent: data.rentPcm, // New required field
         rentPcm: data.rentPcm,
+        frequency: 'MONTHLY', // New required field
         deposit: data.deposit,
         status: 'PENDING',
       },

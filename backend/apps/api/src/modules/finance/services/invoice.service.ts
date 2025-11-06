@@ -89,10 +89,11 @@ export class InvoiceService {
         number: invoiceNumber,
         issueDate: new Date(dto.issueDate),
         dueDate: new Date(dto.dueDate),
+        amount: grandTotal, // New required field
         lineTotal,
         taxTotal,
         grandTotal,
-        status: 'ISSUED',
+        status: 'SENT', // Use SENT instead of ISSUED (Step 5 spec)
         lines: {
           create: linesWithTotals,
         },
@@ -124,7 +125,8 @@ export class InvoiceService {
       rentAccount = await this.prisma.ledgerAccount.create({
         data: {
           landlordId: invoice.landlordId,
-          type: 'RENT',
+          code: 'RENT-001', // Required field
+          type: 'INCOME', // Step 4 spec uses INCOME instead of RENT
           name: 'Rent Receivable',
           currency: 'GBP',
         },
@@ -135,15 +137,18 @@ export class InvoiceService {
     await this.prisma.ledgerEntry.create({
       data: {
         landlordId: invoice.landlordId,
-        propertyId: invoice.propertyId,
-        tenancyId: invoice.tenancyId,
+        propertyId: invoice.propertyId || null,
+        tenancyId: invoice.tenancyId || null,
         tenantUserId: invoice.tenantUserId,
         accountId: rentAccount.id,
         direction: 'DEBIT',
-        amount: invoice.grandTotal,
+        drCr: 'DR', // Required field
+        amount: invoice.grandTotal || invoice.amount,
         description: `Invoice ${invoice.number}`,
+        memo: `Invoice ${invoice.number}`, // Required field
         refType: 'invoice',
         refId: invoice.id,
+        bookedAt: invoice.issueDate, // Required field
         eventAt: invoice.issueDate,
       },
     });
