@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { listMandates } from '@/_lib/financeClient';
+import { listMandates } from '@/lib/financeClient';
 import { CreditCard } from 'lucide-react';
 
 export default function MandatesPage() {

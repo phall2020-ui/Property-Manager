@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getRentRoll } from '@/_lib/financeClient';
+import { getRentRoll } from '@/lib/financeClient';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 export default function RentRollPage() {

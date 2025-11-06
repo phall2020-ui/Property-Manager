@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getArrears } from '@/_lib/financeClient';
+import { getArrears } from '@/lib/financeClient';
 import { AlertCircle } from 'lucide-react';
 
 export default function ArrearsPage() {
