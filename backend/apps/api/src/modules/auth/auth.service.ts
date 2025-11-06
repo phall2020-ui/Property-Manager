@@ -4,9 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
-
-// Role enum values for SQLite
-type Role = 'LANDLORD' | 'TENANT' | 'OPS' | 'CONTRACTOR';
+import { Role } from '../../common/types/role.type';
 
 @Injectable()
 export class AuthService {

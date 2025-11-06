@@ -46,11 +46,11 @@ export class EventsController {
       }))
     );
 
-    // Merge events with keepalive
+    // Merge events with keepalive and format
     return events$.pipe(
       startWith({ type: 'connected', data: { message: 'Connected to event stream' } }),
       map((event: SystemEvent | any) => {
-        if (event.type === 'connected' || event.type === 'keepalive') {
+        if (event.type === 'connected') {
           return event;
         }
         
