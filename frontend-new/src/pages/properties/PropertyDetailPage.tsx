@@ -1,20 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { propertiesApi, complianceApi } from '../../lib/api';
+import { enhancedPropertiesApi, complianceApi } from '../../lib/api';
+import { fmtGBP, grossYieldPct, annualisedRentGBP } from '../../lib/calculations';
+import Header from '../../components/Header';
+import MetricCard from '../../components/properties/MetricCard';
+import PropertyMiniMap from '../../components/properties/PropertyMiniMap';
+import TabBar from '../../components/properties/TabBar';
 import ComplianceCard from '../../components/compliance/ComplianceCard';
 import EmptyState from '../../components/compliance/EmptyState';
-
-interface Property {
-  id: string;
-  address1: string;
-  address2?: string;
-  city?: string;
-  postcode?: string;
-  bedrooms?: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { Property } from '../../lib/types';
 
 interface ComplianceItem {
   id: string;
@@ -28,16 +23,14 @@ interface ComplianceItem {
   documentId?: string;
 }
 
-type TabType = 'details' | 'compliance' | 'actions';
-
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>('details');
+  const [activeTab, setActiveTab] = useState<string>('overview');
 
   const { data: property, isLoading, error } = useQuery<Property>({
-    queryKey: ['properties', id],
-    queryFn: () => propertiesApi.getById(id!),
+    queryKey: ['enhanced-properties', id],
+    queryFn: () => enhancedPropertiesApi.getById(id!),
     enabled: !!id,
   });
 
@@ -49,146 +42,139 @@ export default function PropertyDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="space-y-6">
+        <Header />
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        Error loading property: {(error as Error).message}
+      <div className="space-y-6">
+        <Header />
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          Error loading property: {(error as Error).message}
+        </div>
       </div>
     );
   }
 
   if (!property) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-        Property not found
+      <div className="space-y-6">
+        <Header />
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+          Property not found
+        </div>
       </div>
     );
   }
 
+  const grossYield = grossYieldPct(property.monthlyRent, property.estimatedValue);
   const overdueCount = complianceItems?.filter(item => item.status === 'OVERDUE').length || 0;
   const dueSoonCount = complianceItems?.filter(item => item.status === 'DUE_SOON').length || 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <button
-            onClick={() => navigate('/properties')}
-            className="text-blue-600 hover:text-blue-900 text-sm mb-2"
-          >
-            ← Back to Properties
-          </button>
-          <h2 className="text-2xl font-bold text-gray-900">
-            {property.address1}
-            {property.city && `, ${property.city}`}
-          </h2>
-          {(overdueCount > 0 || dueSoonCount > 0) && (
-            <div className="mt-2 flex gap-2">
-              {overdueCount > 0 && (
-                <span className="text-sm font-medium text-red-600">
-                  {overdueCount} overdue
-                </span>
-              )}
-              {dueSoonCount > 0 && (
-                <span className="text-sm font-medium text-amber-600">
-                  {dueSoonCount} due soon
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('details')}
-            className={`${
-              activeTab === 'details'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-          >
-            Details
-          </button>
-          <button
-            onClick={() => setActiveTab('compliance')}
-            className={`${
-              activeTab === 'compliance'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2`}
-          >
-            Compliance
-            {(overdueCount > 0 || dueSoonCount > 0) && (
-              <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full">
-                {overdueCount + dueSoonCount}
+      <Header />
+      
+      <div>
+        <button
+          onClick={() => navigate('/properties')}
+          className="text-blue-600 hover:text-blue-900 text-sm mb-2 hover:underline"
+        >
+          ← Back to Properties
+        </button>
+        <h2 className="text-3xl font-bold text-brand-text">{property.name || property.address.line1}</h2>
+        <p className="text-brand-subtle mt-1">
+          {property.address.line1}, {property.address.city && `${property.address.city}, `}{property.address.postcode}
+        </p>
+        {(overdueCount > 0 || dueSoonCount > 0) && (
+          <div className="mt-2 flex gap-2">
+            {overdueCount > 0 && (
+              <span className="text-sm font-medium text-red-600">
+                {overdueCount} overdue
               </span>
             )}
-          </button>
-          <button
-            onClick={() => setActiveTab('actions')}
-            className={`${
-              activeTab === 'actions'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-          >
-            Quick Actions
-          </button>
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'details' && (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Address Information</h3>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-500">Address Line 1</label>
-              <p className="mt-1 text-sm text-gray-900">{property.address1}</p>
-            </div>
-
-            {property.address2 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500">Address Line 2</label>
-                <p className="mt-1 text-sm text-gray-900">{property.address2}</p>
-              </div>
-            )}
-
-            {property.city && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500">City</label>
-                <p className="mt-1 text-sm text-gray-900">{property.city}</p>
-              </div>
-            )}
-
-            {property.postcode && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500">Postcode</label>
-                <p className="mt-1 text-sm text-gray-900">{property.postcode}</p>
-              </div>
-            )}
-
-            {property.bedrooms != null && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500">Bedrooms</label>
-                <p className="mt-1 text-sm text-gray-900">{property.bedrooms}</p>
-              </div>
+            {dueSoonCount > 0 && (
+              <span className="text-sm font-medium text-amber-600">
+                {dueSoonCount} due soon
+              </span>
             )}
           </div>
-        </div>
+        )}
       </div>
+
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
+
+      {activeTab === 'overview' && (
+        <>
+          {/* Metrics Section */}
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <MetricCard label="Monthly Rent" value={fmtGBP(property.monthlyRent)} />
+            <MetricCard label="Annualised Rent" value={fmtGBP(annualisedRentGBP(property.monthlyRent))} />
+            <MetricCard
+              label="Gross Yield"
+              value={grossYield == null ? '—' : `${grossYield.toFixed(2)}%`}
+            />
+          </section>
+
+          {/* Details & Map Section */}
+          <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="md:col-span-2 rounded-xl bg-white p-6 shadow-card">
+              <div className="mb-4 font-medium text-lg text-brand-text">Key Details</div>
+              <dl className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+                <dt className="text-brand-subtle">Status</dt>
+                <dd className="font-medium text-brand-text">{property.status ?? '—'}</dd>
+                
+                <dt className="text-brand-subtle">Bedrooms</dt>
+                <dd className="font-medium text-brand-text">{property.bedrooms ?? '—'}</dd>
+                
+                <dt className="text-brand-subtle">Bathrooms</dt>
+                <dd className="font-medium text-brand-text">{property.bathrooms ?? '—'}</dd>
+                
+                <dt className="text-brand-subtle">Floor Area</dt>
+                <dd className="font-medium text-brand-text">
+                  {property.floorAreaM2 ? `${property.floorAreaM2} m²` : '—'}
+                </dd>
+                
+                <dt className="text-brand-subtle">Estimated Value</dt>
+                <dd className="font-medium text-brand-text">
+                  {property.estimatedValue ? fmtGBP(property.estimatedValue) : '—'}
+                </dd>
+                
+                <dt className="text-brand-subtle">Occupancy Rate</dt>
+                <dd className="font-medium text-brand-text">
+                  {property.occupancyRate == null ? '—' : `${Math.round(property.occupancyRate * 100)}%`}
+                </dd>
+
+                {property.annualInsurance && (
+                  <>
+                    <dt className="text-brand-subtle">Annual Insurance</dt>
+                    <dd className="font-medium text-brand-text">{fmtGBP(property.annualInsurance)}</dd>
+                  </>
+                )}
+
+                {property.annualServiceCharge && (
+                  <>
+                    <dt className="text-brand-subtle">Service Charge</dt>
+                    <dd className="font-medium text-brand-text">{fmtGBP(property.annualServiceCharge)}</dd>
+                  </>
+                )}
+              </dl>
+            </div>
+            
+            {property.lat && property.lng && (
+              <div className="rounded-xl bg-white p-6 shadow-card">
+                <div className="mb-4 font-medium text-lg text-brand-text">Location</div>
+                <PropertyMiniMap lat={property.lat} lng={property.lng} />
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       {activeTab === 'compliance' && (
@@ -199,9 +185,8 @@ export default function PropertyDetailPage() {
             </div>
           ) : complianceItems && complianceItems.length > 0 ? (
             <>
-              {/* Summary Banner */}
               {(overdueCount > 0 || dueSoonCount > 0) && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                   <div className="flex items-start">
                     <span className="text-2xl mr-3">⚠️</span>
                     <div>
@@ -216,7 +201,6 @@ export default function PropertyDetailPage() {
                 </div>
               )}
 
-              {/* Compliance Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {complianceItems.map((item) => (
                   <ComplianceCard
@@ -225,36 +209,11 @@ export default function PropertyDetailPage() {
                     status={item.status}
                     dueDate={item.dueDate}
                     hasEvidence={item.hasEvidence}
-                    onUpload={() => {
-                      // TODO: Implement upload modal
-                      console.log('Upload evidence for:', item.type);
-                    }}
-                    onMarkDone={() => {
-                      // TODO: Implement mark done functionality
-                      console.log('Mark done:', item.type);
-                    }}
+                    onUpload={() => console.log('Upload evidence for:', item.type)}
+                    onMarkDone={() => console.log('Mark done:', item.type)}
                   />
                 ))}
               </div>
-
-              {/* Next Due Soon List */}
-              {dueSoonCount > 0 && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Coming Up</h3>
-                  <ul className="space-y-2">
-                    {complianceItems
-                      .filter(item => item.status === 'DUE_SOON')
-                      .map(item => (
-                        <li key={item.id} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-700">{item.type}</span>
-                          <span className="text-gray-600">
-                            {item.dueDate && new Date(item.dueDate).toLocaleDateString('en-GB')}
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              )}
             </>
           ) : (
             <EmptyState
@@ -265,38 +224,35 @@ export default function PropertyDetailPage() {
         </div>
       )}
 
-      {activeTab === 'actions' && (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-5 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
-          </div>
-          <div className="px-6 py-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link
-                to={`/tenancies?propertyId=${property.id}`}
-                className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
-              >
-                <h4 className="font-medium text-gray-900">View Tenancies</h4>
-                <p className="text-sm text-gray-600 mt-1">Manage tenancy agreements</p>
-              </Link>
+      {activeTab === 'tenancies' && (
+        <div className="rounded-xl bg-white p-6 shadow-card">
+          <p className="text-brand-subtle">Tenancies tab - Coming soon</p>
+        </div>
+      )}
 
-              <Link
-                to={`/tickets?propertyId=${property.id}`}
-                className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
-              >
-                <h4 className="font-medium text-gray-900">View Tickets</h4>
-                <p className="text-sm text-gray-600 mt-1">Maintenance requests</p>
-              </Link>
+      {activeTab === 'finance' && (
+        <div className="rounded-xl bg-white p-6 shadow-card">
+          <p className="text-brand-subtle">Finance tab - Coming soon</p>
+        </div>
+      )}
 
-              <Link
-                to={`/tenancies/new?propertyId=${property.id}`}
-                className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
-              >
-                <h4 className="font-medium text-gray-900">Create Tenancy</h4>
-                <p className="text-sm text-gray-600 mt-1">Add new tenant</p>
-              </Link>
-            </div>
+      {activeTab === 'maintenance' && (
+        <div className="rounded-xl bg-white p-6 shadow-card">
+          <div className="space-y-4">
+            <p className="text-brand-subtle">Maintenance tickets for this property</p>
+            <Link
+              to={`/tickets?propertyId=${property.id}`}
+              className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              View All Tickets
+            </Link>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <div className="rounded-xl bg-white p-6 shadow-card">
+          <p className="text-brand-subtle">Documents tab - Coming soon</p>
         </div>
       )}
     </div>
