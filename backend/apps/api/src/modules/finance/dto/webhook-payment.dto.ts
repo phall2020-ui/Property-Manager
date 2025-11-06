@@ -1,5 +1,20 @@
-import { IsString, IsNumber, IsDateString, IsOptional } from 'class-validator';
+import { IsString, IsNumber, IsDateString, IsOptional, IsEnum, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+
+export enum WebhookPaymentMethod {
+  BANK_TRANSFER = 'BANK_TRANSFER',
+  DD = 'DD',
+  CARD = 'CARD',
+  CASH = 'CASH',
+  OTHER = 'OTHER',
+}
+
+export enum WebhookPaymentProvider {
+  TEST = 'TEST',
+  GOCARDLESS = 'GOCARDLESS',
+  STRIPE = 'STRIPE',
+  OPEN_BANKING = 'OPEN_BANKING',
+}
 
 export class WebhookPaymentDto {
   @ApiProperty({
@@ -10,32 +25,42 @@ export class WebhookPaymentDto {
   invoiceId: string;
 
   @ApiProperty({
-    description: 'Payment amount',
+    description: 'Payment amount in GBP',
     example: 1500.0,
   })
   @IsNumber()
-  amount: number;
+  @Min(0.01)
+  amountGBP: number;
 
   @ApiProperty({
-    description: 'Date payment was received',
+    description: 'Date payment was received (ISO 8601)',
     example: '2025-11-06T10:00:00Z',
   })
   @IsDateString()
   paidAt: string;
 
   @ApiProperty({
-    description: 'Provider reference (e.g., Stripe payment ID)',
-    example: 'ch_123456',
+    description: 'Provider reference for idempotency (must be unique)',
+    example: 'test_payment_12345',
   })
   @IsString()
   providerRef: string;
 
   @ApiProperty({
-    description: 'Payment provider name',
-    example: 'stripe',
-    required: false,
+    description: 'Payment method',
+    enum: WebhookPaymentMethod,
+    default: 'OTHER',
   })
   @IsOptional()
-  @IsString()
-  provider?: string;
+  @IsEnum(WebhookPaymentMethod)
+  method?: WebhookPaymentMethod;
+
+  @ApiProperty({
+    description: 'Payment provider name',
+    enum: WebhookPaymentProvider,
+    default: 'TEST',
+  })
+  @IsOptional()
+  @IsEnum(WebhookPaymentProvider)
+  provider?: WebhookPaymentProvider;
 }

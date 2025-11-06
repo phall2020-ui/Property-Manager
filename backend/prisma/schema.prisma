@@ -537,27 +537,35 @@ model RentSchedule {
 model Invoice {
   id            String   @id @default(uuid())
   landlordId    String
-  propertyId    String?  // Optional per Step 5 spec
-  tenancyId     String?  // Optional per Step 5 spec
+  propertyId    String
+  tenancyId     String
   tenantUserId  String?  // Primary tenant for this invoice
-  number        String   @unique // Unique invoice number (Step 5)
-  issueDate     DateTime
-  dueDate       DateTime
-  amount        Float    // Total amount (Step 5 spec uses single amount field)
+  number        String   @unique // Invoice number (backward compat)
+  reference     String   // Human-readable reference e.g. "2025-03 Rent"
+  periodStart   DateTime // Billing period start
+  periodEnd     DateTime // Billing period end
+  issueDate     DateTime? // Keep for backward compatibility
+  dueAt         DateTime // When payment is due
+  dueDate       DateTime? // Keep for backward compatibility
+  amountGBP     Float    // Total amount in GBP (Float for SQLite, Decimal for Postgres)
+  amount        Float?   // Keep for backward compatibility
   lineTotal     Float?   // Keep for backward compatibility
   taxTotal      Float?   // Keep for backward compatibility  
   grandTotal    Float?   // Keep for backward compatibility
-  status        String   // DRAFT, SENT, PAID, VOID (Step 5 spec)
+  status        String   // DRAFT, DUE, PART_PAID, PAID, LATE, VOID
+  notes         String?  // Optional notes
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenancy     Tenancy?            @relation(fields: [tenancyId], references: [id], onDelete: SetNull)
+  tenancy     Tenancy             @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
   lines       InvoiceLine[]
   creditNotes CreditNote[]
   allocations PaymentAllocation[]
   payments    Payment[]
 
   @@unique([landlordId, number])
+  @@unique([tenancyId, periodStart, periodEnd])
+  @@index([landlordId, propertyId, tenancyId, dueAt])
   @@index([landlordId, status])
   @@index([propertyId])
   @@index([tenancyId])
@@ -599,30 +607,34 @@ model CreditNote {
 model Payment {
   id           String    @id @default(uuid())
   landlordId   String
-  invoiceId    String?   // Step 6 spec links to invoice
-  propertyId   String?   // Keep for backward compatibility
-  tenancyId    String?   // Keep for backward compatibility
+  propertyId   String
+  tenancyId    String
+  invoiceId    String
   tenantUserId String?   // Keep for backward compatibility
-  provider     String    // gocardless, stripe (Step 6 spec)
-  providerRef  String?   // Provider reference (Step 6: providerRef)
-  method       String?   // GOCARDLESS, STRIPE, BANK_TRANSFER, CASH, OTHER (backward compat)
-  amount       Float     // Decimal(14,2) equivalent
-  status       String    // PENDING, CONFIRMED, FAILED (Step 6 spec)
-  receivedAt   DateTime?
+  amountGBP    Float     // Amount in GBP (Float for SQLite, Decimal for Postgres)
+  method       String    // BANK_TRANSFER, DD, CARD, CASH, OTHER
+  provider     String    // TEST, GOCARDLESS, STRIPE, OPEN_BANKING
+  providerRef  String    @unique // Provider reference (unique for idempotency)
+  status       String    // PENDING, SETTLED, FAILED
+  feeGBP       Float?    // Optional payment processing fee
+  vatGBP       Float?    // Optional VAT on fee
+  paidAt       DateTime  // When payment was made
+  amount       Float?    // Keep for backward compatibility
+  receivedAt   DateTime? // Keep for backward compatibility
   externalId   String?   // Keep for backward compatibility
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  invoice     Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  invoice     Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   allocations PaymentAllocation[]
 
+  @@index([landlordId, tenancyId, paidAt])
   @@index([landlordId, status])
   @@index([invoiceId])
   @@index([propertyId])
   @@index([tenancyId])
   @@index([tenantUserId])
   @@index([externalId])
-  @@index([providerRef])
 }
 
 // Allocations of payments to invoices (partial payments supported)

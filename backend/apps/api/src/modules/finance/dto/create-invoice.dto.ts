@@ -1,49 +1,35 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsString, IsDateString, IsArray, ValidateNested, IsNumber, IsOptional, Min } from 'class-validator';
-
-export class InvoiceLineDto {
-  @ApiProperty()
-  @IsString()
-  description: string;
-
-  @ApiProperty({ default: 1 })
-  @IsNumber()
-  @Min(0)
-  qty: number;
-
-  @ApiProperty()
-  @IsNumber()
-  @Min(0)
-  unitPrice: number;
-
-  @ApiProperty({ default: 0 })
-  @IsNumber()
-  @Min(0)
-  taxRate: number;
-}
+import { IsString, IsDateString, IsNumber, IsOptional, Min } from 'class-validator';
 
 export class CreateInvoiceDto {
-  @ApiProperty()
+  @ApiProperty({ description: 'Tenancy ID' })
   @IsString()
   tenancyId: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ description: 'Billing period start date (ISO 8601)' })
+  @IsDateString()
+  periodStart: string;
+
+  @ApiProperty({ description: 'Billing period end date (ISO 8601)' })
+  @IsDateString()
+  periodEnd: string;
+
+  @ApiProperty({ description: 'Due date (ISO 8601)' })
+  @IsDateString()
+  dueAt: string;
+
+  @ApiProperty({ description: 'Amount in GBP', example: 1200.00 })
+  @IsNumber()
+  @Min(0.01)
+  amountGBP: number;
+
+  @ApiProperty({ description: 'Human-readable reference', required: false, example: '2025-03 Rent' })
   @IsOptional()
   @IsString()
-  tenantUserId?: string;
+  reference?: string;
 
-  @ApiProperty()
-  @IsDateString()
-  issueDate: string;
-
-  @ApiProperty()
-  @IsDateString()
-  dueDate: string;
-
-  @ApiProperty({ type: [InvoiceLineDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => InvoiceLineDto)
-  lines: InvoiceLineDto[];
+  @ApiProperty({ description: 'Optional notes', required: false })
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

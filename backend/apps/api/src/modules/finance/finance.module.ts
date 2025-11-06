@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { FinanceController } from './finance.controller';
+import { TenantFinanceController } from './tenant-finance.controller';
 import { FinanceService } from './finance.service';
 import { InvoiceService } from './services/invoice.service';
 import { PaymentService } from './services/payment.service';
@@ -13,7 +14,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [PrismaModule, EventsModule, NotificationsModule],
-  controllers: [FinanceController],
+  controllers: [FinanceController, TenantFinanceController],
   providers: [
     FinanceService,
     InvoiceService,

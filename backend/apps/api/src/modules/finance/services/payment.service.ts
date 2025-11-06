@@ -17,41 +17,85 @@ export class PaymentService {
   ) {}
 
   /**
-   * Record a payment
+   * Record a payment (with idempotency)
    */
   async recordPayment(landlordId: string, dto: RecordPaymentDto) {
-    // Verify tenancy exists and belongs to landlord
-    const tenancy = await this.prisma.tenancy.findFirst({
-      where: { id: dto.tenancyId },
-      include: { property: true },
+    // Check for duplicate providerRef (idempotency)
+    const existing = await this.prisma.payment.findUnique({
+      where: { providerRef: dto.providerRef },
     });
 
-    if (!tenancy || tenancy.property.ownerOrgId !== landlordId) {
-      throw new NotFoundException('Tenancy not found');
+    if (existing) {
+      // Return existing payment (idempotent)
+      return this.getPayment(existing.id, landlordId);
+    }
+
+    // Verify invoice exists and belongs to landlord
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { 
+        id: dto.invoiceId,
+        landlordId,
+      },
+      include: { 
+        tenancy: { include: { property: true } },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
     }
 
     // Create payment
     const payment = await this.prisma.payment.create({
       data: {
         landlordId,
-        propertyId: tenancy.propertyId,
-        tenancyId: dto.tenancyId,
-        tenantUserId: dto.tenantUserId || null,
-        provider: 'stripe', // Required field - default to stripe
+        propertyId: invoice.propertyId,
+        tenancyId: invoice.tenancyId,
+        invoiceId: dto.invoiceId,
+        amountGBP: dto.amountGBP,
         method: dto.method,
-        providerRef: dto.externalId || null,
-        amount: dto.amount,
-        receivedAt: new Date(dto.receivedAt),
-        externalId: dto.externalId || null,
-        status: 'CONFIRMED', // Use CONFIRMED instead of SUCCEEDED
+        provider: dto.provider || 'OTHER',
+        providerRef: dto.providerRef,
+        status: 'SETTLED',
+        feeGBP: dto.feeGBP,
+        vatGBP: dto.vatGBP,
+        paidAt: new Date(dto.paidAt),
+        // Backward compatibility fields
+        amount: dto.amountGBP,
+        receivedAt: new Date(dto.paidAt),
       },
     });
 
-    // Auto-allocate to oldest invoices first
-    await this.autoAllocatePayment(payment.id, landlordId);
+    // Allocate to invoice
+    await this.prisma.paymentAllocation.create({
+      data: {
+        paymentId: payment.id,
+        invoiceId: dto.invoiceId,
+        amount: dto.amountGBP,
+      },
+    });
+
+    // Update invoice status
+    await this.invoiceService.updateInvoiceStatus(dto.invoiceId);
 
     // Create ledger entry
     await this.createPaymentLedgerEntry(payment);
+
+    // Emit event
+    this.eventsService.emit({
+      type: 'payment.recorded',
+      actorRole: 'LANDLORD',
+      landlordId,
+      tenantId: invoice.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'payment', id: payment.id },
+        { type: 'invoice', id: dto.invoiceId },
+      ],
+      payload: {
+        amount: dto.amountGBP,
+        method: dto.method,
+      },
+    });
 
     return this.getPayment(payment.id, landlordId);
   }
@@ -311,6 +355,24 @@ export class PaymentService {
    * Process payment webhook (test route for simulating PSP callbacks)
    */
   async processWebhookPayment(dto: WebhookPaymentDto) {
+    // Check for duplicate providerRef (idempotency)
+    const existing = await this.prisma.payment.findUnique({
+      where: { providerRef: dto.providerRef },
+    });
+
+    if (existing) {
+      // Return existing payment (idempotent)
+      const invoice = await this.prisma.invoice.findUnique({
+        where: { id: dto.invoiceId },
+      });
+      return {
+        success: true,
+        payment: existing,
+        invoice,
+        message: 'Payment already processed (idempotent)',
+      };
+    }
+
     // Find the invoice
     const invoice = await this.prisma.invoice.findUnique({
       where: { id: dto.invoiceId },
@@ -331,15 +393,18 @@ export class PaymentService {
     const payment = await this.prisma.payment.create({
       data: {
         landlordId: invoice.landlordId,
-        invoiceId: dto.invoiceId,
         propertyId: invoice.propertyId,
         tenancyId: invoice.tenancyId,
-        tenantUserId: invoice.tenantUserId,
-        provider: dto.provider || 'test',
+        invoiceId: dto.invoiceId,
+        amountGBP: dto.amountGBP,
+        method: dto.method || 'OTHER',
+        provider: dto.provider || 'TEST',
         providerRef: dto.providerRef,
-        amount: dto.amount,
+        status: 'SETTLED',
+        paidAt: new Date(dto.paidAt),
+        // Backward compatibility
+        amount: dto.amountGBP,
         receivedAt: new Date(dto.paidAt),
-        status: 'CONFIRMED',
       },
     });
 
@@ -348,7 +413,7 @@ export class PaymentService {
       data: {
         paymentId: payment.id,
         invoiceId: dto.invoiceId,
-        amount: dto.amount,
+        amount: dto.amountGBP,
       },
     });
 
@@ -363,7 +428,7 @@ export class PaymentService {
 
     // Emit SSE event
     this.eventsService.emit({
-      type: 'invoice.paid',
+      type: 'payment.recorded',
       actorRole: 'TENANT',
       landlordId: invoice.landlordId,
       tenantId: invoice.tenancy?.tenantOrgId,
@@ -372,13 +437,10 @@ export class PaymentService {
         { type: 'payment', id: payment.id },
       ],
       payload: {
-        amount: dto.amount,
+        amount: dto.amountGBP,
         status: updatedInvoice?.status,
       },
     });
-
-    // Create notification for landlord
-    // TODO: Get landlord users from orgMembers
 
     return {
       success: true,

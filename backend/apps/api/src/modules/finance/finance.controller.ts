@@ -96,7 +96,11 @@ export class FinanceController {
   @Post('invoices')
   @ApiOperation({ summary: 'Create a new invoice' })
   @ApiBearerAuth()
-  async createInvoice(@Body() dto: CreateInvoiceDto, @CurrentUser() user: any) {
+  async createInvoice(
+    @Body() dto: CreateInvoiceDto, 
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
     const landlordId = this.getLandlordId(user);
     return this.invoiceService.createInvoice(landlordId, dto);
   }
@@ -149,10 +153,14 @@ export class FinanceController {
   // ========== Payments ==========
 
   @Roles('LANDLORD')
-  @Post('payments/record')
-  @ApiOperation({ summary: 'Record a payment' })
+  @Post('payments')
+  @ApiOperation({ summary: 'Record a manual payment' })
   @ApiBearerAuth()
-  async recordPayment(@Body() dto: RecordPaymentDto, @CurrentUser() user: any) {
+  async recordPayment(
+    @Body() dto: RecordPaymentDto, 
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
     const landlordId = this.getLandlordId(user);
     return this.paymentService.recordPayment(landlordId, dto);
   }
@@ -342,6 +350,45 @@ export class FinanceController {
   async getTenancyBalance(@Param('tenancyId') tenancyId: string, @CurrentUser() user: any) {
     const landlordId = this.getLandlordId(user);
     return this.financeService.getTenancyBalance(tenancyId, landlordId);
+  }
+
+  // ========== Property Rent Summary ==========
+
+  @Roles('LANDLORD')
+  @Get('properties/:id/rent/summary')
+  @ApiOperation({ summary: 'Get property rent summary with KPIs' })
+  @ApiBearerAuth()
+  async getPropertyRentSummary(@Param('id') propertyId: string, @CurrentUser() user: any) {
+    const landlordId = this.getLandlordId(user);
+    return this.metricsService.getPropertyRentSummary(propertyId, landlordId);
+  }
+
+  // ========== CSV Exports ==========
+
+  @Roles('LANDLORD')
+  @Get('exports/rent-roll')
+  @ApiOperation({ summary: 'Export rent roll as CSV' })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'month', required: false, description: 'YYYY-MM format' })
+  async exportRentRoll(@Query('month') month: string, @CurrentUser() user: any) {
+    const landlordId = this.getLandlordId(user);
+    const targetMonth = month || new Date().toISOString().slice(0, 7);
+    return this.metricsService.exportRentRollCSV(landlordId, targetMonth);
+  }
+
+  @Roles('LANDLORD')
+  @Get('exports/payments')
+  @ApiOperation({ summary: 'Export payments ledger as CSV' })
+  @ApiBearerAuth()
+  @ApiQuery({ name: 'from', required: false, description: 'Start date (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'to', required: false, description: 'End date (YYYY-MM-DD)' })
+  async exportPayments(
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @CurrentUser() user: any,
+  ) {
+    const landlordId = this.getLandlordId(user);
+    return this.metricsService.exportPaymentsCSV(landlordId, from, to);
   }
 
   // ========== Payment Webhook (Test Route) ==========
