@@ -19,6 +19,8 @@ import { CreateTicketDto } from './dto/create-ticket.dto';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { ApproveQuoteDto } from './dto/approve-quote.dto';
+import { ProposeAppointmentDto } from './dto/propose-appointment.dto';
+import { ConfirmAppointmentDto } from './dto/confirm-appointment.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -198,5 +200,56 @@ export class TicketsController {
       file.size,
       userOrgIds,
     );
+  }
+
+  @Roles('CONTRACTOR')
+  @Post(':id/appointments')
+  @ApiOperation({ 
+    summary: 'Propose an appointment for a ticket',
+    description: 'Contractor proposes appointment slots after ticket is approved'
+  })
+  @ApiBearerAuth()
+  async proposeAppointment(
+    @Param('id') id: string,
+    @Body() dto: ProposeAppointmentDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.ticketsService.proposeAppointment(
+      id,
+      user.id,
+      new Date(dto.startAt),
+      dto.endAt ? new Date(dto.endAt) : null,
+      dto.notes,
+    );
+  }
+
+  @Get(':id/appointments')
+  @ApiOperation({ summary: 'Get appointments for a ticket' })
+  @ApiBearerAuth()
+  async getTicketAppointments(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.ticketsService.getTicketAppointments(id);
+  }
+
+  @Roles('TENANT', 'LANDLORD', 'OPS')
+  @Post('appointments/:appointmentId/confirm')
+  @ApiOperation({ 
+    summary: 'Confirm an appointment',
+    description: 'Tenant or landlord confirms a proposed appointment. This moves the ticket to SCHEDULED status and schedules auto-transition to IN_PROGRESS at start time.'
+  })
+  @ApiBearerAuth()
+  async confirmAppointment(
+    @Param('appointmentId') appointmentId: string,
+    @Body() dto: ConfirmAppointmentDto,
+    @CurrentUser() user: any,
+  ) {
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.confirmAppointment(appointmentId, user.id, primaryRole);
+  }
+
+  @Get('appointments/:appointmentId')
+  @ApiOperation({ summary: 'Get appointment details' })
+  @ApiBearerAuth()
+  async getAppointment(@Param('appointmentId') appointmentId: string) {
+    return this.ticketsService.findAppointment(appointmentId);
   }
 }

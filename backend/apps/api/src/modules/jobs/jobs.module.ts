@@ -3,6 +3,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TicketJobsProcessor } from './processors/ticket-jobs.processor';
 import { JobsService } from './jobs.service';
+import { PrismaModule } from '../../common/prisma/prisma.module';
+import { EventsModule } from '../events/events.module';
 
 /**
  * Jobs Module - Handles background job processing with BullMQ
@@ -18,7 +20,7 @@ import { JobsService } from './jobs.service';
 @Module({})
 export class JobsModule {
   static forRoot(): DynamicModule {
-    const imports = [ConfigModule];
+    const imports = [ConfigModule, PrismaModule, EventsModule];
     const providers = [JobsService];
     const exports = [JobsService];
 

@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { TenanciesModule } from './modules/tenancies/tenancies.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
+import { LandlordModule } from './modules/landlord/landlord.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { BankingModule } from './modules/banking/banking.module';
@@ -38,6 +39,7 @@ import { AppController } from './app.controller';
     PropertiesModule,
     TenanciesModule,
     TicketsModule,
+    LandlordModule,
     FinanceModule,
     ComplianceModule,
     BankingModule,

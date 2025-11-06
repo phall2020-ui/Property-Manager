@@ -151,4 +151,23 @@ export class JobsService implements OnModuleInit {
       timestamp: new Date().toISOString(),
     }, undefined);
   }
+
+  /**
+   * Schedule auto-transition from SCHEDULED to IN_PROGRESS at appointment start time
+   */
+  async enqueueAppointmentStart(data: {
+    appointmentId: string;
+    ticketId: string;
+    startAt: string; // ISO 8601 timestamp
+  }) {
+    const startTime = new Date(data.startAt);
+    const now = new Date();
+    const delay = Math.max(0, startTime.getTime() - now.getTime());
+
+    this.logger.log(`Enqueuing appointment.start job for appointment ${data.appointmentId} with delay ${delay}ms`);
+    return this.enqueueOrLog('tickets', 'appointment.start', data, {
+      jobId: `appointment-start-${data.appointmentId}`,
+      delay,
+    });
+  }
 }
