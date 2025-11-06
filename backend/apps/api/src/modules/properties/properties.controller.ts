@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreatePropertyDto } from './dto/create-property.dto';
+import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertiesService } from './properties.service';
 
 @ApiTags('properties')
@@ -54,5 +55,21 @@ export class PropertiesController {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
     return this.propertiesService.findMany(landlordOrg.orgId, pageNum, limitNum);
+  }
+
+  @Roles('LANDLORD')
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a property' })
+  @ApiBearerAuth()
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdatePropertyDto,
+    @CurrentUser() user: any,
+  ) {
+    const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
+    if (!landlordOrg) {
+      throw new Error('User is not a landlord');
+    }
+    return this.propertiesService.update(id, landlordOrg.orgId, dto);
   }
 }

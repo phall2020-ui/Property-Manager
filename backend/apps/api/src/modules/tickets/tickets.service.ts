@@ -126,7 +126,11 @@ export class TicketsService {
     return ticket;
   }
 
-  async findMany(userOrgIds: string[], role: string) {
+  async findMany(
+    userOrgIds: string[],
+    role: string,
+    filters?: { propertyId?: string; status?: string },
+  ) {
     const where: any = {};
 
     if (role === 'LANDLORD') {
@@ -140,6 +144,14 @@ export class TicketsService {
     } else if (role === 'CONTRACTOR') {
       // Contractors see tickets assigned to them
       where.assignedToId = { not: null };
+    }
+
+    // Apply filters
+    if (filters?.propertyId) {
+      where.propertyId = filters.propertyId;
+    }
+    if (filters?.status) {
+      where.status = filters.status;
     }
 
     return this.prisma.ticket.findMany({
@@ -156,7 +168,7 @@ export class TicketsService {
         },
         quotes: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 
