@@ -3,15 +3,14 @@ import { z } from 'zod';
 
 /**
  * API client using Axios with interceptors for better request/response handling.
- * This replaces the previous fetch-based implementation with axios for:
- * - Better interceptor support
- * - Request/response transformation
- * - Automatic retries on 401
- * - Better error handling
+ * Features:
+ * - Automatic bearer token attachment
+ * - 401 interceptor with automatic token refresh
+ * - Request/response logging in development
+ * - Problem details error handling
  */
 
 let accessToken: string | null = null;
-let refreshToken: string | null = null;
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value: string | null) => void;
@@ -30,14 +29,13 @@ const processQueue = (error: any, token: string | null = null) => {
 };
 
 /**
- * Set the current in‑memory access token. Refresh token is now handled
+ * Set the current in-memory access token. Refresh token is handled
  * via httpOnly cookies by the server. Clearing the token to `null` 
  * effectively logs the user out on the client side.
  */
 export function setTokens(access: string | null, refresh: string | null) {
   accessToken = access;
   // Refresh token is now in httpOnly cookie, not stored in localStorage
-  refreshToken = null;
 }
 
 /**
@@ -46,7 +44,6 @@ export function setTokens(access: string | null, refresh: string | null) {
  */
 export function initTokens() {
   // Refresh token is in httpOnly cookie, managed by browser
-  refreshToken = null;
 }
 
 /**
@@ -100,21 +97,12 @@ function parseProblem(error: AxiosError): Problem {
   };
 }
 
-export interface RequestOptions extends Omit<AxiosRequestConfig, 'url'> {
+export interface RequestOptions extends Omit<AxiosRequestConfig, 'url' | 'method'> {
   /**
    * If `true` the Authorization header will not be appended and no refresh
    * attempt will be made. Useful for login/signup endpoints.
    */
   skipAuth?: boolean;
-  /**
-   * Request body - supports both `body` (fetch-style) and `data` (axios-style)
-   * for backward compatibility. If `body` is provided, it will be used as `data`.
-   */
-  body?: any;
-  /**
-   * Credentials option from fetch API - ignored in axios as withCredentials is always true
-   */
-  credentials?: RequestCredentials;
 }
 
 // Create axios instance with base configuration
@@ -207,7 +195,11 @@ axiosInstance.interceptors.response.use(
         isRefreshing = false;
         setTokens(null, null);
         
-        // Token refresh failed - user needs to login again
+        // Optionally redirect to login
+        if (typeof window !== 'undefined') {
+          // window.location.href = '/login';
+        }
+        
         return Promise.reject(refreshError);
       }
     }
@@ -231,31 +223,14 @@ axiosInstance.interceptors.response.use(
  */
 export async function apiRequest<T = unknown>(
   url: string,
-  { skipAuth, body, credentials, ...options }: RequestOptions = {}
+  { skipAuth, ...options }: RequestOptions = {}
 ): Promise<T> {
   try {
-    // Handle backward compatibility: convert `body` to `data` if provided
-    const requestConfig: any = {
+    const response = await axiosInstance.request<T>({
       url,
       ...options,
       skipAuth, // Pass skipAuth through config
-    };
-    
-    // If body is provided (fetch-style), use it as data (axios-style)
-    if (body !== undefined) {
-      // If body is already a string (JSON stringified), parse it for axios
-      if (typeof body === 'string') {
-        try {
-          requestConfig.data = JSON.parse(body);
-        } catch {
-          requestConfig.data = body;
-        }
-      } else {
-        requestConfig.data = body;
-      }
-    }
-    
-    const response = await axiosInstance.request<T>(requestConfig);
+    } as any);
     return response.data;
   } catch (error) {
     // Error is already processed by interceptor
