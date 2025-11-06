@@ -17,7 +17,7 @@ A full-stack multi-tenant property management platform with role-based access co
 **Frontend:** Next.js 14 (App Router) + Vite/React 19 + TypeScript + Tailwind CSS + TanStack Query  
 **Backend:** NestJS + Prisma + SQLite (dev) / PostgreSQL (prod)  
 **Authentication:** JWT (access tokens 15min + httpOnly refresh cookies 7 days)  
-**Security:** Helmet, rate limiting, CORS with credentials, tenant-scoped queries
+**Security:** Helmet, rate limiting, CORS with credentials, org-based isolation (with optional strict tenant scoping)
 
 ## 📁 Project Structure
 
@@ -248,12 +248,33 @@ docker compose down -v
 
 ## 🔐 Security Notes
 
-- Change JWT secrets in production
+### Authentication & Tokens
+- **Refresh tokens** stored in httpOnly, Secure, SameSite=strict cookies (protected from XSS)
+- **Access tokens** kept in memory only (never in localStorage)
+- JWT secrets must be changed in production
+- Short access token lifetime (15 minutes) for security
+- Automatic token rotation on refresh
+
+### Multi-Tenancy & Isolation
+- **Org-based isolation** ensures users only see data from their organization
+- **Optional strict tenant scoping** available via `ENABLE_STRICT_TENANT_SCOPING=true`
+- Tenant context tracked per-request using AsyncLocalStorage
+- Prisma middleware can enforce automatic tenant filtering
+
+### Production Hardening
+- Helmet for security headers (CSP, HSTS, etc.)
+- Rate limiting (100 requests/minute globally)
+- CORS restricted to trusted domains only
+- Global validation pipeline with whitelisting
+- Structured error responses (no stack traces in production)
+- Request tracing with unique IDs
+
+### Best Practices
 - Use environment-specific configurations
-- Enable CORS only for trusted domains
-- Store sensitive credentials in secure vaults
-- Implement rate limiting (already configured)
-- Use HTTPS in production
+- Store sensitive credentials in secure vaults (not in .env)
+- Enable HTTPS in production (required for Secure cookies)
+- Regular security audits and dependency updates
+- Monitor and log security events
 
 ## 📝 Common Tasks
 

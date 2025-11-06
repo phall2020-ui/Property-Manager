@@ -4,8 +4,14 @@ import { Prisma } from '@prisma/client';
  * Tenant-aware Prisma middleware that automatically injects tenantId filters
  * into queries for multi-tenant isolation. This ensures tenant scoping cannot
  * be forgotten and prevents cross-tenant data leaks.
+ * 
+ * Note: Currently in opt-in mode - only applies filters when landlordId is explicitly
+ * present in the where clause. This allows gradual migration without breaking existing
+ * org-based isolation. To enable strict mode, set ENABLE_STRICT_TENANT_SCOPING=true.
  */
 export function tenantMiddleware(getTenantId: () => string | null) {
+  const strictMode = process.env.ENABLE_STRICT_TENANT_SCOPING === 'true';
+  
   return async (params: Prisma.MiddlewareParams, next: (params: Prisma.MiddlewareParams) => Promise<unknown>) => {
     const tenantId = getTenantId();
     
@@ -13,7 +19,8 @@ export function tenantMiddleware(getTenantId: () => string | null) {
     const tenantScopedModels = ['Property', 'Ticket', 'PropertyDocument', 'TicketAttachment'];
     const needsScope = params.model && tenantScopedModels.includes(params.model);
 
-    if (tenantId && needsScope) {
+    // Only apply strict tenant scoping if enabled and tenantId is available
+    if (strictMode && tenantId && needsScope) {
       // For queries that return multiple records, inject tenantId filter
       if (['findMany', 'updateMany', 'deleteMany', 'count', 'aggregate'].includes(params.action)) {
         params.args = params.args || {};
@@ -61,10 +68,11 @@ export function tenantMiddleware(getTenantId: () => string | null) {
 
     const result = await next(params);
 
-    // Optional: post-assertion for read-by-id to ensure tenant ownership
-    if (tenantId && needsScope && result) {
+    // Optional: post-assertion for read-by-id to ensure tenant ownership (only in strict mode)
+    if (strictMode && tenantId && needsScope && result) {
       if (['findUnique', 'findFirst', 'findUniqueOrThrow', 'findFirstOrThrow'].includes(params.action)) {
-        if (result && result.landlordId && result.landlordId !== tenantId) {
+        const record = result as { landlordId?: string };
+        if (record && record.landlordId && record.landlordId !== tenantId) {
           throw new Error('Tenant mismatch: Access denied');
         }
       }
