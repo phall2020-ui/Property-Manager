@@ -27,8 +27,11 @@ export class CreateTicketDto {
   @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ enum: ['LOW', 'STANDARD', 'MEDIUM', 'HIGH'] })
+  @ApiProperty({ 
+    enum: ['LOW', 'STANDARD', 'HIGH', 'URGENT'],
+    description: 'Priority level: LOW (routine), STANDARD (normal), HIGH (important), URGENT (critical)'
+  })
   @IsString()
-  @IsIn(['LOW', 'STANDARD', 'MEDIUM', 'HIGH'])
+  @IsIn(['LOW', 'STANDARD', 'HIGH', 'URGENT'])
   priority: string;
 }
