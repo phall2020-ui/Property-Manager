@@ -8,6 +8,8 @@ import { Ticket, TicketStatus } from '@/types/models';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
+import { ApproveQuoteModal } from '@/components/ApproveQuoteModal';
+import { DeclineQuoteModal } from '@/components/DeclineQuoteModal';
 import { ArrowLeft, Calendar, MapPin, User, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface TimelineEvent {
@@ -24,6 +26,8 @@ export default function LandlordTicketDetailPage() {
   const ticketId = params?.id;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [isApproveModalOpen, setIsApproveModalOpen] = useState(false);
+  const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   
   // Fetch ticket details
   const {
@@ -46,24 +50,48 @@ export default function LandlordTicketDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  // Approve/Reject mutation
-  const approveMutation = useMutation<unknown, any, boolean>({
-    mutationFn: async (approved: boolean) => {
+  // Approve mutation
+  const approveMutation = useMutation<unknown, any, { notes?: string }>({
+    mutationFn: async ({ notes }: { notes?: string }) => {
       return apiRequest(`/tickets/${ticketId}/approve`, {
         method: 'POST',
-        body: JSON.stringify({ approved }),
+        body: JSON.stringify({ approved: true, notes }),
         headers: { 'Content-Type': 'application/json' },
       });
     },
-    onSuccess: (_, approved) => {
-      setSuccessMessage(approved ? 'Ticket approved successfully' : 'Ticket declined');
+    onSuccess: () => {
+      setSuccessMessage('Quote approved successfully');
       setActionError(null);
+      setIsApproveModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       queryClient.invalidateQueries({ queryKey: ['ticket', ticketId, 'timeline'] });
     },
     onError: (err: any) => {
-      setActionError(err.detail || 'Failed to update ticket');
+      setActionError(err.detail || 'Failed to approve quote');
+      setSuccessMessage(null);
+    },
+  });
+
+  // Decline mutation
+  const declineMutation = useMutation<unknown, any, string>({
+    mutationFn: async (reason: string) => {
+      return apiRequest(`/tickets/${ticketId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ approved: false, reason }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    onSuccess: () => {
+      setSuccessMessage('Quote declined');
+      setActionError(null);
+      setIsDeclineModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['ticket', ticketId, 'timeline'] });
+    },
+    onError: (err: any) => {
+      setActionError(err.detail || 'Failed to decline quote');
       setSuccessMessage(null);
     },
   });
@@ -270,19 +298,17 @@ export default function LandlordTicketDetailPage() {
                 <>
                   <Button
                     variant="primary"
-                    onClick={() => approveMutation.mutate(true)}
-                    disabled={approveMutation.isPending}
+                    onClick={() => setIsApproveModalOpen(true)}
                     className="w-full"
                   >
-                    {approveMutation.isPending ? 'Approving...' : 'Approve Quote'}
+                    Approve Quote
                   </Button>
                   <Button
                     variant="danger"
-                    onClick={() => approveMutation.mutate(false)}
-                    disabled={approveMutation.isPending}
+                    onClick={() => setIsDeclineModalOpen(true)}
                     className="w-full"
                   >
-                    {approveMutation.isPending ? 'Declining...' : 'Decline Quote'}
+                    Decline Quote
                   </Button>
                 </>
               )}
@@ -308,6 +334,26 @@ export default function LandlordTicketDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Approve Quote Modal */}
+      <ApproveQuoteModal
+        isOpen={isApproveModalOpen}
+        onClose={() => setIsApproveModalOpen(false)}
+        onApprove={(notes) => approveMutation.mutate({ notes })}
+        isSubmitting={approveMutation.isPending}
+        quoteAmount={ticket.quoteAmount}
+        ticketTitle={ticket.title}
+      />
+
+      {/* Decline Quote Modal */}
+      <DeclineQuoteModal
+        isOpen={isDeclineModalOpen}
+        onClose={() => setIsDeclineModalOpen(false)}
+        onDecline={(reason) => declineMutation.mutate(reason)}
+        isSubmitting={declineMutation.isPending}
+        quoteAmount={ticket.quoteAmount}
+        ticketTitle={ticket.title}
+      />
     </div>
   );
 }
