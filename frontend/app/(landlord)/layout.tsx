@@ -5,6 +5,7 @@ import Link from 'next/link';
 import RoleGate from '@/components/RoleGate';
 import { Role } from '@/types/models';
 import { NotificationBell } from '@/components/NotificationBell';
+import { RealtimeConnection } from '@/components/RealtimeConnection';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function LandlordLayout({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,7 @@ export default function LandlordLayout({ children }: { children: React.ReactNode
                 Money
               </Link>
               <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-blue-400">
+                <RealtimeConnection />
                 <NotificationBell />
                 {user && (
                   <span className="text-sm">{user.name}</span>
