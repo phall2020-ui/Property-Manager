@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import configuration from './common/configuration';
@@ -10,10 +10,13 @@ import { TenanciesModule } from './modules/tenancies/tenancies.module';
 import { TicketsModule } from './modules/tickets/tickets.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
+import { BankingModule } from './modules/banking/banking.module';
+import { FlagsModule } from './modules/flags/flags.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AuthGuard } from './common/guards/auth.guard';
+import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 import { AppController } from './app.controller';
 
 @Module({
@@ -27,6 +30,8 @@ import { AppController } from './app.controller';
     TicketsModule,
     FinanceModule,
     ComplianceModule,
+    BankingModule,
+    FlagsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -53,4 +58,8 @@ import { AppController } from './app.controller';
     // },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TraceIdMiddleware).forRoutes('*');
+  }
+}
