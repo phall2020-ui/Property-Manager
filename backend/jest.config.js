@@ -1,7 +1,7 @@
 module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
-  testRegex: '.*\\.e2e-spec\\.ts$',
+  testRegex: '.*\\.(spec|e2e-spec)\\.ts$',
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
@@ -10,7 +10,7 @@ module.exports = {
   ],
   coverageDirectory: './coverage',
   testEnvironment: 'node',
-  roots: ['<rootDir>/test/'],
+  roots: ['<rootDir>/test/', '<rootDir>/apps/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/apps/$1',
   },

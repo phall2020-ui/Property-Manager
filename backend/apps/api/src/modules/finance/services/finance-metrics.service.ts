@@ -340,4 +340,236 @@ export class FinanceMetricsService {
 
     return arrearsList.filter((item) => item !== null);
   }
+
+  /**
+   * Get property rent summary with KPIs
+   */
+  async getPropertyRentSummary(propertyId: string, landlordId: string) {
+    // Verify property ownership
+    const property = await this.prisma.property.findFirst({
+      where: { id: propertyId, ownerOrgId: landlordId },
+    });
+
+    if (!property) {
+      throw new Error('Property not found');
+    }
+
+    // Get active tenancy
+    const tenancy = await this.prisma.tenancy.findFirst({
+      where: {
+        propertyId,
+        status: 'ACTIVE',
+      },
+      include: {
+        tenantOrg: true,
+      },
+    });
+
+    if (!tenancy) {
+      return {
+        nextDueAt: null,
+        arrearsAmount: 0,
+        collectedThisMonth: 0,
+        expectedThisMonth: 0,
+        collectionRate: 0,
+        invoices: [],
+        payments: [],
+      };
+    }
+
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    // Get all invoices for this property
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        propertyId,
+        landlordId,
+      },
+      include: {
+        allocations: {
+          include: {
+            payment: true,
+          },
+        },
+      },
+      orderBy: {
+        dueAt: 'desc',
+      },
+    });
+
+    // Calculate arrears
+    let arrearsAmount = 0;
+    let nextDueAt: Date | null = null;
+    let collectedThisMonth = 0;
+    let expectedThisMonth = 0;
+
+    for (const invoice of invoices) {
+      const amount = invoice.amountGBP || invoice.grandTotal || invoice.amount || 0;
+      const paidAmount = invoice.allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+      const balance = amount - paidAmount;
+
+      // Calculate arrears (overdue balance)
+      if (invoice.dueAt < today && balance > 0) {
+        arrearsAmount += balance;
+      }
+
+      // Find next due date
+      if (invoice.status === 'DUE' && invoice.dueAt > today && (!nextDueAt || invoice.dueAt < nextDueAt)) {
+        nextDueAt = invoice.dueAt;
+      }
+
+      // Calculate collection for current month
+      if (invoice.dueAt >= startOfMonth && invoice.dueAt <= endOfMonth) {
+        expectedThisMonth += amount;
+        collectedThisMonth += paidAmount;
+      }
+    }
+
+    const collectionRate = expectedThisMonth > 0 ? (collectedThisMonth / expectedThisMonth) * 100 : 0;
+
+    // Get recent payments
+    const payments = await this.prisma.payment.findMany({
+      where: {
+        propertyId,
+        landlordId,
+      },
+      orderBy: {
+        paidAt: 'desc',
+      },
+      take: 10,
+      include: {
+        invoice: true,
+      },
+    });
+
+    return {
+      nextDueAt,
+      arrearsAmount,
+      collectedThisMonth,
+      expectedThisMonth,
+      collectionRate: Math.round(collectionRate * 100) / 100,
+      invoices: invoices.map((inv) => {
+        const amount = inv.amountGBP || inv.grandTotal || inv.amount || 0;
+        const paidAmount = inv.allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+        return {
+          id: inv.id,
+          reference: inv.reference,
+          periodStart: inv.periodStart,
+          periodEnd: inv.periodEnd,
+          dueAt: inv.dueAt,
+          amount,
+          paidAmount,
+          balance: amount - paidAmount,
+          status: inv.status,
+        };
+      }),
+      payments: payments.map((pay) => ({
+        id: pay.id,
+        amount: pay.amountGBP || pay.amount || 0,
+        paidAt: pay.paidAt,
+        method: pay.method,
+        invoiceReference: pay.invoice?.reference,
+      })),
+    };
+  }
+
+  /**
+   * Export rent roll as CSV
+   */
+  async exportRentRollCSV(landlordId: string, month: string) {
+    const rentRoll = await this.getRentRoll(landlordId, month);
+    
+    // CSV header
+    let csv = 'Property,Tenancy,Period,Expected Rent,Received Rent,Variance,Has Mandate\n';
+
+    for (const item of rentRoll) {
+      const row = [
+        this.escapeCSV(item.propertyAddress || ''),
+        this.escapeCSV(item.tenantName || ''),
+        `${month}`,
+        item.expectedRent?.toFixed(2) || '0.00',
+        item.receivedRent?.toFixed(2) || '0.00',
+        item.variance?.toFixed(2) || '0.00',
+        item.hasMandate ? 'Yes' : 'No',
+      ].join(',');
+      csv += row + '\n';
+    }
+
+    return {
+      filename: `rent-roll-${month}.csv`,
+      content: csv,
+      contentType: 'text/csv',
+    };
+  }
+
+  /**
+   * Export payments ledger as CSV
+   */
+  async exportPaymentsCSV(landlordId: string, from?: string, to?: string) {
+    const fromDate = from ? new Date(from) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const toDate = to ? new Date(to) : new Date();
+
+    const payments = await this.prisma.payment.findMany({
+      where: {
+        landlordId,
+        paidAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      include: {
+        invoice: {
+          include: {
+            tenancy: {
+              include: {
+                property: true,
+                tenantOrg: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        paidAt: 'desc',
+      },
+    });
+
+    // CSV header
+    let csv = 'Date,Property,Tenant,Invoice Reference,Amount,Method,Provider,Status\n';
+
+    for (const payment of payments) {
+      const row = [
+        payment.paidAt.toLocaleDateString('en-GB'),
+        this.escapeCSV(payment.invoice?.tenancy?.property?.addressLine1 || ''),
+        this.escapeCSV(payment.invoice?.tenancy?.tenantOrg?.name || ''),
+        this.escapeCSV(payment.invoice?.reference || ''),
+        (payment.amountGBP || payment.amount || 0).toFixed(2),
+        payment.method || '',
+        payment.provider || '',
+        payment.status || '',
+      ].join(',');
+      csv += row + '\n';
+    }
+
+    const fromStr = fromDate.toISOString().split('T')[0];
+    const toStr = toDate.toISOString().split('T')[0];
+
+    return {
+      filename: `payments-${fromStr}-to-${toStr}.csv`,
+      content: csv,
+      contentType: 'text/csv',
+    };
+  }
+
+  /**
+   * Escape CSV field
+   */
+  private escapeCSV(value: string): string {
+    if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  }
 }

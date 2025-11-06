@@ -156,13 +156,19 @@ async function main() {
       tenancyId: tenancy.id,
       tenantUserId: tenantUser.id,
       number: 'INV-2024-000001',
+      reference: '2024-11 Rent',
+      periodStart: new Date('2024-11-01'),
+      periodEnd: new Date('2024-11-30'),
+      dueAt: new Date('2024-11-01'),
+      amountGBP: 1500,
+      status: 'PAID',
+      // Backward compatibility fields
       issueDate: new Date('2024-10-25'),
       dueDate: new Date('2024-11-01'),
       amount: 1500,
       lineTotal: 1500,
       taxTotal: 0,
       grandTotal: 1500,
-      status: 'PAID',
       lines: {
         create: [
           {
@@ -186,11 +192,15 @@ async function main() {
       propertyId: property.id,
       tenancyId: tenancy.id,
       tenantUserId: tenantUser.id,
-      provider: 'stripe',
+      amountGBP: 1500,
       method: 'BANK_TRANSFER',
+      provider: 'STRIPE',
+      providerRef: 'payment_1_test_' + Date.now(),
+      status: 'SETTLED',
+      paidAt: paidDate,
+      // Backward compatibility fields
       amount: 1500,
       receivedAt: paidDate,
-      status: 'CONFIRMED',
     },
   });
 
@@ -210,13 +220,19 @@ async function main() {
       tenancyId: tenancy.id,
       tenantUserId: tenantUser.id,
       number: 'INV-2024-000002',
+      reference: '2024-12 Rent',
+      periodStart: new Date('2024-12-01'),
+      periodEnd: new Date('2024-12-31'),
+      dueAt: new Date('2024-12-01'),
+      amountGBP: 1500,
+      status: 'PART_PAID',
+      // Backward compatibility fields
       issueDate: new Date('2024-11-25'),
       dueDate: new Date('2024-12-01'),
       amount: 1500,
       lineTotal: 1500,
       taxTotal: 0,
       grandTotal: 1500,
-      status: 'SENT',
       lines: {
         create: [
           {
@@ -240,11 +256,15 @@ async function main() {
       propertyId: property.id,
       tenancyId: tenancy.id,
       tenantUserId: tenantUser.id,
-      provider: 'stripe',
+      amountGBP: 750,
       method: 'BANK_TRANSFER',
+      provider: 'STRIPE',
+      providerRef: 'payment_2_test_' + Date.now(),
+      status: 'SETTLED',
+      paidAt: new Date('2024-12-01'),
+      // Backward compatibility fields
       amount: 750,
       receivedAt: new Date('2024-12-01'),
-      status: 'CONFIRMED',
     },
   });
 
@@ -264,13 +284,20 @@ async function main() {
       tenancyId: tenancy.id,
       tenantUserId: tenantUser.id,
       number: 'INV-2024-000003',
+      reference: '2024-10 Rent',
+      periodStart: new Date('2024-10-01'),
+      periodEnd: new Date('2024-10-31'),
+      dueAt: new Date('2024-10-07'),
+      amountGBP: 1500,
+      status: 'LATE',
+      notes: 'Overdue invoice for testing',
+      // Backward compatibility fields
       issueDate: new Date('2024-10-01'),
       dueDate: new Date('2024-10-07'),
       amount: 1500,
       lineTotal: 1500,
       taxTotal: 0,
       grandTotal: 1500,
-      status: 'SENT',
       lines: {
         create: [
           {

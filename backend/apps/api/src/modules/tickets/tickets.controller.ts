@@ -5,10 +5,12 @@ import {
   Patch,
   Param,
   Body,
+  Query,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
   Headers,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
@@ -25,11 +27,16 @@ import { extname } from 'path';
 @ApiTags('tickets')
 @Controller('tickets')
 export class TicketsController {
+  private readonly logger = new Logger(TicketsController.name);
+
   constructor(private readonly ticketsService: TicketsService) {}
 
   @Roles('TENANT')
   @Post()
-  @ApiOperation({ summary: 'Create a maintenance ticket' })
+  @ApiOperation({ 
+    summary: 'Create a maintenance ticket',
+    description: 'Create a new maintenance ticket. Tenant must provide either propertyId or tenancyId. Ticket will be visible to the landlord immediately and appears in their list within 5 seconds via polling.'
+  })
   @ApiBearerAuth()
   async create(@Body() dto: CreateTicketDto, @CurrentUser() user: any) {
     // Get landlordId from property or tenancy
@@ -44,11 +51,29 @@ export class TicketsController {
       throw new BadRequestException('Either propertyId or tenancyId must be provided');
     }
 
-    return this.ticketsService.create({
+    this.logger.log({
+      action: 'ticket.create',
+      userId: user.sub,
+      landlordId,
+      propertyId: dto.propertyId,
+      tenancyId: dto.tenancyId,
+      priority: dto.priority,
+    });
+
+    const ticket = await this.ticketsService.create({
       ...dto,
       landlordId,
       createdById: user.id,
     });
+
+    this.logger.log({
+      action: 'ticket.created',
+      ticketId: ticket.id,
+      landlordId,
+      propertyId: dto.propertyId,
+    });
+
+    return ticket;
   }
 
   @Get(':id')
@@ -60,12 +85,19 @@ export class TicketsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List tickets' })
+  @ApiOperation({ 
+    summary: 'List tickets',
+    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports filtering by propertyId and status.'
+  })
   @ApiBearerAuth()
-  async findMany(@CurrentUser() user: any) {
+  async findMany(
+    @Query('propertyId') propertyId?: string,
+    @Query('status') status?: string,
+    @CurrentUser() user?: any,
+  ) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
-    return this.ticketsService.findMany(userOrgIds, primaryRole);
+    return this.ticketsService.findMany(userOrgIds, primaryRole, { propertyId, status });
   }
 
   @Roles('CONTRACTOR')
