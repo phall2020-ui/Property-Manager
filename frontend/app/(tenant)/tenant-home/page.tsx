@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/apiClient';
 import { Ticket, TicketStatus } from '@/types/models';
 import { Card } from '@/components/Card';
-import { Badge } from '@/components/Badge';
+import { StatusBadge } from '@/components/StatusBadge';
 import { AlertCircle, CheckCircle, Clock, FileText } from 'lucide-react';
 
 interface TenantDashboardStats {
@@ -149,17 +149,7 @@ export default function TenantDashboardPage() {
                     {ticket.category} • Reported {new Date(ticket.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <Badge
-                  color={
-                    ticket.status === TicketStatus.COMPLETED
-                      ? 'success'
-                      : ticket.status === TicketStatus.IN_PROGRESS
-                      ? 'warning'
-                      : 'info'
-                  }
-                >
-                  {ticket.status}
-                </Badge>
+                <StatusBadge status={ticket.status} />
               </Link>
             ))}
           </div>

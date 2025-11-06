@@ -33,7 +33,7 @@ export default function Home() {
             router.replace('/report-issue');
             break;
           case Role.CONTRACTOR:
-            router.replace('/jobs');
+            router.replace('/home');
             break;
           case Role.OPS:
             router.replace('/queue');

@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/apiClient';
 import { Ticket, TicketStatus } from '@/types/models';
 import { Table } from '@/components/Table';
-import { Badge } from '@/components/Badge';
+import { StatusBadge } from '@/components/StatusBadge';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { CreateTicketModal } from '@/components/CreateTicketModal';
@@ -204,13 +204,7 @@ export default function LandlordTicketsPage() {
               {
                 header: 'Status',
                 accessor: 'status',
-                render: (ticket) => {
-                  let color: 'info' | 'success' | 'warning' | 'danger' = 'info';
-                  if (ticket.status === TicketStatus.COMPLETED) color = 'success';
-                  else if (ticket.status === TicketStatus.NEEDS_APPROVAL) color = 'warning';
-                  else if (ticket.status === TicketStatus.REJECTED) color = 'danger';
-                  return <Badge color={color}>{ticket.status}</Badge>;
-                },
+                render: (ticket) => <StatusBadge status={ticket.status} />,
               },
               { header: 'Category', accessor: 'category' },
               { header: 'Property', accessor: 'propertyId', render: (ticket) => (
