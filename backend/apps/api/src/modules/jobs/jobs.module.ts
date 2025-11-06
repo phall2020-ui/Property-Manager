@@ -35,14 +35,14 @@ export class JobsModule {
             if (!redisUrl) {
               console.warn('⚠️  REDIS_URL not configured - Background jobs will be logged but not processed');
               console.warn('⚠️  Set REDIS_URL environment variable to enable background job processing');
-              // Return minimal config that won't try to connect
+              // Return minimal config - this is a fallback that won't actually connect to Redis
+              // The lazyConnect: true prevents connection attempts on startup
               return {
                 connection: {
-                  host: 'localhost',
+                  host: 'localhost', // Not actually used due to lazyConnect
                   port: 6379,
-                  // Set very short timeout so it fails fast
                   connectTimeout: 1000,
-                  lazyConnect: true, // Don't connect on startup
+                  lazyConnect: true, // Critical: Don't connect on startup
                 },
               };
             }

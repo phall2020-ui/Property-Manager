@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
@@ -7,33 +7,47 @@ import { Queue } from 'bullmq';
  * Gracefully handles Redis not being available by logging instead of crashing
  */
 @Injectable()
-export class JobsService {
+export class JobsService implements OnModuleInit {
   private readonly logger = new Logger(JobsService.name);
-  private redisAvailable = true;
+  private redisAvailable = false;
+  private connectionChecked = false;
 
   constructor(
     @InjectQueue('tickets') private ticketsQueue: Queue,
     @InjectQueue('notifications') private notificationsQueue: Queue,
     @InjectQueue('dead-letter') private deadLetterQueue: Queue,
-  ) {
-    // Check if Redis is available on startup
-    this.checkRedisConnection();
+  ) {}
+
+  async onModuleInit() {
+    // Check Redis connection once on module initialization
+    await this.checkRedisConnection();
   }
 
   private async checkRedisConnection() {
+    if (this.connectionChecked) {
+      return;
+    }
+
     try {
       const client = await this.ticketsQueue.client;
       await client.ping();
       this.redisAvailable = true;
+      this.connectionChecked = true;
       this.logger.log('✅ Redis connected - Background jobs enabled');
     } catch (error) {
       this.redisAvailable = false;
+      this.connectionChecked = true;
       this.logger.warn('⚠️  Redis not available - Jobs will be logged but not processed');
       this.logger.warn('⚠️  To enable background jobs, start Redis and set REDIS_URL');
     }
   }
 
-  private async enqueueOrLog(queueName: string, jobName: string, data: unknown, options?: unknown) {
+  private async enqueueOrLog<T = unknown>(
+    queueName: string,
+    jobName: string,
+    data: T,
+    options?: { jobId?: string; delay?: number; priority?: number }
+  ) {
     if (!this.redisAvailable) {
       this.logger.log(`[NO REDIS] Would enqueue ${jobName}: ${JSON.stringify(data)}`);
       return null;
