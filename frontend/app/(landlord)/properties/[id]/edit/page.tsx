@@ -41,9 +41,9 @@ export default function EditPropertyPage() {
       postcode: property.postcode,
       bedrooms: property.bedrooms,
       attributes: {
-        propertyType: property.propertyType,
-        furnished: property.furnished,
-        epcRating: property.epcRating,
+        propertyType: property.propertyType as 'House' | 'Flat' | 'HMO' | 'Maisonette' | 'Bungalow' | 'Other' | undefined,
+        furnished: property.furnished as 'Unfurnished' | 'Part' | 'Full' | undefined,
+        epcRating: property.epcRating as 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'Unknown' | undefined,
       },
     } : undefined,
   });

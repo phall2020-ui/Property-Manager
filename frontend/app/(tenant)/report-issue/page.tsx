@@ -39,12 +39,11 @@ export default function ReportIssuePage() {
       
       // Invalidate queries to refresh ticket lists
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      if (register) {
-        const propertyId = (document.getElementById('propertyId') as HTMLInputElement)?.value;
-        if (propertyId) {
-          queryClient.invalidateQueries({ queryKey: ['tickets', { propertyId }] });
-          queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
-        }
+      const propertyIdInput = document.getElementById('propertyId') as HTMLInputElement;
+      if (propertyIdInput?.value) {
+        const propertyId = propertyIdInput.value;
+        queryClient.invalidateQueries({ queryKey: ['tickets', { propertyId }] });
+        queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
       }
       
       reset();
