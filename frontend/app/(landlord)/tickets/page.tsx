@@ -8,12 +8,15 @@ import { Ticket, TicketStatus } from '@/types/models';
 import { Table } from '@/components/Table';
 import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
-import { Search, Filter } from 'lucide-react';
+import { Button } from '@/components/Button';
+import { CreateTicketModal } from '@/components/CreateTicketModal';
+import { Search, Filter, Plus } from 'lucide-react';
 
 export default function LandlordTicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const {
     data: tickets,
@@ -96,7 +99,20 @@ export default function LandlordTicketsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Tickets</h1>
           <p className="text-gray-600 mt-1">{filteredTickets.length} tickets</p>
         </div>
+        <Button
+          variant="primary"
+          onClick={() => setIsCreateModalOpen(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Create Ticket
+        </Button>
       </div>
+
+      {/* Create Ticket Modal */}
+      <CreateTicketModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
