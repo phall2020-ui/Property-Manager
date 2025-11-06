@@ -42,6 +42,16 @@ export function TableRowSkeleton({ columns = 4 }: { columns?: number }) {
   );
 }
 
+export function TableSkeleton({ columns = 4, rows = 5 }: { columns?: number; rows?: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, i) => (
+        <TableRowSkeleton key={i} columns={columns} />
+      ))}
+    </>
+  );
+}
+
 export function DashboardStatsSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
