@@ -33,6 +33,14 @@ export class TenantMiddleware implements NestMiddleware {
       } catch (error) {
         // Token verification failed, continue without tenant context
         // The auth guard will handle authentication failures
+        // Log for security monitoring (without exposing token)
+        if (process.env.NODE_ENV !== 'test') {
+          console.warn('TenantMiddleware: Failed to verify token', {
+            path: req.path,
+            method: req.method,
+            // Don't log the actual token or error details
+          });
+        }
       }
     }
 

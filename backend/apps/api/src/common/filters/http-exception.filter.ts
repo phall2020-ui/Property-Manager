@@ -26,13 +26,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
       details = (message as any).details || (message as any).errors;
     }
 
+    // Sanitize error code to avoid exposing internal details
+    const sanitizedCode = this.sanitizeErrorCode(exception.code || exception.name || 'ERROR');
+    
     const errorResponse = {
-      code: exception.code || exception.name || 'ERROR',
+      code: sanitizedCode,
       message: errorMessage,
       details: details,
       status,
       type: 'about:blank',
-      title: exception.name || 'Error',
+      title: this.sanitizeErrorTitle(exception.name || 'Error'),
       instance: request.url,
       timestamp: new Date().toISOString(),
     };
@@ -47,5 +50,49 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     response.status(status).json(errorResponse);
+  }
+
+  /**
+   * Sanitize error codes to prevent internal information leakage
+   */
+  private sanitizeErrorCode(code: string): string {
+    // Map internal error codes to generic ones for security
+    const allowedCodes = new Set([
+      'VALIDATION_ERROR',
+      'AUTHENTICATION_ERROR',
+      'AUTHORIZATION_ERROR',
+      'NOT_FOUND',
+      'CONFLICT',
+      'BAD_REQUEST',
+      'INTERNAL_ERROR',
+    ]);
+
+    // Convert common NestJS exception names to standard codes
+    const codeMap: Record<string, string> = {
+      'UnauthorizedException': 'AUTHENTICATION_ERROR',
+      'ForbiddenException': 'AUTHORIZATION_ERROR',
+      'NotFoundException': 'NOT_FOUND',
+      'ConflictException': 'CONFLICT',
+      'BadRequestException': 'BAD_REQUEST',
+      'ValidationError': 'VALIDATION_ERROR',
+    };
+
+    const mappedCode = codeMap[code] || code;
+    return allowedCodes.has(mappedCode) ? mappedCode : 'ERROR';
+  }
+
+  /**
+   * Sanitize error titles to prevent exposing system internals
+   */
+  private sanitizeErrorTitle(title: string): string {
+    const titleMap: Record<string, string> = {
+      'UnauthorizedException': 'Unauthorized',
+      'ForbiddenException': 'Forbidden',
+      'NotFoundException': 'Not Found',
+      'ConflictException': 'Conflict',
+      'BadRequestException': 'Bad Request',
+    };
+
+    return titleMap[title] || 'Error';
   }
 }

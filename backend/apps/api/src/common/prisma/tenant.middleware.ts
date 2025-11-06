@@ -15,9 +15,10 @@ export function tenantMiddleware(getTenantId: () => string | null) {
   return async (params: Prisma.MiddlewareParams, next: (params: Prisma.MiddlewareParams) => Promise<unknown>) => {
     const tenantId = getTenantId();
     
-    // Models that require tenant scoping
-    const tenantScopedModels = ['Property', 'Ticket', 'PropertyDocument', 'TicketAttachment'];
-    const needsScope = params.model && tenantScopedModels.includes(params.model);
+    // Models that require tenant scoping (centralized configuration)
+    // TODO: Consider moving to environment config for runtime flexibility
+    const TENANT_SCOPED_MODELS = ['Property', 'Ticket', 'PropertyDocument', 'TicketAttachment'];
+    const needsScope = params.model && TENANT_SCOPED_MODELS.includes(params.model);
 
     // Only apply strict tenant scoping if enabled and tenantId is available
     if (strictMode && tenantId && needsScope) {
@@ -73,7 +74,8 @@ export function tenantMiddleware(getTenantId: () => string | null) {
       if (['findUnique', 'findFirst', 'findUniqueOrThrow', 'findFirstOrThrow'].includes(params.action)) {
         const record = result as { landlordId?: string };
         if (record && record.landlordId && record.landlordId !== tenantId) {
-          throw new Error('Tenant mismatch: Access denied');
+          // Use generic error message to avoid exposing tenant isolation logic
+          throw new Error('Resource not found');
         }
       }
     }
