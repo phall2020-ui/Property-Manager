@@ -1,10 +1,16 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CreateInvoiceDto, InvoiceLineDto } from '../dto/create-invoice.dto';
+import { EventsService } from '../../events/events.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class InvoiceService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   /**
    * Generate next invoice number for landlord
@@ -105,6 +111,26 @@ export class InvoiceService {
 
     // Create ledger entry for the invoice
     await this.createInvoiceLedgerEntry(invoice);
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'invoice.created',
+      actorRole: 'LANDLORD',
+      landlordId,
+      tenantId: tenancy.tenantOrgId,
+      resources: [
+        { type: 'invoice', id: invoice.id },
+        { type: 'tenancy', id: dto.tenancyId },
+      ],
+      payload: {
+        number: invoice.number,
+        amount: invoice.amount,
+        dueDate: invoice.dueDate,
+      },
+    });
+
+    // Create notification for tenant
+    // TODO: Get tenant users from orgMembers
 
     return invoice;
   }

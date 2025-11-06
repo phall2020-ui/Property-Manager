@@ -2,17 +2,21 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Param,
   Body,
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Headers,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { CreateQuoteDto } from './dto/create-quote.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -74,6 +78,41 @@ export class TicketsController {
     @CurrentUser() user: any,
   ) {
     return this.ticketsService.createQuote(id, user.sub, dto.amount, dto.notes);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Update ticket status' })
+  @ApiBearerAuth()
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateStatusDto,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.ticketsService.updateStatus(id, dto.to, user.sub, userOrgIds);
+  }
+
+  @Get(':id/timeline')
+  @ApiOperation({ summary: 'Get ticket timeline' })
+  @ApiBearerAuth()
+  async getTimeline(@Param('id') id: string, @CurrentUser() user: any) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.ticketsService.getTimeline(id, userOrgIds);
+  }
+
+  @Roles('LANDLORD')
+  @Post(':id/approve')
+  @ApiOperation({ summary: 'Approve ticket (approve the quote)' })
+  @ApiBearerAuth()
+  async approveTicket(
+    @Param('id') id: string,
+    @Body() dto: ApproveQuoteDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    const key = idempotencyKey || dto.idempotencyKey;
+    return this.ticketsService.approveTicket(id, user.sub, userOrgIds, key);
   }
 
   @Roles('LANDLORD')

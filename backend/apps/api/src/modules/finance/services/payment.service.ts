@@ -2,13 +2,18 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RecordPaymentDto } from '../dto/record-payment.dto';
 import { AllocationItemDto } from '../dto/allocate-payment.dto';
+import { WebhookPaymentDto } from '../dto/webhook-payment.dto';
 import { InvoiceService } from './invoice.service';
+import { EventsService } from '../../events/events.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class PaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly invoiceService: InvoiceService,
+    private readonly eventsService: EventsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   /**
@@ -300,5 +305,85 @@ export class PaymentService {
     }
 
     return this.getPayment(paymentId, landlordId);
+  }
+
+  /**
+   * Process payment webhook (test route for simulating PSP callbacks)
+   */
+  async processWebhookPayment(dto: WebhookPaymentDto) {
+    // Find the invoice
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: dto.invoiceId },
+      include: {
+        tenancy: {
+          include: {
+            property: true,
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+
+    // Create payment
+    const payment = await this.prisma.payment.create({
+      data: {
+        landlordId: invoice.landlordId,
+        invoiceId: dto.invoiceId,
+        propertyId: invoice.propertyId,
+        tenancyId: invoice.tenancyId,
+        tenantUserId: invoice.tenantUserId,
+        provider: dto.provider || 'test',
+        providerRef: dto.providerRef,
+        amount: dto.amount,
+        receivedAt: new Date(dto.paidAt),
+        status: 'CONFIRMED',
+      },
+    });
+
+    // Allocate payment to invoice
+    await this.prisma.paymentAllocation.create({
+      data: {
+        paymentId: payment.id,
+        invoiceId: dto.invoiceId,
+        amount: dto.amount,
+      },
+    });
+
+    // Update invoice status
+    await this.invoiceService.updateInvoiceStatus(dto.invoiceId);
+
+    // Get updated invoice
+    const updatedInvoice = await this.prisma.invoice.findUnique({
+      where: { id: dto.invoiceId },
+      include: { tenancy: true },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'invoice.paid',
+      actorRole: 'TENANT',
+      landlordId: invoice.landlordId,
+      tenantId: invoice.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'invoice', id: dto.invoiceId },
+        { type: 'payment', id: payment.id },
+      ],
+      payload: {
+        amount: dto.amount,
+        status: updatedInvoice?.status,
+      },
+    });
+
+    // Create notification for landlord
+    // TODO: Get landlord users from orgMembers
+
+    return {
+      success: true,
+      payment,
+      invoice: updatedInvoice,
+    };
   }
 }
