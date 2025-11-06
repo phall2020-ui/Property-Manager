@@ -300,11 +300,35 @@ async function main() {
     },
   });
 
+  // Create Bank Connection
+  const bankConnection = await prisma.bankConnection.create({
+    data: {
+      id: 'conn-001',
+      landlordId: landlordOrg.id,
+      provider: 'PLAID',
+      status: 'ACTIVE',
+      meta: JSON.stringify({ externalId: 'plaid-ext-001' }),
+    },
+  });
+
+  // Create Bank Account
+  const bankAccount = await prisma.bankAccount.create({
+    data: {
+      id: 'acc-001',
+      landlordId: landlordOrg.id,
+      connectionId: bankConnection.id,
+      name: 'Main Business Account',
+      accountNumber: '12345678',
+      sortCode: '12-34-56',
+      lastSyncedAt: new Date(),
+    },
+  });
+
   // Create Bank Transactions (one matched, one unmatched)
   const matchedBankTx = await prisma.bankTransaction.create({
     data: {
       landlordId: landlordOrg.id,
-      bankAccountId: 'acc-001',
+      bankAccountId: bankAccount.id,
       postedAt: new Date('2024-11-01'),
       description: 'TRANSFER FROM BOB TENANT REF: INV-2024-000001',
       amount: 1500,
@@ -329,7 +353,7 @@ async function main() {
   const unmatchedBankTx = await prisma.bankTransaction.create({
     data: {
       landlordId: landlordOrg.id,
-      bankAccountId: 'acc-001',
+      bankAccountId: bankAccount.id,
       postedAt: new Date('2024-11-05'),
       description: 'TRANSFER FROM UNKNOWN',
       amount: 1500,

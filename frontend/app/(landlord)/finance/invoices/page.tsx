@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { listInvoices } from '@/_lib/financeClient';
+import { listInvoices } from '@/lib/financeClient';
 import { FileText, Filter } from 'lucide-react';
 
 export default function InvoicesPage() {
