@@ -708,6 +708,20 @@ export class TicketsService {
       throw new ForbiddenException('Can only propose appointments for approved tickets');
     }
 
+    // Check for existing proposed or confirmed appointments
+    const existingAppointments = await this.prisma.appointment.findMany({
+      where: {
+        ticketId,
+        status: { in: ['PROPOSED', 'CONFIRMED'] },
+      },
+    });
+
+    if (existingAppointments.length > 0) {
+      throw new ForbiddenException(
+        'Cannot propose new appointment while pending or confirmed appointment exists. Cancel existing appointment first.',
+      );
+    }
+
     // Create appointment
     const appointment = await this.prisma.appointment.create({
       data: {
