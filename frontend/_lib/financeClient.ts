@@ -196,19 +196,16 @@ export async function getInvoice(id: string) {
 }
 
 /**
- * Create invoice
+ * Create invoice (new production spec)
  */
 export async function createInvoice(data: {
   tenancyId: string;
-  tenantUserId?: string;
-  issueDate: string;
-  dueDate: string;
-  lines: Array<{
-    description: string;
-    qty: number;
-    unitPrice: number;
-    taxRate: number;
-  }>;
+  periodStart: string;
+  periodEnd: string;
+  dueAt: string;
+  amountGBP: number;
+  reference?: string;
+  notes?: string;
 }) {
   const res = await apiRequest('/finance/invoices', {
     method: 'POST',
@@ -266,17 +263,19 @@ export async function getPayment(id: string) {
 }
 
 /**
- * Record a payment
+ * Record a payment (new production spec)
  */
 export async function recordPayment(data: {
-  tenancyId: string;
+  invoiceId: string;
+  amountGBP: number;
+  paidAt: string;
   method: string;
-  amount: number;
-  receivedAt: string;
-  externalId?: string;
-  tenantUserId?: string;
+  provider?: string;
+  providerRef: string;
+  feeGBP?: number;
+  vatGBP?: number;
 }) {
-  const res = await apiRequest('/finance/payments/record', {
+  const res = await apiRequest('/finance/payments', {
     method: 'POST',
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
@@ -366,5 +365,99 @@ export async function updateFinanceSettings(data: any) {
     headers: { 'Content-Type': 'application/json' },
   });
   // TODO: Optional runtime validation with z.any().parse(res)
+  return res;
+}
+
+/**
+ * Get property rent summary (KPIs and recent activity)
+ */
+export async function getPropertyRentSummary(propertyId: string) {
+  const res = await apiRequest(`/finance/properties/${propertyId}/rent/summary`, {
+    method: 'GET',
+  });
+  return res;
+}
+
+/**
+ * Export rent roll as CSV
+ */
+export async function exportRentRoll(month?: string) {
+  const params = month ? `?month=${month}` : '';
+  const res = await apiRequest(`/finance/exports/rent-roll${params}`, {
+    method: 'GET',
+  });
+  return res;
+}
+
+/**
+ * Export payments ledger as CSV
+ */
+export async function exportPayments(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.append('from', from);
+  if (to) params.append('to', to);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiRequest(`/finance/exports/payments${query}`, {
+    method: 'GET',
+  });
+  return res;
+}
+
+/**
+ * Tenant: List invoices for own tenancy
+ */
+export async function listTenantInvoices(params?: {
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.status) query.append('status', params.status);
+  if (params?.page) query.append('page', params.page.toString());
+  if (params?.limit) query.append('limit', params.limit.toString());
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+  
+  const res = await apiRequest(`/tenant/payments/invoices${queryString}`, {
+    method: 'GET',
+  });
+  return res;
+}
+
+/**
+ * Tenant: Get invoice detail
+ */
+export async function getTenantInvoice(id: string) {
+  const res = await apiRequest(`/tenant/payments/invoices/${id}`, {
+    method: 'GET',
+  });
+  return res;
+}
+
+/**
+ * Tenant: Get receipt for invoice
+ */
+export async function getTenantReceipt(id: string) {
+  const res = await apiRequest(`/tenant/payments/receipts/${id}`, {
+    method: 'GET',
+  });
+  return res;
+}
+
+/**
+ * Test webhook: Simulate payment callback
+ */
+export async function simulatePaymentWebhook(data: {
+  invoiceId: string;
+  amountGBP: number;
+  paidAt: string;
+  providerRef: string;
+  method?: string;
+  provider?: string;
+}) {
+  const res = await apiRequest('/finance/payments/webhook', {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+  });
   return res;
 }
