@@ -59,7 +59,10 @@ export class PropertiesController {
 
   @Roles('LANDLORD')
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a property' })
+  @ApiOperation({ 
+    summary: 'Update a property',
+    description: 'Update property details. Only the property owner can update. Postcode is validated and normalized to uppercase. Supports partial updates.'
+  })
   @ApiBearerAuth()
   async update(
     @Param('id') id: string,

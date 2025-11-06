@@ -33,7 +33,10 @@ export class TicketsController {
 
   @Roles('TENANT')
   @Post()
-  @ApiOperation({ summary: 'Create a maintenance ticket' })
+  @ApiOperation({ 
+    summary: 'Create a maintenance ticket',
+    description: 'Create a new maintenance ticket. Tenant must provide either propertyId or tenancyId. Ticket will be visible to the landlord immediately and appears in their list within 5 seconds via polling.'
+  })
   @ApiBearerAuth()
   async create(@Body() dto: CreateTicketDto, @CurrentUser() user: any) {
     // Get landlordId from property or tenancy
@@ -82,7 +85,10 @@ export class TicketsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List tickets' })
+  @ApiOperation({ 
+    summary: 'List tickets',
+    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports filtering by propertyId and status.'
+  })
   @ApiBearerAuth()
   async findMany(
     @Query('propertyId') propertyId?: string,
