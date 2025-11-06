@@ -217,7 +217,8 @@ export class InvoiceService {
 
     // Calculate paid amount
     const paidAmount = invoice.allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
-    const balance = invoice.grandTotal - paidAmount;
+    const amount = invoice.amountGBP || invoice.grandTotal || invoice.amount || 0;
+    const balance = amount - paidAmount;
 
     return {
       ...invoice,
@@ -265,10 +266,11 @@ export class InvoiceService {
     // Calculate balances
     const invoicesWithBalance = invoices.map((invoice) => {
       const paidAmount = invoice.allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+      const amount = invoice.amountGBP || invoice.grandTotal || invoice.amount || 0;
       return {
         ...invoice,
         paidAmount,
-        balance: invoice.grandTotal - paidAmount,
+        balance: amount - paidAmount,
       };
     });
 
