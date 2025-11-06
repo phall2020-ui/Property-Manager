@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getRentRoll } from '@/lib/financeClient';
+import { getRentRoll, type RentRollItem } from '@/lib/financeClient';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 export default function RentRollPage() {
@@ -11,7 +11,7 @@ export default function RentRollPage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<RentRollItem[]>({
     queryKey: ['finance', 'rent-roll', month],
     queryFn: () => getRentRoll(month),
   });

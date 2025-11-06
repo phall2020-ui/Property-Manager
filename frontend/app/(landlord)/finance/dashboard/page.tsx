@@ -3,16 +3,16 @@
 import React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { getDashboardMetrics, getArrearsAging } from '@/lib/financeClient';
+import { getDashboardMetrics, getArrearsAging, type DashboardMetrics } from '@/lib/financeClient';
 import { DollarSign, FileText, AlertCircle, CreditCard, TrendingUp } from 'lucide-react';
 
 export default function FinanceDashboard() {
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metrics, isLoading: metricsLoading } = useQuery<DashboardMetrics>({
     queryKey: ['finance', 'dashboard'],
     queryFn: getDashboardMetrics,
   });
 
-  const { data: aging, isLoading: agingLoading } = useQuery({
+  const { data: aging, isLoading: agingLoading } = useQuery<Record<string, number>>({
     queryKey: ['finance', 'arrears-aging'],
     queryFn: getArrearsAging,
   });
