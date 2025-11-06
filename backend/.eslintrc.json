@@ -8,5 +8,8 @@
   "plugins": ["@typescript-eslint"],
   "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
   "env": { "node": true, "es2022": true, "jest": true },
-  "rules": {}
+  "ignorePatterns": ["dist", "node_modules", "*.config.js"],
+  "rules": {
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
+  }
 }

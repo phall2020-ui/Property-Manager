@@ -16,7 +16,8 @@ A full-stack multi-tenant property management platform with role-based access co
 
 **Frontend:** Next.js 14 (App Router) + Vite/React 19 + TypeScript + Tailwind CSS + TanStack Query  
 **Backend:** NestJS + Prisma + SQLite (dev) / PostgreSQL (prod)  
-**Authentication:** JWT (access tokens 15min + httpOnly refresh tokens 7 days)
+**Authentication:** JWT (access tokens 15min + httpOnly refresh cookies 7 days)  
+**Security:** Helmet, rate limiting, CORS with credentials, tenant-scoped queries
 
 ## 📁 Project Structure
 
@@ -154,10 +155,11 @@ MAX_UPLOAD_MB=10
 - **Ops Teams:** Manage ticket queues and assignments
 
 ### Authentication Flow
-1. User logs in → Backend returns access + refresh tokens
-2. Access token stored in memory, refresh token in localStorage
-3. Automatic token refresh on 401 responses
-4. Role-based route protection via `RoleGate` component
+1. User logs in → Backend returns access token + sets httpOnly refresh token cookie
+2. Access token stored in memory (not localStorage for security)
+3. Refresh token stored in httpOnly, Secure, SameSite=strict cookie (protected from XSS)
+4. Automatic token refresh on 401 responses using cookie
+5. Role-based route protection via `RoleGate` component
 
 ### API Integration
 - Centralized API client with automatic token management

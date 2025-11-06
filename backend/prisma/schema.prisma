@@ -443,17 +443,27 @@ model PropertyNote {
 // Audit log for property & tenancy changes
 model AuditLog {
   id         String   @id @default(uuid())
-  propertyId String?
-  tenancyId  String?
-  eventType  String // property_created, tenancy_created, document_uploaded, etc.
-  details    String? // JSON string with details
+  tenantId   String?  // landlordId for multi-tenant scoping
+  actorId    String?  // userId who performed the action
+  action     String   // CREATE, UPDATE, DELETE, etc.
+  entity     String   // property, tenancy, ticket, document, etc.
+  entityId   String   // ID of the entity affected
+  propertyId String?  // Keep for backward compatibility
+  tenancyId  String?  // Keep for backward compatibility
+  eventType  String?  // Keep for backward compatibility
+  meta       String?  // JSON metadata with details
+  details    String?  // Keep for backward compatibility
+  ts         DateTime @default(now()) // Timestamp
   createdAt  DateTime @default(now())
 
   property Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   tenancy  Tenancy?  @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, ts])
   @@index([propertyId])
   @@index([tenancyId])
+  @@index([actorId])
+  @@index([entity, entityId])
 }
 
 // ============================================================================
