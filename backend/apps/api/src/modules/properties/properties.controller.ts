@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch, Query, ForbiddenException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -19,7 +19,7 @@ export class PropertiesController {
     // Get user's landlord org
     const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
     if (!landlordOrg) {
-      throw new Error('User is not a landlord');
+      throw new ForbiddenException('User is not a landlord');
     }
     return this.propertiesService.create({ ...dto, ownerOrgId: landlordOrg.orgId });
   }
@@ -32,7 +32,7 @@ export class PropertiesController {
   async findOne(@Param('id') id: string, @CurrentUser() user: any) {
     const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
     if (!landlordOrg) {
-      throw new Error('User is not a landlord');
+      throw new ForbiddenException('User is not a landlord');
     }
     return this.propertiesService.findOne(id, landlordOrg.orgId);
   }
@@ -50,7 +50,7 @@ export class PropertiesController {
   ) {
     const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
     if (!landlordOrg) {
-      throw new Error('User is not a landlord');
+      throw new ForbiddenException('User is not a landlord');
     }
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 20;
@@ -71,7 +71,7 @@ export class PropertiesController {
   ) {
     const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
     if (!landlordOrg) {
-      throw new Error('User is not a landlord');
+      throw new ForbiddenException('User is not a landlord');
     }
     return this.propertiesService.update(id, landlordOrg.orgId, dto);
   }

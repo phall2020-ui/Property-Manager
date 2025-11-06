@@ -63,17 +63,22 @@ export default function EditPropertyPage() {
       // Invalidate queries to refresh property data
       queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
       queryClient.invalidateQueries({ queryKey: ['properties'] });
-
-      // Navigate back after a short delay
-      setTimeout(() => {
-        router.push(`/properties/${propertyId}`);
-      }, 1500);
     },
     onError: (err: any) => {
       setGeneralError(err.detail || err.title || 'Failed to update property');
       setSuccessMessage(null);
     },
   });
+
+  // Navigate back after success message is shown
+  React.useEffect(() => {
+    if (successMessage && !mutation.isPending) {
+      const timer = setTimeout(() => {
+        router.push(`/properties/${propertyId}`);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage, mutation.isPending, propertyId, router]);
 
   const onSubmit = (data: UpdatePropertyDTO) => {
     setGeneralError(null);

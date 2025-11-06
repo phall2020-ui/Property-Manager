@@ -24,6 +24,7 @@ export default function ReportIssuePage() {
   });
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [submittedData, setSubmittedData] = useState<CreateTicketDTO | null>(null);
   
   const mutation = useMutation<{ id: string }, any, CreateTicketDTO>({
     mutationFn: async (data: CreateTicketDTO) => {
@@ -33,30 +34,35 @@ export default function ReportIssuePage() {
         headers: { 'Content-Type': 'application/json' },
       });
     },
-    onSuccess: (resp) => {
+    onSuccess: (resp, variables) => {
       setSuccessMessage('Ticket created successfully!');
       setGeneralError(null);
+      setSubmittedData(variables);
       
       // Invalidate queries to refresh ticket lists
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      const propertyIdInput = document.getElementById('propertyId') as HTMLInputElement;
-      if (propertyIdInput?.value) {
-        const propertyId = propertyIdInput.value;
-        queryClient.invalidateQueries({ queryKey: ['tickets', { propertyId }] });
-        queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
+      if (variables.propertyId) {
+        queryClient.invalidateQueries({ queryKey: ['tickets', { propertyId: variables.propertyId }] });
+        queryClient.invalidateQueries({ queryKey: ['property', variables.propertyId] });
       }
       
       reset();
-      // Navigate to tickets list after a short delay
-      setTimeout(() => {
-        router.push('/my-tickets');
-      }, 1500);
     },
     onError: (err: any) => {
       setGeneralError(err.detail || 'Failed to create ticket');
       setSuccessMessage(null);
     },
   });
+  
+  // Navigate after success message is shown
+  React.useEffect(() => {
+    if (successMessage && submittedData) {
+      const timer = setTimeout(() => {
+        router.push('/my-tickets');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage, submittedData, router]);
   
   const onSubmit = (data: CreateTicketDTO) => {
     setGeneralError(null);
