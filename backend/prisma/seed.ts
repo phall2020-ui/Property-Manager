@@ -99,6 +99,7 @@ async function main() {
   // Create Open Ticket
   const ticket = await prisma.ticket.create({
     data: {
+      landlordId: landlordOrg.id,
       propertyId: property.id,
       tenancyId: tenancy.id,
       title: 'Leaking kitchen tap',

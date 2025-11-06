@@ -33,6 +33,16 @@ export default {
           800: '#075985',
           900: '#0C4A6E',
         },
+        brand: {
+          bg: '#FCF6EC',
+          panel: '#FFFFFF',
+          blue: '#BEE3F8',
+          teal: '#C6F6D5',
+          peach: '#FBD5D5',
+          text: '#0F172A',
+          subtle: '#64748B',
+          border: '#E5E7EB',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -40,10 +50,12 @@ export default {
       borderRadius: {
         'card': '12px',
         'input': '8px',
+        'xl': '12px',
       },
       boxShadow: {
         'sm': '0 1px 2px rgba(0,0,0,0.05)',
         'md': '0 2px 6px rgba(0,0,0,0.08)',
+        'card': '0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08)',
       },
     },
   },

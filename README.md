@@ -2,11 +2,21 @@
 
 A full-stack multi-tenant property management platform with role-based access control for landlords, tenants, contractors, and operations teams.
 
+## 🎯 New to This Project? Start Here!
+
+📚 **Complete Documentation Suite Available:**
+- 🌟 **[REPOSITORY_SUMMARY.md](./REPOSITORY_SUMMARY.md)** - Comprehensive 24-page analysis covering everything
+- ⚡ **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Fast cheat sheet with TL;DR setup (5 min read)
+- 🎨 **[VISUAL_OVERVIEW.md](./VISUAL_OVERVIEW.md)** - Architecture diagrams and flow charts
+- 📖 **[DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)** - Navigate all 31 docs by role/topic
+
+**Project Status:** 70% Complete | Backend: Production Ready ✅ | Frontend: 60% 🚧
+
 ## 🏗️ Architecture
 
-**Frontend:** Next.js 14 (App Router) + TypeScript + Tailwind CSS + TanStack Query  
-**Backend:** NestJS + Prisma + PostgreSQL + Redis + BullMQ  
-**Authentication:** JWT (access + refresh tokens)
+**Frontend:** Next.js 14 (App Router) + Vite/React 19 + TypeScript + Tailwind CSS + TanStack Query  
+**Backend:** NestJS + Prisma + SQLite (dev) / PostgreSQL (prod)  
+**Authentication:** JWT (access tokens 15min + httpOnly refresh tokens 7 days)
 
 ## 📁 Project Structure
 

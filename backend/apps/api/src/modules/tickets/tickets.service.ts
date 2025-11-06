@@ -6,6 +6,7 @@ export class TicketsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: {
+    landlordId: string;
     propertyId?: string;
     tenancyId?: string;
     title: string;
@@ -67,7 +68,7 @@ export class TicketsService {
             },
           },
         },
-        attachments: true,
+        attachmentFiles: true,
       },
     });
 
@@ -75,8 +76,8 @@ export class TicketsService {
       throw new NotFoundException('Ticket not found');
     }
 
-    // Check access
-    const hasAccess =
+    // Check access - now using landlordId for tenant isolation
+    const hasAccess = userOrgIds.includes(ticket.landlordId) ||
       (ticket.property && userOrgIds.includes(ticket.property.ownerOrgId)) ||
       (ticket.tenancy && userOrgIds.includes(ticket.tenancy.tenantOrgId));
 
@@ -262,5 +263,35 @@ export class TicketsService {
         size,
       },
     });
+  }
+
+  async findProperty(propertyId: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { id: true, ownerOrgId: true },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    return property;
+  }
+
+  async findTenancy(tenancyId: string) {
+    const tenancy = await this.prisma.tenancy.findUnique({
+      where: { id: tenancyId },
+      include: {
+        property: {
+          select: { id: true, ownerOrgId: true },
+        },
+      },
+    });
+
+    if (!tenancy) {
+      throw new NotFoundException('Tenancy not found');
+    }
+
+    return tenancy;
   }
 }
