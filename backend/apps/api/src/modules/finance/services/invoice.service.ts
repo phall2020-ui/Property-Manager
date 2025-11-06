@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
-import { CreateInvoiceDto, InvoiceLineDto } from '../dto/create-invoice.dto';
+import { CreateInvoiceDto } from '../dto/create-invoice.dto';
 import { EventsService } from '../../events/events.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 
@@ -43,14 +43,7 @@ export class InvoiceService {
     return `${prefix}-${year}-${sequence.toString().padStart(6, '0')}`;
   }
 
-  /**
-   * Calculate line totals and tax
-   */
-  private calculateLineTotals(line: InvoiceLineDto) {
-    const lineTotal = line.qty * line.unitPrice;
-    const taxTotal = lineTotal * (line.taxRate / 100);
-    return { lineTotal, taxTotal };
-  }
+
 
   /**
    * Create a new invoice
@@ -66,46 +59,55 @@ export class InvoiceService {
       throw new NotFoundException('Tenancy not found');
     }
 
-    // Calculate totals
-    let lineTotal = 0;
-    let taxTotal = 0;
-
-    const linesWithTotals = dto.lines.map((line) => {
-      const calculated = this.calculateLineTotals(line);
-      lineTotal += calculated.lineTotal;
-      taxTotal += calculated.taxTotal;
-      return {
-        ...line,
-        ...calculated,
-      };
+    // Check for overlapping period invoices
+    const overlapping = await this.prisma.invoice.findFirst({
+      where: {
+        tenancyId: dto.tenancyId,
+        status: { not: 'VOID' },
+        OR: [
+          {
+            AND: [
+              { periodStart: { lte: new Date(dto.periodStart) } },
+              { periodEnd: { gte: new Date(dto.periodStart) } },
+            ],
+          },
+          {
+            AND: [
+              { periodStart: { lte: new Date(dto.periodEnd) } },
+              { periodEnd: { gte: new Date(dto.periodEnd) } },
+            ],
+          },
+        ],
+      },
     });
 
-    const grandTotal = lineTotal + taxTotal;
+    if (overlapping) {
+      throw new BadRequestException('Overlapping invoice period exists for this tenancy');
+    }
 
-    // Generate invoice number
+    // Generate invoice number and reference
     const invoiceNumber = await this.generateInvoiceNumber(landlordId);
+    const reference = dto.reference || this.generateReference(dto.periodStart, dto.periodEnd);
 
-    // Create invoice with lines
+    // Create invoice
     const invoice = await this.prisma.invoice.create({
       data: {
         landlordId,
         propertyId: tenancy.propertyId,
         tenancyId: dto.tenancyId,
-        tenantUserId: dto.tenantUserId || null,
         number: invoiceNumber,
-        issueDate: new Date(dto.issueDate),
-        dueDate: new Date(dto.dueDate),
-        amount: grandTotal, // New required field
-        lineTotal,
-        taxTotal,
-        grandTotal,
-        status: 'SENT', // Use SENT instead of ISSUED (Step 5 spec)
-        lines: {
-          create: linesWithTotals,
-        },
-      },
-      include: {
-        lines: true,
+        reference,
+        periodStart: new Date(dto.periodStart),
+        periodEnd: new Date(dto.periodEnd),
+        dueAt: new Date(dto.dueAt),
+        amountGBP: dto.amountGBP,
+        status: 'DUE',
+        notes: dto.notes,
+        // Backward compatibility fields
+        issueDate: new Date(),
+        dueDate: new Date(dto.dueAt),
+        amount: dto.amountGBP,
+        grandTotal: dto.amountGBP,
       },
     });
 
@@ -124,15 +126,24 @@ export class InvoiceService {
       ],
       payload: {
         number: invoice.number,
-        amount: invoice.amount,
-        dueDate: invoice.dueDate,
+        reference: invoice.reference,
+        amount: invoice.amountGBP,
+        dueAt: invoice.dueAt,
       },
     });
 
-    // Create notification for tenant
-    // TODO: Get tenant users from orgMembers
-
     return invoice;
+  }
+
+  /**
+   * Generate human-readable reference
+   */
+  private generateReference(periodStart: string, periodEnd: string): string {
+    const start = new Date(periodStart);
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = monthNames[start.getMonth()];
+    const year = start.getFullYear();
+    return `${year}-${String(start.getMonth() + 1).padStart(2, '0')} Rent`;
   }
 
   /**
@@ -318,14 +329,17 @@ export class InvoiceService {
     }
 
     const paidAmount = invoice.allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+    const balance = (invoice.amountGBP || invoice.grandTotal || 0) - paidAmount;
+    const now = new Date();
+    const isOverdue = now > invoice.dueAt && balance > 0;
 
     let newStatus = invoice.status;
-    if (paidAmount === 0) {
-      newStatus = 'ISSUED';
-    } else if (paidAmount >= invoice.grandTotal) {
+    if (paidAmount >= (invoice.amountGBP || invoice.grandTotal || 0)) {
       newStatus = 'PAID';
+    } else if (paidAmount > 0) {
+      newStatus = isOverdue ? 'LATE' : 'PART_PAID';
     } else {
-      newStatus = 'PART_PAID';
+      newStatus = isOverdue ? 'LATE' : 'DUE';
     }
 
     if (newStatus !== invoice.status) {
@@ -333,6 +347,37 @@ export class InvoiceService {
         where: { id: invoiceId },
         data: { status: newStatus },
       });
+
+      // Emit event if became paid
+      if (newStatus === 'PAID') {
+        this.eventsService.emit({
+          type: 'invoice.paid',
+          actorRole: 'SYSTEM',
+          landlordId: invoice.landlordId,
+          resources: [{ type: 'invoice', id: invoice.id }],
+          payload: {
+            number: invoice.number,
+            reference: invoice.reference,
+            amount: invoice.amountGBP || invoice.amount,
+          },
+        });
+      }
+
+      // Emit event if became late
+      if (newStatus === 'LATE' && invoice.status !== 'LATE') {
+        this.eventsService.emit({
+          type: 'invoice.late',
+          actorRole: 'SYSTEM',
+          landlordId: invoice.landlordId,
+          resources: [{ type: 'invoice', id: invoice.id }],
+          payload: {
+            number: invoice.number,
+            reference: invoice.reference,
+            daysLate: Math.floor((now.getTime() - invoice.dueAt.getTime()) / (1000 * 60 * 60 * 24)),
+            balance,
+          },
+        });
+      }
     }
   }
 }

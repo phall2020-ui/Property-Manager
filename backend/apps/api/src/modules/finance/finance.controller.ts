@@ -96,7 +96,11 @@ export class FinanceController {
   @Post('invoices')
   @ApiOperation({ summary: 'Create a new invoice' })
   @ApiBearerAuth()
-  async createInvoice(@Body() dto: CreateInvoiceDto, @CurrentUser() user: any) {
+  async createInvoice(
+    @Body() dto: CreateInvoiceDto, 
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
     const landlordId = this.getLandlordId(user);
     return this.invoiceService.createInvoice(landlordId, dto);
   }
@@ -149,10 +153,14 @@ export class FinanceController {
   // ========== Payments ==========
 
   @Roles('LANDLORD')
-  @Post('payments/record')
-  @ApiOperation({ summary: 'Record a payment' })
+  @Post('payments')
+  @ApiOperation({ summary: 'Record a manual payment' })
   @ApiBearerAuth()
-  async recordPayment(@Body() dto: RecordPaymentDto, @CurrentUser() user: any) {
+  async recordPayment(
+    @Body() dto: RecordPaymentDto, 
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
     const landlordId = this.getLandlordId(user);
     return this.paymentService.recordPayment(landlordId, dto);
   }
