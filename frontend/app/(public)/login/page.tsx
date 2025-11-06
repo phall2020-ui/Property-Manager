@@ -39,23 +39,23 @@ export default function LoginPage() {
       switch (primaryRole) {
         case 'LANDLORD':
           console.log('Redirecting to /dashboard');
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
           break;
         case 'TENANT':
           console.log('Redirecting to /report-issue');
-          router.push('/report-issue');
+          window.location.href = '/report-issue';
           break;
         case 'CONTRACTOR':
           console.log('Redirecting to /jobs');
-          router.push('/jobs');
+          window.location.href = '/jobs';
           break;
         case 'OPS':
           console.log('Redirecting to /queue');
-          router.push('/queue');
+          window.location.href = '/queue';
           break;
         default:
           console.log('Unknown role, redirecting to /');
-          router.push('/');
+          window.location.href = '/';
       }
     } catch (err: any) {
       console.error('Login error:', err);
