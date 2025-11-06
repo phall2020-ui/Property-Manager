@@ -1,5 +1,4 @@
 import React from 'react';
-import { AlertCircle } from 'lucide-react';
 
 interface ErrorStateProps {
   title?: string;
@@ -20,7 +19,9 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
       role="alert"
       aria-live="assertive"
     >
-      <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+      <svg className="h-12 w-12 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
       <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
       <p className="text-sm text-gray-600 mb-4 max-w-sm">{message}</p>
       {retry && (

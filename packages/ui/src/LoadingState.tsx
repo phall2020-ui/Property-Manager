@@ -1,5 +1,4 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
 
 interface LoadingStateProps {
   message?: string;
@@ -17,7 +16,7 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
       aria-busy="true"
       aria-live="polite"
     >
-      <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
       <p className="mt-4 text-sm text-gray-600">{message}</p>
     </div>
   );
