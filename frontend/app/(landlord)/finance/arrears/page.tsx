@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getArrears } from '@/lib/financeClient';
+import { getArrears, type ArrearsItem } from '@/lib/financeClient';
 import { AlertCircle } from 'lucide-react';
 
 export default function ArrearsPage() {
   const [bucket, setBucket] = useState<string>('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<ArrearsItem[]>({
     queryKey: ['finance', 'arrears', bucket],
     queryFn: () => getArrears(bucket || undefined),
   });

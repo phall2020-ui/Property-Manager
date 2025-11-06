@@ -2,11 +2,11 @@
 
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { listMandates } from '@/lib/financeClient';
+import { listMandates, type Mandate } from '@/lib/financeClient';
 import { CreditCard } from 'lucide-react';
 
 export default function MandatesPage() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<{ data: Mandate[], total: number, page: number, limit: number, totalPages: number }>({
     queryKey: ['finance', 'mandates'],
     queryFn: () => listMandates({}),
   });
