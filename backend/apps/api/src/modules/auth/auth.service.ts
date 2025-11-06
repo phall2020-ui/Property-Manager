@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
-import { Role } from '@prisma/client';
+import { Role } from '../../common/types/role.type';
 
 @Injectable()
 export class AuthService {
@@ -14,7 +14,7 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  async signup(email: string, password: string, name: string, role: Role = Role.LANDLORD) {
+  async signup(email: string, password: string, name: string, role: Role = 'LANDLORD') {
     // Check if user exists
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -27,7 +27,7 @@ export class AuthService {
     // Create landlord org if role is LANDLORD
     let org;
     let landlordId;
-    if (role === Role.LANDLORD) {
+    if (role === 'LANDLORD') {
       org = await this.prisma.org.create({
         data: {
           name: `${name}'s Organisation`,
@@ -164,7 +164,7 @@ export class AuthService {
     }
   }
 
-  private async generateTokens(userId: string, role?: Role, landlordId?: string) {
+  private async generateTokens(userId: string, role?: string | null, landlordId?: string | null) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {

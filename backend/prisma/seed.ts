@@ -334,7 +334,7 @@ async function main() {
       amount: 1500,
       currency: 'GBP',
       hash: 'hash-matched-tx-001',
-      rawJson: JSON.stringify({ id: 'tx001', amount: 1500 }),
+      rawString: JSON.stringify({ id: 'tx001', amount: 1500 }),
     },
   });
 
@@ -359,7 +359,7 @@ async function main() {
       amount: 1500,
       currency: 'GBP',
       hash: 'hash-unmatched-tx-002',
-      rawJson: JSON.stringify({ id: 'tx002', amount: 1500 }),
+      rawString: JSON.stringify({ id: 'tx002', amount: 1500 }),
     },
   });
 

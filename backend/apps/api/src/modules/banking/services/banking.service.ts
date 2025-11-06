@@ -199,7 +199,7 @@ export class BankingService {
               reference: tx.reference,
               currency: tx.currency,
               hash,
-              rawJson: JSON.stringify(tx),
+              rawString: JSON.stringify(tx),
             },
           });
           totalSynced++;

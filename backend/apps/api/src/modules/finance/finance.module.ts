@@ -8,9 +8,11 @@ import { ReconciliationService } from './services/reconciliation.service';
 import { PayoutService } from './services/payout.service';
 import { FinanceMetricsService } from './services/finance-metrics.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
+import { EventsModule } from '../events/events.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, EventsModule, NotificationsModule],
   controllers: [FinanceController],
   providers: [
     FinanceService,

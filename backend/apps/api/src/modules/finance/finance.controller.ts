@@ -23,6 +23,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { RecordPaymentDto } from './dto/record-payment.dto';
 import { AllocatePaymentDto } from './dto/allocate-payment.dto';
 import { CreateMandateDto } from './dto/create-mandate.dto';
+import { WebhookPaymentDto } from './dto/webhook-payment.dto';
 
 @ApiTags('finance')
 @Controller('finance')
@@ -341,5 +342,16 @@ export class FinanceController {
   async getTenancyBalance(@Param('tenancyId') tenancyId: string, @CurrentUser() user: any) {
     const landlordId = this.getLandlordId(user);
     return this.financeService.getTenancyBalance(tenancyId, landlordId);
+  }
+
+  // ========== Payment Webhook (Test Route) ==========
+
+  @Post('payments/webhook')
+  @ApiOperation({ 
+    summary: 'Test payment webhook (simulates PSP callback)',
+    description: 'This is a test endpoint to simulate payment provider webhooks for development and testing',
+  })
+  async paymentWebhook(@Body() dto: WebhookPaymentDto) {
+    return this.paymentService.processWebhookPayment(dto);
   }
 }
