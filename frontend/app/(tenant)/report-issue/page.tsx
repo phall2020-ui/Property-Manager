@@ -17,7 +17,7 @@ export default function ReportIssuePage() {
     reset,
   } = useForm<CreateTicketDTO>({ resolver: zodResolver(CreateTicketSchema) });
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const mutation = useMutation({
+  const mutation = useMutation<{ id: string }, any, CreateTicketDTO>({
     mutationFn: async (data: CreateTicketDTO) => {
       return apiRequest<{ id: string }>('/tickets', {
         method: 'POST',
@@ -86,10 +86,10 @@ export default function ReportIssuePage() {
         {/* File upload omitted for brevity; implement using Uploader component */}
         <button
           type="submit"
-          disabled={mutation.isLoading}
+          disabled={mutation.isPending}
           className="w-full rounded bg-primary px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {mutation.isLoading ? 'Submitting…' : 'Submit'}
+          {mutation.isPending ? 'Submitting…' : 'Submit'}
         </button>
       </form>
     </div>

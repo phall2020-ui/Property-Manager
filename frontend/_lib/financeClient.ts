@@ -128,7 +128,7 @@ export async function getDashboardMetrics() {
 /**
  * Get rent roll for a month
  */
-export async function getRentRoll(month?: string) {
+export async function getRentRoll(month?: string): Promise<RentRollItem[]> {
   const params = month ? `?month=${month}` : '';
   const res = await apiRequest(`/finance/rent-roll${params}`, {
     method: 'GET',
@@ -140,7 +140,7 @@ export async function getRentRoll(month?: string) {
 /**
  * Get arrears list
  */
-export async function getArrears(bucket?: string) {
+export async function getArrears(bucket?: string): Promise<ArrearsItem[]> {
   const params = bucket ? `?bucket=${bucket}` : '';
   const res = await apiRequest(`/finance/arrears${params}`, {
     method: 'GET',
@@ -169,7 +169,7 @@ export async function listInvoices(params?: {
   status?: string;
   page?: number;
   limit?: number;
-}) {
+}): Promise<{ data: Invoice[], total: number, page: number, limit: number, totalPages: number }> {
   const query = new URLSearchParams();
   if (params?.propertyId) query.set('propertyId', params.propertyId);
   if (params?.tenancyId) query.set('tenancyId', params.tenancyId);
@@ -239,7 +239,7 @@ export async function listPayments(params?: {
   status?: string;
   page?: number;
   limit?: number;
-}) {
+}): Promise<{ data: Payment[], total: number, page: number, limit: number, totalPages: number }> {
   const query = new URLSearchParams();
   if (params?.propertyId) query.set('propertyId', params.propertyId);
   if (params?.tenancyId) query.set('tenancyId', params.tenancyId);
@@ -293,7 +293,7 @@ export async function listMandates(params?: {
   status?: string;
   page?: number;
   limit?: number;
-}) {
+}): Promise<{ data: Mandate[], total: number, page: number, limit: number, totalPages: number }> {
   const query = new URLSearchParams();
   if (params?.tenantUserId) query.set('tenantUserId', params.tenantUserId);
   if (params?.status) query.set('status', params.status);

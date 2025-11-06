@@ -7,12 +7,12 @@ import { getDashboardMetrics, getArrearsAging, DashboardMetrics } from '@/lib/fi
 import { DollarSign, FileText, AlertCircle, CreditCard, TrendingUp } from 'lucide-react';
 
 export default function FinanceDashboard() {
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metrics, isLoading: metricsLoading } = useQuery<DashboardMetrics>({
     queryKey: ['finance', 'dashboard'],
     queryFn: getDashboardMetrics,
   }) as { data: DashboardMetrics | undefined; isLoading: boolean };
 
-  const { data: aging, isLoading: agingLoading } = useQuery({
+  const { data: aging, isLoading: agingLoading } = useQuery<Record<string, number>>({
     queryKey: ['finance', 'arrears-aging'],
     queryFn: getArrearsAging,
   }) as { data: Record<string, number> | undefined; isLoading: boolean };

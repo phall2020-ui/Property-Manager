@@ -27,7 +27,7 @@ export default function JobDetailPage() {
   });
   const quoteForm = useForm<SubmitQuoteDTO>({ resolver: zodResolver(SubmitQuoteSchema) });
   const [actionError, setActionError] = useState<string | null>(null);
-  const submitQuote = useMutation({
+  const submitQuote = useMutation<unknown, any, SubmitQuoteDTO>({
     mutationFn: async (data: SubmitQuoteDTO) => {
       return apiRequest(`/tickets/${jobId}/quote`, {
         method: 'POST',
@@ -42,7 +42,7 @@ export default function JobDetailPage() {
       setActionError(err.detail || 'Failed to submit quote');
     },
   });
-  const updateStatus = useMutation({
+  const updateStatus = useMutation<unknown, any, TicketStatus>({
     mutationFn: async (status: TicketStatus) => {
       return apiRequest(`/tickets/${jobId}/status`, {
         method: 'PATCH',
@@ -136,8 +136,8 @@ export default function JobDetailPage() {
               <p className="text-xs text-red-600">{quoteForm.formState.errors.notes.message}</p>
             )}
           </div>
-          <Button type="submit" variant="primary" disabled={submitQuote.isLoading}>
-            {submitQuote.isLoading ? 'Submitting…' : 'Submit Quote'}
+          <Button type="submit" variant="primary" disabled={submitQuote.isPending}>
+            {submitQuote.isPending ? 'Submitting…' : 'Submit Quote'}
           </Button>
         </form>
       ) : null}
@@ -147,14 +147,14 @@ export default function JobDetailPage() {
           <Button
             variant="primary"
             onClick={() => updateStatus.mutate(TicketStatus.IN_PROGRESS)}
-            disabled={updateStatus.isLoading}
+            disabled={updateStatus.isPending}
           >
             Mark On Site
           </Button>
           <Button
-            variant="success"
+            variant="primary"
             onClick={() => updateStatus.mutate(TicketStatus.COMPLETED)}
-            disabled={updateStatus.isLoading}
+            disabled={updateStatus.isPending}
           >
             Mark Complete
           </Button>
