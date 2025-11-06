@@ -7,6 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { CreateTicketSchema, CreateTicketDTO } from '@/lib/schemas';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/apiClient';
+import { FileUpload } from '@/components/FileUpload';
+import { Button } from '@/components/Button';
 
 export default function ReportIssuePage() {
   const router = useRouter();
@@ -25,9 +27,12 @@ export default function ReportIssuePage() {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [submittedData, setSubmittedData] = useState<CreateTicketDTO | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   
   const mutation = useMutation<{ id: string }, any, CreateTicketDTO>({
     mutationFn: async (data: CreateTicketDTO) => {
+      // TODO: Upload files first if any, then create ticket with photo URLs
+      // For now, we'll just send the ticket without photos
       return apiRequest<{ id: string }>('/tickets', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -165,12 +170,22 @@ export default function ReportIssuePage() {
           <p className="text-xs text-gray-500 mt-1">Minimum 10 characters</p>
         </div>
 
-        <button
+        {/* File Upload Section */}
+        <FileUpload
+          onFilesChange={setUploadedFiles}
+          maxFiles={3}
+          maxSizeMB={10}
+          label="Upload Photos (Optional)"
+          helperText="Upload up to 3 photos of the issue (max 10 MB each)"
+        />
+
+        <Button
           type="submit"
           disabled={mutation.isPending}
-          className="w-full rounded bg-blue-600 px-4 py-3 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full"
         >
           {mutation.isPending ? 'Submitting...' : 'Submit Ticket'}
+        </Button>
         </button>
       </form>
     </div>

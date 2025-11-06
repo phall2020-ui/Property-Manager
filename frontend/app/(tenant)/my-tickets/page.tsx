@@ -4,9 +4,9 @@ import React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/apiClient';
-import { Ticket, TicketStatus } from '@/types/models';
+import { Ticket } from '@/types/models';
 import { Table } from '@/components/Table';
-import { Badge } from '@/components/Badge';
+import { StatusBadge } from '@/components/StatusBadge';
 
 export default function TenantTicketsPage() {
   const {
@@ -30,18 +30,14 @@ export default function TenantTicketsPage() {
               header: 'Ticket',
               accessor: 'id',
               render: (ticket) => (
-                <Link href={`/tickets/${ticket.id}`} className="text-primary underline">
+                <Link href={`/my-tickets/${ticket.id}`} className="text-primary underline">
                   {ticket.id}
                 </Link>
               ),
             },
-            { header: 'Status', accessor: 'status', render: (ticket) => {
-              let color: 'info' | 'success' | 'warning' | 'danger' = 'info';
-              if (ticket.status === TicketStatus.COMPLETED) color = 'success';
-              else if (ticket.status === TicketStatus.NEEDS_APPROVAL) color = 'warning';
-              else if (ticket.status === TicketStatus.REJECTED) color = 'danger';
-              return <Badge color={color}>{ticket.status}</Badge>;
-            } },
+            { header: 'Status', accessor: 'status', render: (ticket) => (
+              <StatusBadge status={ticket.status} />
+            ) },
             { header: 'Category', accessor: 'category' },
             {
               header: 'Updated',
