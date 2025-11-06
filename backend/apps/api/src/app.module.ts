@@ -13,6 +13,8 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { ComplianceModule } from './modules/compliance/compliance.module';
 import { BankingModule } from './modules/banking/banking.module';
 import { FlagsModule } from './modules/flags/flags.module';
+import { EventsModule } from './modules/events/events.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -38,6 +40,8 @@ import { AppController } from './app.controller';
     ComplianceModule,
     BankingModule,
     FlagsModule,
+    EventsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

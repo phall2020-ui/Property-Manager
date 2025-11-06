@@ -1,9 +1,15 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { EventsService } from '../events/events.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async create(data: {
     landlordId: string;
@@ -13,8 +19,9 @@ export class TicketsService {
     description: string;
     priority: string;
     createdById: string;
+    category?: string;
   }) {
-    return this.prisma.ticket.create({
+    const ticket = await this.prisma.ticket.create({
       data: {
         ...data,
         status: 'OPEN',
@@ -31,6 +38,37 @@ export class TicketsService {
         },
       },
     });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId: ticket.id,
+        eventType: 'created',
+        actorId: data.createdById,
+        details: JSON.stringify({
+          title: ticket.title,
+          priority: ticket.priority,
+          category: ticket.category,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'ticket.created',
+      actorRole: 'TENANT',
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'ticket', id: ticket.id },
+        ...(ticket.propertyId ? [{ type: 'property', id: ticket.propertyId }] : []),
+      ],
+    });
+
+    // Create notifications for landlord users
+    // TODO: Get landlord users from orgMembers
+    
+    return ticket;
   }
 
   async findOne(id: string, userOrgIds: string[]) {
