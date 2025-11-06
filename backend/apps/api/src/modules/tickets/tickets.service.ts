@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
 export class TicketsService {
@@ -9,6 +10,7 @@ export class TicketsService {
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
     private readonly notificationsService: NotificationsService,
+    private readonly jobsService: JobsService,
   ) {}
 
   async create(data: {
@@ -63,6 +65,14 @@ export class TicketsService {
         { type: 'ticket', id: ticket.id },
         ...(ticket.propertyId ? [{ type: 'property', id: ticket.propertyId }] : []),
       ],
+    });
+
+    // Enqueue background job for notifications
+    await this.jobsService.enqueueTicketCreated({
+      ticketId: ticket.id,
+      propertyId: ticket.propertyId || '',
+      createdById: data.createdById,
+      landlordId: ticket.landlordId,
     });
 
     // Create notifications for landlord users
@@ -233,6 +243,15 @@ export class TicketsService {
       payload: { amount },
     });
 
+    // Enqueue background job for notifications
+    await this.jobsService.enqueueTicketQuoted({
+      ticketId,
+      quoteId: quote.id,
+      contractorId,
+      amount,
+      landlordId: ticket.landlordId,
+    });
+
     return quote;
   }
 
@@ -297,6 +316,14 @@ export class TicketsService {
         { type: 'quote', id: quoteId },
       ],
       payload: { amount: quote.amount },
+    });
+
+    // Enqueue background job for notifications
+    await this.jobsService.enqueueTicketApproved({
+      ticketId: quote.ticketId,
+      quoteId,
+      approvedBy: 'landlord', // TODO: Get from context
+      landlordId: quote.ticket.landlordId,
     });
 
     return { message: 'Quote approved successfully' };
