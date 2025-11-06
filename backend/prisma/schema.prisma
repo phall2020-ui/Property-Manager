@@ -823,24 +823,6 @@ model IdempotencyKey {
   @@index([expiresAt])
 }
 
-// Request log for tracking and idempotency
-model RequestLog {
-  id             String   @id @default(uuid())
-  idempotencyKey String?  @unique
-  method         String
-  path           String
-  statusCode     Int?
-  requestBody    String? // JSON
-  responseBody   String? // JSON
-  userId         String?
-  landlordId     String?
-  createdAt      DateTime @default(now())
-
-  @@index([idempotencyKey])
-  @@index([landlordId])
-  @@index([createdAt])
-}
-
 // ============================================================================
 // FEATURE FLAGS & EXPERIMENTS (Step 13)
 // ============================================================================
