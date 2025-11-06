@@ -2,14 +2,20 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { listInvoices } from '@/lib/financeClient';
+import { listInvoices, Invoice } from '@/lib/financeClient';
 import { FileText, Filter } from 'lucide-react';
 
 export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<{
+    data: Invoice[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>({
     queryKey: ['finance', 'invoices', statusFilter, page],
     queryFn: () => listInvoices({ status: statusFilter || undefined, page, limit: 20 }),
   });

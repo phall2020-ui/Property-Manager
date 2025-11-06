@@ -24,6 +24,8 @@
     "zod": "^3.22.2"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^14.0.0",
+    "@playwright/test": "^1.35.1",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^14.0.0",
     "@types/react": "19.2.2",

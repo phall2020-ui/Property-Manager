@@ -118,9 +118,8 @@ export type TenancyBalance = z.infer<typeof TenancyBalanceSchema>;
  * Get finance dashboard metrics
  */
 export async function getDashboardMetrics() {
-  return apiRequest('/finance/dashboard', {
+  return apiRequest<DashboardMetrics>('/finance/dashboard', {
     method: 'GET',
-    schema: DashboardMetricsSchema,
   });
 }
 
@@ -129,9 +128,8 @@ export async function getDashboardMetrics() {
  */
 export async function getRentRoll(month?: string) {
   const params = month ? `?month=${month}` : '';
-  return apiRequest(`/finance/rent-roll${params}`, {
+  return apiRequest<RentRollItem[]>(`/finance/rent-roll${params}`, {
     method: 'GET',
-    schema: z.array(RentRollItemSchema),
   });
 }
 
@@ -140,9 +138,8 @@ export async function getRentRoll(month?: string) {
  */
 export async function getArrears(bucket?: string) {
   const params = bucket ? `?bucket=${bucket}` : '';
-  return apiRequest(`/finance/arrears${params}`, {
+  return apiRequest<ArrearsItem[]>(`/finance/arrears${params}`, {
     method: 'GET',
-    schema: z.array(ArrearsItemSchema),
   });
 }
 
@@ -150,9 +147,8 @@ export async function getArrears(bucket?: string) {
  * Get arrears aging buckets
  */
 export async function getArrearsAging() {
-  return apiRequest('/finance/arrears/aging', {
+  return apiRequest<Record<string, number>>('/finance/arrears/aging', {
     method: 'GET',
-    schema: z.record(z.number()),
   });
 }
 
@@ -173,15 +169,14 @@ export async function listInvoices(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  return apiRequest(`/finance/invoices?${query}`, {
+  return apiRequest<{
+    data: Invoice[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/finance/invoices?${query}`, {
     method: 'GET',
-    schema: z.object({
-      data: z.array(InvoiceSchema),
-      total: z.number(),
-      page: z.number(),
-      limit: z.number(),
-      totalPages: z.number(),
-    }),
   });
 }
 
@@ -189,9 +184,8 @@ export async function listInvoices(params?: {
  * Get invoice by ID
  */
 export async function getInvoice(id: string) {
-  return apiRequest(`/finance/invoices/${id}`, {
+  return apiRequest<Invoice>(`/finance/invoices/${id}`, {
     method: 'GET',
-    schema: InvoiceSchema,
   });
 }
 
@@ -210,10 +204,12 @@ export async function createInvoice(data: {
     taxRate: number;
   }>;
 }) {
-  return apiRequest('/finance/invoices', {
+  return apiRequest<Invoice>('/finance/invoices', {
     method: 'POST',
-    body: data,
-    schema: InvoiceSchema,
+    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 }
 
@@ -221,9 +217,8 @@ export async function createInvoice(data: {
  * Void invoice
  */
 export async function voidInvoice(id: string) {
-  return apiRequest(`/finance/invoices/${id}/void`, {
+  return apiRequest<Invoice>(`/finance/invoices/${id}/void`, {
     method: 'POST',
-    schema: InvoiceSchema,
   });
 }
 
@@ -244,15 +239,14 @@ export async function listPayments(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  return apiRequest(`/finance/payments?${query}`, {
+  return apiRequest<{
+    data: Payment[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/finance/payments?${query}`, {
     method: 'GET',
-    schema: z.object({
-      data: z.array(PaymentSchema),
-      total: z.number(),
-      page: z.number(),
-      limit: z.number(),
-      totalPages: z.number(),
-    }),
   });
 }
 
@@ -260,9 +254,8 @@ export async function listPayments(params?: {
  * Get payment by ID
  */
 export async function getPayment(id: string) {
-  return apiRequest(`/finance/payments/${id}`, {
+  return apiRequest<Payment>(`/finance/payments/${id}`, {
     method: 'GET',
-    schema: PaymentSchema,
   });
 }
 
@@ -277,10 +270,12 @@ export async function recordPayment(data: {
   externalId?: string;
   tenantUserId?: string;
 }) {
-  return apiRequest('/finance/payments/record', {
+  return apiRequest<Payment>('/finance/payments/record', {
     method: 'POST',
-    body: data,
-    schema: PaymentSchema,
+    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 }
 
@@ -299,15 +294,14 @@ export async function listMandates(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  return apiRequest(`/finance/mandates?${query}`, {
+  return apiRequest<{
+    data: Mandate[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/finance/mandates?${query}`, {
     method: 'GET',
-    schema: z.object({
-      data: z.array(MandateSchema),
-      total: z.number(),
-      page: z.number(),
-      limit: z.number(),
-      totalPages: z.number(),
-    }),
   });
 }
 
@@ -315,9 +309,8 @@ export async function listMandates(params?: {
  * Get mandate by ID
  */
 export async function getMandate(id: string) {
-  return apiRequest(`/finance/mandates/${id}`, {
+  return apiRequest<Mandate>(`/finance/mandates/${id}`, {
     method: 'GET',
-    schema: MandateSchema,
   });
 }
 
@@ -328,14 +321,16 @@ export async function createMandate(data: {
   tenantUserId: string;
   provider: 'GOCARDLESS' | 'STRIPE';
 }) {
-  return apiRequest('/finance/mandates', {
+  return apiRequest<{
+    mandate: Mandate;
+    authorizationUrl: string;
+    message: string;
+  }>('/finance/mandates', {
     method: 'POST',
-    body: data,
-    schema: z.object({
-      mandate: MandateSchema,
-      authorizationUrl: z.string(),
-      message: z.string(),
-    }),
+    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 }
 
@@ -343,9 +338,8 @@ export async function createMandate(data: {
  * Get tenancy balance
  */
 export async function getTenancyBalance(tenancyId: string) {
-  return apiRequest(`/finance/tenancies/${tenancyId}/balance`, {
+  return apiRequest<TenancyBalance>(`/finance/tenancies/${tenancyId}/balance`, {
     method: 'GET',
-    schema: TenancyBalanceSchema,
   });
 }
 
@@ -353,9 +347,8 @@ export async function getTenancyBalance(tenancyId: string) {
  * Get finance settings
  */
 export async function getFinanceSettings() {
-  return apiRequest('/finance/settings', {
+  return apiRequest<any>('/finance/settings', {
     method: 'GET',
-    schema: z.any(),
   });
 }
 
@@ -363,9 +356,11 @@ export async function getFinanceSettings() {
  * Update finance settings
  */
 export async function updateFinanceSettings(data: any) {
-  return apiRequest('/finance/settings', {
+  return apiRequest<any>('/finance/settings', {
     method: 'PATCH',
-    body: data,
-    schema: z.any(),
+    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
 }

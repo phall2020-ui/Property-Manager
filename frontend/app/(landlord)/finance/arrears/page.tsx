@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getArrears } from '@/lib/financeClient';
+import { getArrears, ArrearsItem } from '@/lib/financeClient';
 import { AlertCircle } from 'lucide-react';
 
 export default function ArrearsPage() {
   const [bucket, setBucket] = useState<string>('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading } = useQuery<ArrearsItem[]>({
     queryKey: ['finance', 'arrears', bucket],
     queryFn: () => getArrears(bucket || undefined),
   });
@@ -83,7 +83,7 @@ export default function ArrearsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {data.map((item) => (
+              {data.map((item: ArrearsItem) => (
                 <tr key={item.tenancyId} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="text-sm font-medium text-gray-900">
@@ -140,7 +140,7 @@ export default function ArrearsPage() {
             <div>
               <p className="font-medium text-yellow-900">
                 Total Arrears: £
-                {data.reduce((sum, item) => sum + item.arrearsAmount, 0).toFixed(2)}
+                {data.reduce((sum: number, item: ArrearsItem) => sum + item.arrearsAmount, 0).toFixed(2)}
               </p>
               <p className="text-sm text-yellow-800">
                 Across {data.length} tenancies with overdue payments
