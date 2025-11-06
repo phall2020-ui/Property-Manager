@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getRentRoll, type RentRollItem } from '@/lib/financeClient';
+import { getRentRoll, RentRollItem } from '@/lib/financeClient';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
 export default function RentRollPage() {
@@ -67,7 +67,7 @@ export default function RentRollPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {data.map((item) => {
+                {data.map((item: RentRollItem) => {
                   const variance = item.variance;
                   const isPositive = variance >= 0;
 
@@ -123,21 +123,21 @@ export default function RentRollPage() {
                 <div className="space-x-8">
                   <span>
                     Expected: £
-                    {data.reduce((sum, item) => sum + item.expectedRent, 0).toFixed(2)}
+                    {data.reduce((sum: number, item: RentRollItem) => sum + item.expectedRent, 0).toFixed(2)}
                   </span>
                   <span className="text-green-600">
                     Received: £
-                    {data.reduce((sum, item) => sum + item.receivedRent, 0).toFixed(2)}
+                    {data.reduce((sum: number, item: RentRollItem) => sum + item.receivedRent, 0).toFixed(2)}
                   </span>
                   <span
                     className={
-                      data.reduce((sum, item) => sum + item.variance, 0) >= 0
+                      data.reduce((sum: number, item: RentRollItem) => sum + item.variance, 0) >= 0
                         ? 'text-green-600'
                         : 'text-red-600'
                     }
                   >
                     Variance: £
-                    {data.reduce((sum, item) => sum + item.variance, 0).toFixed(2)}
+                    {data.reduce((sum: number, item: RentRollItem) => sum + item.variance, 0).toFixed(2)}
                   </span>
                 </div>
               </div>

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { getDashboardMetrics, getArrearsAging, type DashboardMetrics } from '@/lib/financeClient';
+import { getDashboardMetrics, getArrearsAging, DashboardMetrics } from '@/lib/financeClient';
 import { DollarSign, FileText, AlertCircle, CreditCard, TrendingUp } from 'lucide-react';
 
 export default function FinanceDashboard() {

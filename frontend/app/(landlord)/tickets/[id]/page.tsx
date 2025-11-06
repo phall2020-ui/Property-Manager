@@ -24,7 +24,7 @@ export default function LandlordTicketDetailPage() {
     enabled: typeof ticketId === 'string',
   });
   const [actionError, setActionError] = useState<string | null>(null);
-  const approveMutation = useMutation({
+  const approveMutation = useMutation<unknown, any, boolean>({
     mutationFn: async (approved: boolean) => {
       return apiRequest(`/tickets/${ticketId}/approve`, {
         method: 'POST',
@@ -74,14 +74,14 @@ export default function LandlordTicketDetailPage() {
           <Button
             variant="primary"
             onClick={() => approveMutation.mutate(true)}
-            disabled={approveMutation.isLoading}
+            disabled={approveMutation.isPending}
           >
             Approve
           </Button>
           <Button
             variant="danger"
             onClick={() => approveMutation.mutate(false)}
-            disabled={approveMutation.isLoading}
+            disabled={approveMutation.isPending}
           >
             Decline
           </Button>

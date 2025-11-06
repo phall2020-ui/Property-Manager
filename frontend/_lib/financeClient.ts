@@ -117,10 +117,10 @@ export type TenancyBalance = z.infer<typeof TenancyBalanceSchema>;
 /**
  * Get finance dashboard metrics
  */
-export async function getDashboardMetrics(): Promise<DashboardMetrics> {
-  const res = await apiRequest('/finance/dashboard', { method: 'GET' });
-  // TODO: DashboardMetricsSchema.parse(res);
-  return res as DashboardMetrics;
+export async function getDashboardMetrics() {
+  return apiRequest<DashboardMetrics>('/finance/dashboard', {
+    method: 'GET',
+  });
 }
 
 /**
@@ -128,9 +128,9 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
  */
 export async function getRentRoll(month?: string): Promise<RentRollItem[]> {
   const params = month ? `?month=${month}` : '';
-  const res = await apiRequest(`/finance/rent-roll${params}`, { method: 'GET' });
-  // TODO: z.array(RentRollItemSchema).parse(res);
-  return res as RentRollItem[];
+  return apiRequest<RentRollItem[]>(`/finance/rent-roll${params}`, {
+    method: 'GET',
+  });
 }
 
 /**
@@ -138,18 +138,18 @@ export async function getRentRoll(month?: string): Promise<RentRollItem[]> {
  */
 export async function getArrears(bucket?: string): Promise<ArrearsItem[]> {
   const params = bucket ? `?bucket=${bucket}` : '';
-  const res = await apiRequest(`/finance/arrears${params}`, { method: 'GET' });
-  // TODO: z.array(ArrearsItemSchema).parse(res);
-  return res as ArrearsItem[];
+  return apiRequest<ArrearsItem[]>(`/finance/arrears${params}`, {
+    method: 'GET',
+  });
 }
 
 /**
  * Get arrears aging buckets
  */
-export async function getArrearsAging(): Promise<Record<string, number>> {
-  const res = await apiRequest('/finance/arrears/aging', { method: 'GET' });
-  // TODO: z.record(z.number()).parse(res);
-  return res as Record<string, number>;
+export async function getArrearsAging() {
+  return apiRequest<Record<string, number>>('/finance/arrears/aging', {
+    method: 'GET',
+  });
 }
 
 /**
@@ -169,18 +169,24 @@ export async function listInvoices(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  const res = await apiRequest(`/finance/invoices?${query}`, { method: 'GET' });
-  // TODO: z.object({ data: z.array(InvoiceSchema), total: z.number(), page: z.number(), limit: z.number(), totalPages: z.number() }).parse(res);
-  return res as { data: Invoice[], total: number, page: number, limit: number, totalPages: number };
+  return apiRequest<{
+    data: Invoice[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/finance/invoices?${query}`, {
+    method: 'GET',
+  });
 }
 
 /**
  * Get invoice by ID
  */
-export async function getInvoice(id: string): Promise<Invoice> {
-  const res = await apiRequest(`/finance/invoices/${id}`, { method: 'GET' });
-  // TODO: InvoiceSchema.parse(res);
-  return res as Invoice;
+export async function getInvoice(id: string) {
+  return apiRequest<Invoice>(`/finance/invoices/${id}`, {
+    method: 'GET',
+  });
 }
 
 /**
@@ -197,11 +203,13 @@ export async function createInvoice(data: {
     unitPrice: number;
     taxRate: number;
   }>;
-}): Promise<Invoice> {
-  const res = await apiRequest('/finance/invoices', {
+}) {
+  return apiRequest<Invoice>('/finance/invoices', {
     method: 'POST',
     body: JSON.stringify(data),
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
   // TODO: InvoiceSchema.parse(res);
   return res as Invoice;
@@ -210,10 +218,10 @@ export async function createInvoice(data: {
 /**
  * Void invoice
  */
-export async function voidInvoice(id: string): Promise<Invoice> {
-  const res = await apiRequest(`/finance/invoices/${id}/void`, { method: 'POST' });
-  // TODO: InvoiceSchema.parse(res);
-  return res as Invoice;
+export async function voidInvoice(id: string) {
+  return apiRequest<Invoice>(`/finance/invoices/${id}/void`, {
+    method: 'POST',
+  });
 }
 
 /**
@@ -233,18 +241,24 @@ export async function listPayments(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  const res = await apiRequest(`/finance/payments?${query}`, { method: 'GET' });
-  // TODO: z.object({ data: z.array(PaymentSchema), total: z.number(), page: z.number(), limit: z.number(), totalPages: z.number() }).parse(res);
-  return res as { data: Payment[], total: number, page: number, limit: number, totalPages: number };
+  return apiRequest<{
+    data: Payment[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/finance/payments?${query}`, {
+    method: 'GET',
+  });
 }
 
 /**
  * Get payment by ID
  */
-export async function getPayment(id: string): Promise<Payment> {
-  const res = await apiRequest(`/finance/payments/${id}`, { method: 'GET' });
-  // TODO: PaymentSchema.parse(res);
-  return res as Payment;
+export async function getPayment(id: string) {
+  return apiRequest<Payment>(`/finance/payments/${id}`, {
+    method: 'GET',
+  });
 }
 
 /**
@@ -257,11 +271,13 @@ export async function recordPayment(data: {
   receivedAt: string;
   externalId?: string;
   tenantUserId?: string;
-}): Promise<Payment> {
-  const res = await apiRequest('/finance/payments/record', {
+}) {
+  return apiRequest<Payment>('/finance/payments/record', {
     method: 'POST',
     body: JSON.stringify(data),
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
   // TODO: PaymentSchema.parse(res);
   return res as Payment;
@@ -282,18 +298,24 @@ export async function listMandates(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  const res = await apiRequest(`/finance/mandates?${query}`, { method: 'GET' });
-  // TODO: z.object({ data: z.array(MandateSchema), total: z.number(), page: z.number(), limit: z.number(), totalPages: z.number() }).parse(res);
-  return res as { data: Mandate[], total: number, page: number, limit: number, totalPages: number };
+  return apiRequest<{
+    data: Mandate[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }>(`/finance/mandates?${query}`, {
+    method: 'GET',
+  });
 }
 
 /**
  * Get mandate by ID
  */
-export async function getMandate(id: string): Promise<Mandate> {
-  const res = await apiRequest(`/finance/mandates/${id}`, { method: 'GET' });
-  // TODO: MandateSchema.parse(res);
-  return res as Mandate;
+export async function getMandate(id: string) {
+  return apiRequest<Mandate>(`/finance/mandates/${id}`, {
+    method: 'GET',
+  });
 }
 
 /**
@@ -302,11 +324,17 @@ export async function getMandate(id: string): Promise<Mandate> {
 export async function createMandate(data: {
   tenantUserId: string;
   provider: 'GOCARDLESS' | 'STRIPE';
-}): Promise<{ mandate: Mandate, authorizationUrl: string, message: string }> {
-  const res = await apiRequest('/finance/mandates', {
+}) {
+  return apiRequest<{
+    mandate: Mandate;
+    authorizationUrl: string;
+    message: string;
+  }>('/finance/mandates', {
     method: 'POST',
     body: JSON.stringify(data),
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
   // TODO: z.object({ mandate: MandateSchema, authorizationUrl: z.string(), message: z.string() }).parse(res);
   return res as { mandate: Mandate, authorizationUrl: string, message: string };
@@ -315,29 +343,31 @@ export async function createMandate(data: {
 /**
  * Get tenancy balance
  */
-export async function getTenancyBalance(tenancyId: string): Promise<TenancyBalance> {
-  const res = await apiRequest(`/finance/tenancies/${tenancyId}/balance`, { method: 'GET' });
-  // TODO: TenancyBalanceSchema.parse(res);
-  return res as TenancyBalance;
+export async function getTenancyBalance(tenancyId: string) {
+  return apiRequest<TenancyBalance>(`/finance/tenancies/${tenancyId}/balance`, {
+    method: 'GET',
+  });
 }
 
 /**
  * Get finance settings
  */
-export async function getFinanceSettings(): Promise<any> {
-  const res = await apiRequest('/finance/settings', { method: 'GET' });
-  // TODO: z.any().parse(res);
-  return res as any;
+export async function getFinanceSettings() {
+  return apiRequest<any>('/finance/settings', {
+    method: 'GET',
+  });
 }
 
 /**
  * Update finance settings
  */
-export async function updateFinanceSettings(data: any): Promise<any> {
-  const res = await apiRequest('/finance/settings', {
+export async function updateFinanceSettings(data: any) {
+  return apiRequest<any>('/finance/settings', {
     method: 'PATCH',
     body: JSON.stringify(data),
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+    },
   });
   // TODO: z.any().parse(res);
   return res as any;
