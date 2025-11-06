@@ -7,15 +7,15 @@
 
 ## Component Status Summary
 
-| Component       | %   | Status      | Notes                                    |
-|----------------|-----|-------------|------------------------------------------|
+| Component       | %   | Status          | Notes                                    |
+|:----------------|:----|:----------------|:-----------------------------------------|
 | Banking        | 85  | 🟡 Near Complete | Core complete, jobs pending             |
-| Observability  | 50  | 🟠 In Progress | Logs/health done, metrics/GDPR pending  |
+| Observability  | 50  | 🟠 In Progress   | Logs/health done, metrics/GDPR pending  |
 | CI/CD          | 95  | 🟢 Near Complete | Pipeline ready, smoke tests pending     |
-| Feature Flags  | 100 | ✅ Complete  | Fully implemented                        |
-| Maintenance    | 40  | 🟠 In Progress | Schema ready, workflow pending          |
-| Invites        | 20  | 🔴 Early Stage | Schema ready, APIs pending              |
-| Dashboards     | 0   | ⚪ Not Started | Not started                            |
+| Feature Flags  | 100 | ✅ Complete      | Fully implemented                        |
+| Maintenance    | 40  | 🟠 In Progress   | Schema ready, workflow pending          |
+| Invites        | 20  | 🔴 Early Stage   | Schema ready, APIs pending              |
+| Dashboards     | 0   | ⚪ Not Started   | Not started                            |
 
 ---
 
@@ -229,9 +229,9 @@ await flagsService.assignExperiment(landlordId, 'invoice_reminder_timing', 'vari
   - ✅ `POST /api/tickets` - Create ticket
   - ✅ `GET /api/tickets` - List tickets (role-filtered)
   - ✅ `GET /api/tickets/:id` - Get ticket details
-  - ⚠️ Partial: Quote submission endpoint
-  - ⚠️ Partial: Quote approval endpoint
-  - ⚠️ Partial: Ticket completion endpoint
+  - ⚠️ `POST /api/tickets/:id/quote` - Quote submission (missing validation)
+  - ⚠️ `POST /api/tickets/quotes/:quoteId/approve` - Quote approval (missing business logic)
+  - ⚠️ `POST /api/tickets/:id/complete` - Ticket completion (missing status checks)
 
 - **Service Layer** (50%)
   - ✅ `TicketsService` basic CRUD
@@ -399,13 +399,13 @@ await flagsService.assignExperiment(landlordId, 'invoice_reminder_timing', 'vari
 
 ### Backend Tests
 - ✅ E2E tests exist: `auth.e2e-spec.ts`, `properties.e2e-spec.ts`, `tickets.e2e-spec.ts`
-- ⚠️ Unit tests: Unknown coverage
+- ⚠️ Unit tests: TODO - Investigate test coverage (no .spec.ts files found in modules)
 - ❌ Integration tests for banking: Missing
 - ❌ Integration tests for finance: Missing
 
 ### Frontend Tests
-- ⚠️ Test infrastructure exists (`tests/e2e` directory)
-- ❌ Actual test files: Unknown
+- ⚠️ Test infrastructure exists (`tests/e2e` directory, Playwright configured)
+- ❌ Actual test files: TODO - Investigate test coverage in frontend/tests directory
 
 ### Manual Testing
 - ✅ Backend APIs tested via curl
