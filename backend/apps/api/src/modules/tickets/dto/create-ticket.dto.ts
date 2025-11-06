@@ -27,8 +27,8 @@ export class CreateTicketDto {
   @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ enum: ['LOW', 'MEDIUM', 'HIGH'] })
+  @ApiProperty({ enum: ['LOW', 'STANDARD', 'MEDIUM', 'HIGH'] })
   @IsString()
-  @IsIn(['LOW', 'MEDIUM', 'HIGH'])
+  @IsIn(['LOW', 'STANDARD', 'MEDIUM', 'HIGH'])
   priority: string;
 }

@@ -151,12 +151,34 @@ export type CreateTenancyDTO = z.infer<typeof CreateTenancySchema>;
 export type TenantDTO = z.infer<typeof TenantSchema>;
 
 export const CreateTicketSchema = z.object({
-  propertyId: z.string().min(1),
+  propertyId: z.string().min(1).optional(),
+  tenancyId: z.string().min(1).optional(),
+  title: z.string().min(3, { message: 'Title is required (min 3 characters)' }),
   category: z.string().min(1, { message: 'Category is required' }),
-  description: z.string().min(5, { message: 'Description is required' }),
-  attachments: z.array(z.string().url()).optional(),
-});
+  description: z.string().min(10, { message: 'Description is required (min 10 characters)' }),
+  priority: z.enum(['LOW', 'STANDARD', 'MEDIUM', 'HIGH']).default('STANDARD'),
+  photos: z.array(z.string()).optional(),
+}).refine(
+  (data) => data.propertyId || data.tenancyId,
+  { message: 'Either propertyId or tenancyId is required', path: ['propertyId'] }
+);
 export type CreateTicketDTO = z.infer<typeof CreateTicketSchema>;
+
+export const UpdatePropertySchema = z.object({
+  addressLine1: z.string().min(2, 'Address line 1 is required').optional(),
+  address2: z.string().optional(),
+  city: z.string().min(2, 'City is required').optional(),
+  postcode: ukPostcode.optional(),
+  bedrooms: z.coerce.number().int().min(0).optional(),
+  councilTaxBand: z.string().optional(),
+  attributes: z.object({
+    propertyType: z.enum(['House', 'Flat', 'HMO', 'Maisonette', 'Bungalow', 'Other']).optional(),
+    furnished: z.enum(['Unfurnished', 'Part', 'Full']).optional(),
+    epcRating: z.enum(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'Unknown']).optional(),
+    propertyValue: z.coerce.number().min(0).optional(),
+  }).optional(),
+});
+export type UpdatePropertyDTO = z.infer<typeof UpdatePropertySchema>;
 
 export const SubmitQuoteSchema = z.object({
   amount: z.number().nonnegative(),

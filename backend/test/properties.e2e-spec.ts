@@ -75,7 +75,7 @@ describe('Properties (e2e)', () => {
         .post('/api/properties')
         .set('Authorization', `Bearer ${landlordToken}`)
         .send({
-          address1: '123 Test Street',
+          addressLine1: '123 Test Street',
           address2: 'Apt 4B',
           city: 'London',
           postcode: 'SW1A 1AA',
@@ -84,7 +84,7 @@ describe('Properties (e2e)', () => {
         .expect(201);
 
       expect(response.body).toMatchObject({
-        address1: '123 Test Street',
+        addressLine1: '123 Test Street',
         address2: 'Apt 4B',
         city: 'London',
         postcode: 'SW1A 1AA',
@@ -100,7 +100,8 @@ describe('Properties (e2e)', () => {
       await request(app.getHttpServer())
         .post('/api/properties')
         .send({
-          address1: '456 Test Street',
+          addressLine1: '456 Test Street',
+          city: 'London',
           postcode: 'SW1A 1AA',
         })
         .expect(401);
@@ -111,7 +112,8 @@ describe('Properties (e2e)', () => {
         .post('/api/properties')
         .set('Authorization', `Bearer ${landlordToken}`)
         .send({
-          address1: '789 Test Street',
+          addressLine1: '789 Test Street',
+          city: 'London',
           // missing postcode
         })
         .expect(400);
@@ -127,7 +129,7 @@ describe('Properties (e2e)', () => {
 
       expect(Array.isArray(response.body)).toBe(true);
       expect(response.body.length).toBeGreaterThan(0);
-      expect(response.body[0]).toHaveProperty('address1');
+      expect(response.body[0]).toHaveProperty('addressLine1');
       expect(response.body[0]).toHaveProperty('ownerOrgId');
     });
 
@@ -156,7 +158,7 @@ describe('Properties (e2e)', () => {
         .expect(200);
 
       expect(response.body.id).toBe(propertyId);
-      expect(response.body.address1).toBe('123 Test Street');
+      expect(response.body.addressLine1).toBe('123 Test Street');
     });
 
     it('should reject access to property from different org', async () => {
@@ -171,6 +173,79 @@ describe('Properties (e2e)', () => {
         .get('/api/properties/non-existent-id')
         .set('Authorization', `Bearer ${landlordToken}`)
         .expect(404);
+    });
+  });
+
+  describe('/api/properties/:id (PATCH)', () => {
+    it('should update property as owner', async () => {
+      const response = await request(app.getHttpServer())
+        .patch(`/api/properties/${propertyId}`)
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .send({
+          addressLine1: '456 Updated Street',
+          city: 'Manchester',
+          postcode: 'M1 1AA',
+          bedrooms: 3,
+          attributes: {
+            propertyType: 'Flat',
+            furnished: 'Full',
+          },
+        })
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        id: propertyId,
+        addressLine1: '456 Updated Street',
+        city: 'Manchester',
+        postcode: 'M1 1AA',
+        bedrooms: 3,
+        propertyType: 'Flat',
+        furnished: 'Full',
+      });
+    });
+
+    it('should reject update from non-owner', async () => {
+      await request(app.getHttpServer())
+        .patch(`/api/properties/${propertyId}`)
+        .set('Authorization', `Bearer ${tenantToken}`)
+        .send({
+          addressLine1: 'Hacked Street',
+        })
+        .expect(404);
+    });
+
+    it('should validate postcode format', async () => {
+      await request(app.getHttpServer())
+        .patch(`/api/properties/${propertyId}`)
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .send({
+          postcode: 'INVALID',
+        })
+        .expect(400);
+    });
+
+    it('should return 404 for non-existent property', async () => {
+      await request(app.getHttpServer())
+        .patch('/api/properties/non-existent-id')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .send({
+          city: 'London',
+        })
+        .expect(404);
+    });
+
+    it('should allow partial updates', async () => {
+      const response = await request(app.getHttpServer())
+        .patch(`/api/properties/${propertyId}`)
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .send({
+          bedrooms: 4,
+        })
+        .expect(200);
+
+      expect(response.body.bedrooms).toBe(4);
+      // Other fields should remain unchanged
+      expect(response.body.city).toBe('Manchester');
     });
   });
 
@@ -191,8 +266,9 @@ describe('Properties (e2e)', () => {
         .post('/api/properties')
         .set('Authorization', `Bearer ${landlord2Token}`)
         .send({
-          address1: '999 Other Street',
+          addressLine1: '999 Other Street',
           postcode: 'W1A 1AA',
+          city: 'London',
         });
 
       // Landlord 1 should not see landlord 2's property
@@ -202,7 +278,7 @@ describe('Properties (e2e)', () => {
         .expect(200);
 
       const hasOtherProperty = landlord1Properties.body.some(
-        (p: any) => p.address1 === '999 Other Street',
+        (p: any) => p.addressLine1 === '999 Other Street',
       );
       expect(hasOtherProperty).toBe(false);
 
@@ -213,7 +289,7 @@ describe('Properties (e2e)', () => {
         .expect(200);
 
       const hasOwnProperty = landlord2Properties.body.some(
-        (p: any) => p.address1 === '999 Other Street',
+        (p: any) => p.addressLine1 === '999 Other Street',
       );
       expect(hasOwnProperty).toBe(true);
     });

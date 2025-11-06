@@ -17,6 +17,8 @@ export default function LandlordTicketsPage() {
   } = useQuery<Ticket[]>({
     queryKey: ['tickets'],
     queryFn: () => apiRequest<Ticket[]>('/tickets'),
+    refetchInterval: 5000, // Refetch every 5 seconds to show new tickets
+    refetchIntervalInBackground: false,
   });
   if (isLoading) return <p>Loading…</p>;
   if (error) return <p className="text-red-600">Error loading tickets</p>;
