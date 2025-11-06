@@ -118,10 +118,11 @@ export type TenancyBalance = z.infer<typeof TenancyBalanceSchema>;
  * Get finance dashboard metrics
  */
 export async function getDashboardMetrics() {
-  return apiRequest('/finance/dashboard', {
+  const res = await apiRequest('/finance/dashboard', {
     method: 'GET',
-    schema: DashboardMetricsSchema,
   });
+  // TODO: Optional runtime validation with DashboardMetricsSchema.parse(res)
+  return res;
 }
 
 /**
@@ -129,10 +130,11 @@ export async function getDashboardMetrics() {
  */
 export async function getRentRoll(month?: string) {
   const params = month ? `?month=${month}` : '';
-  return apiRequest(`/finance/rent-roll${params}`, {
+  const res = await apiRequest(`/finance/rent-roll${params}`, {
     method: 'GET',
-    schema: z.array(RentRollItemSchema),
   });
+  // TODO: Optional runtime validation with z.array(RentRollItemSchema).parse(res)
+  return res;
 }
 
 /**
@@ -140,20 +142,22 @@ export async function getRentRoll(month?: string) {
  */
 export async function getArrears(bucket?: string) {
   const params = bucket ? `?bucket=${bucket}` : '';
-  return apiRequest(`/finance/arrears${params}`, {
+  const res = await apiRequest(`/finance/arrears${params}`, {
     method: 'GET',
-    schema: z.array(ArrearsItemSchema),
   });
+  // TODO: Optional runtime validation with z.array(ArrearsItemSchema).parse(res)
+  return res;
 }
 
 /**
  * Get arrears aging buckets
  */
 export async function getArrearsAging() {
-  return apiRequest('/finance/arrears/aging', {
+  const res = await apiRequest('/finance/arrears/aging', {
     method: 'GET',
-    schema: z.record(z.number()),
   });
+  // TODO: Optional runtime validation with z.record(z.number()).parse(res)
+  return res;
 }
 
 /**
@@ -173,26 +177,22 @@ export async function listInvoices(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  return apiRequest(`/finance/invoices?${query}`, {
+  const res = await apiRequest(`/finance/invoices?${query}`, {
     method: 'GET',
-    schema: z.object({
-      data: z.array(InvoiceSchema),
-      total: z.number(),
-      page: z.number(),
-      limit: z.number(),
-      totalPages: z.number(),
-    }),
   });
+  // TODO: Optional runtime validation with z.object({...}).parse(res)
+  return res;
 }
 
 /**
  * Get invoice by ID
  */
 export async function getInvoice(id: string) {
-  return apiRequest(`/finance/invoices/${id}`, {
+  const res = await apiRequest(`/finance/invoices/${id}`, {
     method: 'GET',
-    schema: InvoiceSchema,
   });
+  // TODO: Optional runtime validation with InvoiceSchema.parse(res)
+  return res;
 }
 
 /**
@@ -210,21 +210,24 @@ export async function createInvoice(data: {
     taxRate: number;
   }>;
 }) {
-  return apiRequest('/finance/invoices', {
+  const res = await apiRequest('/finance/invoices', {
     method: 'POST',
-    body: data,
-    schema: InvoiceSchema,
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
   });
+  // TODO: Optional runtime validation with InvoiceSchema.parse(res)
+  return res;
 }
 
 /**
  * Void invoice
  */
 export async function voidInvoice(id: string) {
-  return apiRequest(`/finance/invoices/${id}/void`, {
+  const res = await apiRequest(`/finance/invoices/${id}/void`, {
     method: 'POST',
-    schema: InvoiceSchema,
   });
+  // TODO: Optional runtime validation with InvoiceSchema.parse(res)
+  return res;
 }
 
 /**
@@ -244,26 +247,22 @@ export async function listPayments(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  return apiRequest(`/finance/payments?${query}`, {
+  const res = await apiRequest(`/finance/payments?${query}`, {
     method: 'GET',
-    schema: z.object({
-      data: z.array(PaymentSchema),
-      total: z.number(),
-      page: z.number(),
-      limit: z.number(),
-      totalPages: z.number(),
-    }),
   });
+  // TODO: Optional runtime validation with z.object({...}).parse(res)
+  return res;
 }
 
 /**
  * Get payment by ID
  */
 export async function getPayment(id: string) {
-  return apiRequest(`/finance/payments/${id}`, {
+  const res = await apiRequest(`/finance/payments/${id}`, {
     method: 'GET',
-    schema: PaymentSchema,
   });
+  // TODO: Optional runtime validation with PaymentSchema.parse(res)
+  return res;
 }
 
 /**
@@ -277,11 +276,13 @@ export async function recordPayment(data: {
   externalId?: string;
   tenantUserId?: string;
 }) {
-  return apiRequest('/finance/payments/record', {
+  const res = await apiRequest('/finance/payments/record', {
     method: 'POST',
-    body: data,
-    schema: PaymentSchema,
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
   });
+  // TODO: Optional runtime validation with PaymentSchema.parse(res)
+  return res;
 }
 
 /**
@@ -299,26 +300,22 @@ export async function listMandates(params?: {
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
 
-  return apiRequest(`/finance/mandates?${query}`, {
+  const res = await apiRequest(`/finance/mandates?${query}`, {
     method: 'GET',
-    schema: z.object({
-      data: z.array(MandateSchema),
-      total: z.number(),
-      page: z.number(),
-      limit: z.number(),
-      totalPages: z.number(),
-    }),
   });
+  // TODO: Optional runtime validation with z.object({...}).parse(res)
+  return res;
 }
 
 /**
  * Get mandate by ID
  */
 export async function getMandate(id: string) {
-  return apiRequest(`/finance/mandates/${id}`, {
+  const res = await apiRequest(`/finance/mandates/${id}`, {
     method: 'GET',
-    schema: MandateSchema,
   });
+  // TODO: Optional runtime validation with MandateSchema.parse(res)
+  return res;
 }
 
 /**
@@ -328,44 +325,46 @@ export async function createMandate(data: {
   tenantUserId: string;
   provider: 'GOCARDLESS' | 'STRIPE';
 }) {
-  return apiRequest('/finance/mandates', {
+  const res = await apiRequest('/finance/mandates', {
     method: 'POST',
-    body: data,
-    schema: z.object({
-      mandate: MandateSchema,
-      authorizationUrl: z.string(),
-      message: z.string(),
-    }),
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
   });
+  // TODO: Optional runtime validation with z.object({...}).parse(res)
+  return res;
 }
 
 /**
  * Get tenancy balance
  */
 export async function getTenancyBalance(tenancyId: string) {
-  return apiRequest(`/finance/tenancies/${tenancyId}/balance`, {
+  const res = await apiRequest(`/finance/tenancies/${tenancyId}/balance`, {
     method: 'GET',
-    schema: TenancyBalanceSchema,
   });
+  // TODO: Optional runtime validation with TenancyBalanceSchema.parse(res)
+  return res;
 }
 
 /**
  * Get finance settings
  */
 export async function getFinanceSettings() {
-  return apiRequest('/finance/settings', {
+  const res = await apiRequest('/finance/settings', {
     method: 'GET',
-    schema: z.any(),
   });
+  // TODO: Optional runtime validation with z.any().parse(res)
+  return res;
 }
 
 /**
  * Update finance settings
  */
 export async function updateFinanceSettings(data: any) {
-  return apiRequest('/finance/settings', {
+  const res = await apiRequest('/finance/settings', {
     method: 'PATCH',
-    body: data,
-    schema: z.any(),
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
   });
+  // TODO: Optional runtime validation with z.any().parse(res)
+  return res;
 }

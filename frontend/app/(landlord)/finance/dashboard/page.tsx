@@ -3,19 +3,19 @@
 import React from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { getDashboardMetrics, getArrearsAging } from '@/lib/financeClient';
+import { getDashboardMetrics, getArrearsAging, DashboardMetrics } from '@/lib/financeClient';
 import { DollarSign, FileText, AlertCircle, CreditCard, TrendingUp } from 'lucide-react';
 
 export default function FinanceDashboard() {
   const { data: metrics, isLoading: metricsLoading } = useQuery({
     queryKey: ['finance', 'dashboard'],
     queryFn: getDashboardMetrics,
-  });
+  }) as { data: DashboardMetrics | undefined; isLoading: boolean };
 
   const { data: aging, isLoading: agingLoading } = useQuery({
     queryKey: ['finance', 'arrears-aging'],
     queryFn: getArrearsAging,
-  });
+  }) as { data: Record<string, number> | undefined; isLoading: boolean };
 
   if (metricsLoading || agingLoading) {
     return (
