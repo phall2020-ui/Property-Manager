@@ -135,6 +135,78 @@ curl -X POST http://localhost:3001/api/tickets \
 
 Expected: 201 Created with ticket object containing `id`
 
+### Create Ticket (Landlord)
+```bash
+export LANDLORD_TOKEN="landlord_access_token_here"
+
+curl -X POST http://localhost:3001/api/landlord/tickets \
+  -H "Authorization: Bearer $LANDLORD_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "propertyId": "prop_x",
+    "title": "Boiler not firing",
+    "category": "Heating",
+    "description": "Reported by tenant via phone. Please dispatch contractor.",
+    "priority": "STANDARD"
+  }'
+```
+
+Expected: 201 Created with ticket object. Ticket will be visible to the tenant immediately.
+
+Note:
+- `tenancyId` is optional. If not provided, the latest active tenancy for the property is automatically selected.
+- Ticket will have `createdByRole: "LANDLORD"`
+
+### Propose Appointment (Contractor)
+```bash
+export CONTRACTOR_TOKEN="contractor_access_token_here"
+export TICKET_ID="ticket_id_here"
+
+curl -X POST http://localhost:3001/api/tickets/$TICKET_ID/appointments \
+  -H "Authorization: Bearer $CONTRACTOR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "startAt": "2024-12-15T10:00:00Z",
+    "endAt": "2024-12-15T12:00:00Z",
+    "notes": "Morning slot available"
+  }'
+```
+
+Expected: 201 Created with appointment object
+Note: Ticket must be in APPROVED status and contractor must be assigned
+
+### Confirm Appointment (Tenant or Landlord)
+```bash
+export APPOINTMENT_ID="appointment_id_here"
+
+curl -X POST http://localhost:3001/api/tickets/appointments/$APPOINTMENT_ID/confirm \
+  -H "Authorization: Bearer $TENANT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+Expected: 200 OK with confirmed appointment
+Side effects:
+- Ticket status changes to SCHEDULED
+- Auto-transition job scheduled to move ticket to IN_PROGRESS at appointment start time
+- Tenant and contractor receive notifications
+
+### Get Ticket Appointments
+```bash
+curl -X GET http://localhost:3001/api/tickets/$TICKET_ID/appointments \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Expected: List of appointments for the ticket
+
+### Get Appointment Details
+```bash
+curl -X GET http://localhost:3001/api/tickets/appointments/$APPOINTMENT_ID \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Expected: Appointment object with ticket and contractor details
+
 ### List Tickets
 ```bash
 # List all tickets (role-based filtering applied)
@@ -167,8 +239,34 @@ curl -X GET http://localhost:3001/api/tickets/$TICKET_ID \
 Tickets support the following priority values:
 - `LOW` - Can wait
 - `STANDARD` - Normal timeframe (default)
-- `MEDIUM` - Needs attention soon
-- `HIGH` - Urgent
+- `HIGH` - Needs attention soon
+- `URGENT` - Critical issue requiring immediate attention
+
+## Ticket Status Flow
+
+Tickets follow this state machine:
+
+1. **OPEN** - Initial state when ticket is created
+2. **TRIAGED** - Ticket has been reviewed and prioritized
+3. **QUOTED** - Contractor has submitted a quote
+4. **APPROVED** - Landlord has approved the quote
+5. **SCHEDULED** - Appointment has been confirmed (via appointment.confirm)
+6. **IN_PROGRESS** - Work has started (automatic transition at appointment start time)
+7. **COMPLETED** - Work is finished
+8. **AUDITED** - Landlord has reviewed completion
+
+### Automatic Status Transitions
+
+**SCHEDULED → IN_PROGRESS**
+- When an appointment is confirmed, a background job is scheduled
+- At the appointment start time (within grace period), the ticket automatically transitions to IN_PROGRESS
+- Timeline event "job.started" is created with actor=SYSTEM
+- Notifications sent to tenant, contractor, and landlord
+
+**No-Show Handling**
+- If ticket remains SCHEDULED for 60+ minutes after start time, it's flagged as a no-show candidate
+- Notifications sent to landlord and tenant
+- Manual intervention required to reschedule
 
 ## Error Responses
 

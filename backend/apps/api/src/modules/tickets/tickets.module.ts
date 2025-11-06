@@ -10,5 +10,6 @@ import { JobsModule } from '../jobs/jobs.module';
   imports: [PrismaModule, EventsModule, NotificationsModule, JobsModule],
   controllers: [TicketsController],
   providers: [TicketsService],
+  exports: [TicketsService],
 })
 export class TicketsModule {}

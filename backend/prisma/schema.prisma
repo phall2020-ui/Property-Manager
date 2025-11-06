@@ -47,13 +47,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  orgMemberships  OrgMember[]
-  refreshTokens   RefreshToken[]
-  ticketsCreated  Ticket[]       @relation("TicketCreator")
-  ticketsAssigned Ticket[]       @relation("TicketAssignee")
-  quotesCreated   Quote[]
-  notesCreated    PropertyNote[]
-  mandates        Mandate[]
+  orgMemberships          OrgMember[]
+  refreshTokens           RefreshToken[]
+  ticketsCreated          Ticket[]       @relation("TicketCreator")
+  ticketsAssigned         Ticket[]       @relation("TicketAssignee")
+  quotesCreated           Quote[]
+  notesCreated            PropertyNote[]
+  mandates                Mandate[]
+  contractorAppointments  Appointment[]  @relation("ContractorAppointments")
 
   @@index([email])
   @@index([landlordId])
@@ -307,20 +308,25 @@ model Vendor {
 
 // Maintenance tickets
 model Ticket {
-  id           String   @id @default(uuid())
-  landlordId   String // For tenant isolation
-  propertyId   String?
-  tenancyId    String?
-  title        String
-  category     String? // plumbing, electrical, heating, etc.
-  description  String
-  createdById  String
-  assignedToId String?
-  priority     String // LOW, MEDIUM, HIGH
-  status       String @default("OPEN") // OPEN, TRIAGED, QUOTED, APPROVED, IN_PROGRESS, COMPLETED, AUDITED, CANCELLED
-  attachments  String? // JSON array as string
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                    String    @id @default(uuid())
+  landlordId            String // For tenant isolation
+  propertyId            String?
+  tenancyId             String?
+  title                 String
+  category              String? // plumbing, electrical, heating, etc.
+  description           String
+  createdById           String
+  createdByRole         String    @default("TENANT") // LANDLORD, TENANT, OPS, CONTRACTOR
+  assignedToId          String?
+  priority              String // LOW, STANDARD, HIGH, URGENT
+  status                String    @default("OPEN") // OPEN, TRIAGED, QUOTED, APPROVED, SCHEDULED, IN_PROGRESS, COMPLETED, AUDITED, CANCELLED
+  attachments           String? // JSON array as string
+  inProgressAt          DateTime? // When status flipped to IN_PROGRESS
+  noShowAt              DateTime? // If the job didn't start within grace period
+  scheduledWindowStart  DateTime? // Denormalized from Appointment for faster queries
+  scheduledWindowEnd    DateTime? // Denormalized from Appointment for faster queries
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   property        Property?          @relation(fields: [propertyId], references: [id])
   tenancy         Tenancy?           @relation(fields: [tenancyId], references: [id])
@@ -329,12 +335,42 @@ model Ticket {
   quotes          Quote[]
   attachmentFiles TicketAttachment[] @relation("TicketAttachments")
   timeline        TicketTimeline[]
+  appointments    Appointment[]
 
   @@index([landlordId])
   @@index([propertyId])
   @@index([tenancyId])
   @@index([createdById])
   @@index([status])
+  @@index([status, propertyId])
+  @@index([scheduledWindowStart])
+}
+
+// Appointments for scheduling maintenance visits
+model Appointment {
+  id               String    @id @default(uuid())
+  ticketId         String
+  contractorId     String
+  startAt          DateTime // Proposed or confirmed start time
+  endAt            DateTime? // Proposed or confirmed end time
+  status           String    @default("PROPOSED") // PROPOSED, CONFIRMED, CANCELLED, COMPLETED
+  proposedBy       String // User ID who proposed the appointment
+  confirmedBy      String? // User ID who confirmed (TENANT or OPS/LANDLORD)
+  confirmedAt      DateTime? // When appointment was confirmed
+  cancelledBy      String? // User ID who cancelled
+  cancelledAt      DateTime?
+  cancellationNote String?
+  notes            String? // Additional notes
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  contractor User   @relation("ContractorAppointments", fields: [contractorId], references: [id])
+
+  @@index([ticketId])
+  @@index([contractorId])
+  @@index([startAt])
+  @@index([status, startAt])
 }
 
 // Quotes for tickets

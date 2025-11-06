@@ -467,7 +467,8 @@ export class TicketsService {
       OPEN: ['TRIAGED', 'CANCELLED'],
       TRIAGED: ['QUOTED', 'CANCELLED'],
       QUOTED: ['APPROVED', 'CANCELLED'],
-      APPROVED: ['IN_PROGRESS', 'CANCELLED'],
+      APPROVED: ['SCHEDULED', 'IN_PROGRESS', 'CANCELLED'],
+      SCHEDULED: ['IN_PROGRESS', 'CANCELLED'],
       IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
       COMPLETED: ['AUDITED'],
       AUDITED: [],
@@ -555,5 +556,352 @@ export class TicketsService {
 
     // Approve the quote
     return this.approveQuote(quote.id, userOrgIds);
+  }
+
+  /**
+   * Create a ticket by a landlord
+   */
+  async createByLandlord(data: {
+    landlordId: string;
+    propertyId: string;
+    tenancyId?: string;
+    title: string;
+    description: string;
+    priority: string;
+    createdById: string;
+    category?: string;
+  }) {
+    // Verify property ownership
+    const property = await this.prisma.property.findUnique({
+      where: { id: data.propertyId },
+      include: {
+        tenancies: {
+          where: {
+            status: 'ACTIVE',
+          },
+          orderBy: {
+            start: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property not found');
+    }
+
+    if (property.ownerOrgId !== data.landlordId) {
+      throw new ForbiddenException('You do not own this property');
+    }
+
+    // Derive tenancy if not provided
+    let tenancyId = data.tenancyId;
+    if (!tenancyId && property.tenancies.length > 0) {
+      tenancyId = property.tenancies[0].id;
+    }
+
+    // Verify tenancy if provided
+    if (tenancyId) {
+      const tenancy = await this.prisma.tenancy.findUnique({
+        where: { id: tenancyId },
+      });
+
+      if (!tenancy || tenancy.propertyId !== data.propertyId) {
+        throw new ForbiddenException('Invalid tenancy for this property');
+      }
+    }
+
+    // Create ticket with createdByRole = LANDLORD
+    const ticket = await this.prisma.ticket.create({
+      data: {
+        landlordId: data.landlordId,
+        propertyId: data.propertyId,
+        tenancyId,
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        category: data.category,
+        createdById: data.createdById,
+        createdByRole: 'LANDLORD',
+        status: 'OPEN',
+      },
+      include: {
+        property: true,
+        tenancy: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId: ticket.id,
+        eventType: 'created',
+        actorId: data.createdById,
+        details: JSON.stringify({
+          title: ticket.title,
+          priority: ticket.priority,
+          category: ticket.category,
+          createdByRole: 'LANDLORD',
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'ticket.created',
+      actorRole: 'LANDLORD',
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'ticket', id: ticket.id },
+        { type: 'property', id: ticket.propertyId },
+      ],
+    });
+
+    // Enqueue background job for notifications
+    await this.jobsService.enqueueTicketCreated({
+      ticketId: ticket.id,
+      propertyId: ticket.propertyId || '',
+      createdById: data.createdById,
+      landlordId: ticket.landlordId,
+    });
+
+    return ticket;
+  }
+
+  /**
+   * Propose an appointment for a ticket (contractor action)
+   */
+  async proposeAppointment(
+    ticketId: string,
+    contractorId: string,
+    startAt: Date,
+    endAt: Date | null,
+    notes?: string,
+  ) {
+    // Verify ticket exists and contractor is assigned
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: {
+        tenancy: true,
+      },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    if (ticket.assignedToId !== contractorId) {
+      throw new ForbiddenException('Only assigned contractor can propose appointments');
+    }
+
+    // Verify ticket is in APPROVED status
+    if (ticket.status !== 'APPROVED') {
+      throw new ForbiddenException('Can only propose appointments for approved tickets');
+    }
+
+    // Create appointment
+    const appointment = await this.prisma.appointment.create({
+      data: {
+        ticketId,
+        contractorId,
+        startAt,
+        endAt,
+        status: 'PROPOSED',
+        proposedBy: contractorId,
+        notes,
+      },
+      include: {
+        ticket: true,
+        contractor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId,
+        eventType: 'appointment_proposed',
+        actorId: contractorId,
+        details: JSON.stringify({
+          appointmentId: appointment.id,
+          startAt: appointment.startAt,
+          endAt: appointment.endAt,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'appointment.proposed',
+      actorRole: 'CONTRACTOR',
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'ticket', id: ticketId },
+        { type: 'appointment', id: appointment.id },
+      ],
+    });
+
+    return appointment;
+  }
+
+  /**
+   * Confirm an appointment (tenant or landlord action)
+   */
+  async confirmAppointment(
+    appointmentId: string,
+    confirmedBy: string,
+    userRole: string,
+  ) {
+    // Verify appointment exists
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        ticket: {
+          include: {
+            tenancy: true,
+          },
+        },
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    if (appointment.status !== 'PROPOSED') {
+      throw new ForbiddenException('Can only confirm proposed appointments');
+    }
+
+    // Only tenant or landlord/ops can confirm
+    if (!['TENANT', 'LANDLORD', 'OPS'].includes(userRole)) {
+      throw new ForbiddenException('Only tenant or landlord can confirm appointments');
+    }
+
+    // Update appointment
+    const confirmed = await this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: 'CONFIRMED',
+        confirmedBy,
+        confirmedAt: new Date(),
+      },
+      include: {
+        ticket: {
+          include: {
+            tenancy: true,
+          },
+        },
+      },
+    });
+
+    // Update ticket status to SCHEDULED and denormalize window
+    await this.prisma.ticket.update({
+      where: { id: appointment.ticketId },
+      data: {
+        status: 'SCHEDULED',
+        scheduledWindowStart: appointment.startAt,
+        scheduledWindowEnd: appointment.endAt,
+      },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId: appointment.ticketId,
+        eventType: 'appointment_confirmed',
+        actorId: confirmedBy,
+        details: JSON.stringify({
+          appointmentId: appointment.id,
+          startAt: appointment.startAt,
+          endAt: appointment.endAt,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'appointment.confirmed',
+      actorRole: userRole,
+      landlordId: confirmed.ticket.landlordId,
+      tenantId: confirmed.ticket.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'ticket', id: appointment.ticketId },
+        { type: 'appointment', id: appointment.id },
+      ],
+    });
+
+    // Schedule auto-transition job
+    await this.jobsService.enqueueAppointmentStart({
+      appointmentId: appointment.id,
+      ticketId: appointment.ticketId,
+      startAt: appointment.startAt.toISOString(),
+    });
+
+    return confirmed;
+  }
+
+  /**
+   * Find an appointment by ID
+   */
+  async findAppointment(appointmentId: string) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        ticket: {
+          include: {
+            property: true,
+            tenancy: true,
+          },
+        },
+        contractor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    return appointment;
+  }
+
+  /**
+   * Get appointments for a ticket
+   */
+  async getTicketAppointments(ticketId: string) {
+    return this.prisma.appointment.findMany({
+      where: { ticketId },
+      include: {
+        contractor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }
