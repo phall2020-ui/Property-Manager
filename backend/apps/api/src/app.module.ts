@@ -20,6 +20,7 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AuthGuard } from './common/guards/auth.guard';
 import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
+import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { AppController } from './app.controller';
 
 @Module({
@@ -74,6 +75,8 @@ import { AppController } from './app.controller';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TraceIdMiddleware).forRoutes('*');
+    consumer
+      .apply(TraceIdMiddleware, TenantMiddleware)
+      .forRoutes('*');
   }
 }

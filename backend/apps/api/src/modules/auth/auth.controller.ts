@@ -104,9 +104,9 @@ export class AuthController {
     // Clear cookie
     res.clearCookie(cookieName, {
       httpOnly: true,
-      secure: this.config.get<boolean>('app.refreshCookieSecure') || false,
-      sameSite: 'lax',
-      path: '/',
+      secure: this.config.get<boolean>('app.refreshCookieSecure') || (process.env.NODE_ENV === 'production'),
+      sameSite: 'strict',
+      path: '/api/auth',
     });
 
     return { message: 'Logged out successfully' };
@@ -114,14 +114,14 @@ export class AuthController {
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {
     const cookieName = this.config.get<string>('app.refreshCookieName') || 'refresh_token';
-    const secure = this.config.get<boolean>('app.refreshCookieSecure') || false;
+    const secure = this.config.get<boolean>('app.refreshCookieSecure') || (process.env.NODE_ENV === 'production');
 
     res.cookie(cookieName, refreshToken, {
       httpOnly: true,
       secure,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/',
+      path: '/api/auth',
     });
   }
 }
