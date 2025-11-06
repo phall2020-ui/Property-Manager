@@ -186,7 +186,6 @@ export default function ReportIssuePage() {
         >
           {mutation.isPending ? 'Submitting...' : 'Submit Ticket'}
         </Button>
-        </button>
       </form>
     </div>
   );

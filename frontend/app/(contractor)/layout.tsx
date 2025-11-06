@@ -18,12 +18,15 @@ export default function ContractorLayout({ children }: { children: React.ReactNo
         <header className="bg-primary py-4 text-white">
           <div className="container mx-auto flex items-center justify-between px-4">
             <div className="flex items-center space-x-3">
-              <Link href="/jobs" className="hover:opacity-90">
+              <Link href="/home" className="hover:opacity-90">
                 <h1 className="text-lg font-semibold">Contractor Portal</h1>
               </Link>
               <Badge color="warning">Contractor</Badge>
             </div>
             <nav className="flex items-center space-x-4 text-sm">
+              <Link href="/home" className="hover:underline">
+                Home
+              </Link>
               <Link href="/jobs" className="hover:underline">
                 Jobs
               </Link>
