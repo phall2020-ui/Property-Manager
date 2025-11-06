@@ -1,0 +1,37 @@
+{
+  "name": "property-manager-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Property Management Platform - Monorepo",
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\"",
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build": "pnpm -r build",
+    "build:backend": "pnpm --filter backend build",
+    "build:frontend": "pnpm --filter frontend build",
+    "test": "pnpm -r test",
+    "test:backend": "pnpm --filter backend test",
+    "test:frontend": "pnpm --filter frontend test",
+    "test:e2e": "pnpm --filter frontend test:e2e",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint --fix",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "prisma:generate": "pnpm --filter backend exec prisma generate",
+    "prisma:migrate": "pnpm --filter backend exec prisma migrate deploy",
+    "prisma:studio": "pnpm --filter backend exec prisma studio",
+    "clean": "pnpm -r clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "prettier": "^3.1.0",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

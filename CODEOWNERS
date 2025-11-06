@@ -1,0 +1,26 @@
+# Code Owners for Property Manager
+# These owners will be automatically requested for review when someone opens a pull request.
+
+# Default owners for everything in the repo
+* @phall2020-ui
+
+# Backend
+/backend/ @phall2020-ui
+/backend/prisma/ @phall2020-ui
+/backend/apps/api/src/modules/auth/ @phall2020-ui
+
+# Frontend
+/frontend/ @phall2020-ui
+
+# Shared Packages
+/packages/ @phall2020-ui
+
+# CI/CD and Infrastructure
+/.github/ @phall2020-ui
+/docker-compose.yml @phall2020-ui
+/Dockerfile @phall2020-ui
+
+# Documentation
+/README.md @phall2020-ui
+/CONTRIBUTING.md @phall2020-ui
+/*.md @phall2020-ui

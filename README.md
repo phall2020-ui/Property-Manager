@@ -1,5 +1,7 @@
 # Property Management Platform
 
+[![CI Pipeline](https://github.com/phall2020-ui/Property-Manager/actions/workflows/ci.yml/badge.svg)](https://github.com/phall2020-ui/Property-Manager/actions/workflows/ci.yml)
+
 A full-stack multi-tenant property management platform with role-based access control for landlords, tenants, contractors, and operations teams.
 
 ## 🎯 New to This Project? Start Here!
@@ -20,106 +22,102 @@ A full-stack multi-tenant property management platform with role-based access co
 
 ## 📁 Project Structure
 
+This is a **pnpm monorepo** with the following workspaces:
+
 ```
 Property-Manager/
-├── frontend/              # Next.js frontend application
-│   ├── app/              # App Router pages and layouts
-│   │   ├── (public)/     # Public pages (login, signup)
-│   │   ├── (landlord)/   # Landlord portal
-│   │   ├── (tenant)/     # Tenant portal
-│   │   ├── (contractor)/ # Contractor portal
-│   │   └── (ops)/        # Operations portal
-│   ├── _components/      # Reusable UI components
-│   ├── _lib/            # API client, auth helpers, schemas
-│   ├── _hooks/          # Custom React hooks
-│   ├── _types/          # TypeScript type definitions
-│   └── _styles/         # Global styles
-│
 ├── backend/              # NestJS backend application
 │   ├── apps/api/src/    # API source code
-│   │   ├── modules/     # Feature modules
-│   │   │   ├── auth/    # Authentication
-│   │   │   ├── users/   # User management
-│   │   │   ├── properties/
-│   │   │   ├── tenancies/
-│   │   │   ├── tickets/
-│   │   │   ├── documents/
-│   │   │   └── notifications/
+│   │   ├── modules/     # Feature modules (auth, users, properties, etc.)
 │   │   └── common/      # Guards, interceptors, filters
 │   ├── prisma/          # Database schema and migrations
-│   └── docker-compose.yml
+│   └── test/            # E2E tests
 │
-├── setup.sh             # Automated setup script
-├── start-backend.sh     # Start backend server
-└── start-frontend.sh    # Start frontend server
+├── frontend/             # Next.js frontend application (PRIMARY)
+│   ├── app/             # App Router pages and layouts
+│   │   ├── (public)/    # Public pages (login, signup)
+│   │   ├── (landlord)/  # Landlord portal
+│   │   ├── (tenant)/    # Tenant portal
+│   │   ├── (contractor)/# Contractor portal
+│   │   └── (ops)/       # Operations portal
+│   ├── _components/     # Reusable UI components
+│   ├── _lib/           # API client, auth helpers, schemas
+│   └── _hooks/         # Custom React hooks
+│
+├── packages/            # Shared workspace packages
+│   ├── types/          # Shared TypeScript types and Zod schemas
+│   ├── ui/             # Shared React UI components
+│   └── utils/          # Shared utility functions
+│
+├── frontend-new/        # [ARCHIVED] Vite/React experimental frontend
+├── pnpm-workspace.yaml  # Workspace configuration
+├── package.json         # Root package with workspace scripts
+└── CONTRIBUTING.md      # Contribution guidelines
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Node.js** 18 or later (v20+ recommended, `.nvmrc` file included)
+- **Node.js** 20 or later (`.nvmrc` file included)
   - If using [nvm](https://github.com/nvm-sh/nvm), run `nvm use` in the project root
+- **pnpm** 8 or later
+  - Install with: `npm install -g pnpm`
 - **Docker** and **Docker Compose** (optional - only needed for PostgreSQL/Redis, SQLite is default)
-- **npm** or **yarn**
 
-### Automated Setup
+### Setup
 
-Run the setup script to install dependencies and configure the database:
+#### 1. Install Dependencies
 
 ```bash
-./setup.sh
+# Install all workspace dependencies
+pnpm install
 ```
 
-This will:
-1. Install backend and frontend dependencies
-2. Start PostgreSQL and Redis via Docker
-3. Run database migrations
-4. Generate Prisma client
-5. Optionally seed the database
-
-### Manual Setup
-
-#### 1. Backend Setup
+#### 2. Configure Environment
 
 ```bash
+# Backend
+cp backend/.env.example backend/.env
+
+# Frontend
+cp frontend/.env.example frontend/.env.local
+```
+
+Edit the `.env` files with your configuration.
+
+#### 3. Database Setup
+
+```bash
+# Start PostgreSQL and Redis (if using Docker)
 cd backend
-
-# Install dependencies
-npm install
-
-# Start PostgreSQL and Redis
 docker compose up -d
 
 # Generate Prisma client
-npx prisma generate
+cd ..
+pnpm prisma:generate
 
 # Run migrations
-npx prisma migrate deploy
+pnpm prisma:migrate
 
 # (Optional) Seed database
-npm run seed
-
-# Start backend server
-npm run dev
+pnpm --filter backend seed
 ```
 
-Backend runs on: [http://localhost:4000](http://localhost:4000)  
-API docs: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
-
-#### 2. Frontend Setup
+#### 4. Start Development Servers
 
 ```bash
-cd frontend
+# Start both backend and frontend
+pnpm dev
 
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
+# Or start individually
+pnpm dev:backend  # Backend on http://localhost:4000
+pnpm dev:frontend # Frontend on http://localhost:3000
 ```
 
-Frontend runs on: [http://localhost:3000](http://localhost:3000)
+- **Backend**: [http://localhost:4000](http://localhost:4000)
+- **API Docs**: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
+- **Frontend**: [http://localhost:3000](http://localhost:3000)
 
 ## 🔧 Configuration
 
@@ -165,19 +163,68 @@ MAX_UPLOAD_MB=10
 - React Query for server state management
 - Automatic error handling and retry logic
 
+## 🛠️ Workspace Commands
+
+This project uses **pnpm workspaces** for monorepo management. Here are the most common commands:
+
+### Development
+```bash
+pnpm dev              # Start all services (backend + frontend)
+pnpm dev:backend      # Start backend only
+pnpm dev:frontend     # Start frontend only
+```
+
+### Building
+```bash
+pnpm build            # Build all packages
+pnpm build:backend    # Build backend only
+pnpm build:frontend   # Build frontend only
+```
+
+### Testing
+```bash
+pnpm test             # Run all tests
+pnpm test:backend     # Run backend tests
+pnpm test:frontend    # Run frontend tests
+pnpm test:e2e         # Run E2E tests
+```
+
+### Code Quality
+```bash
+pnpm lint             # Lint all packages
+pnpm lint:fix         # Lint and fix issues
+pnpm typecheck        # Type check all packages
+pnpm format           # Format code with Prettier
+pnpm format:check     # Check code formatting
+```
+
+### Database
+```bash
+pnpm prisma:generate  # Generate Prisma client
+pnpm prisma:migrate   # Run database migrations
+pnpm prisma:studio    # Open Prisma Studio
+```
+
+### Package-Specific Commands
+```bash
+pnpm --filter backend <command>   # Run command in backend
+pnpm --filter frontend <command>  # Run command in frontend
+pnpm --filter @property-manager/types <command>  # Run command in types package
+```
+
 ## 🧪 Testing
 
 ### Backend Tests
 ```bash
-cd backend
-npm test
+pnpm test:backend      # Run all backend tests
+pnpm --filter backend test:watch  # Watch mode
+pnpm --filter backend test:cov    # With coverage
 ```
 
 ### Frontend Tests
 ```bash
-cd frontend
-npm test         # Unit tests (Vitest)
-npm run test:e2e # E2E tests (Playwright)
+pnpm test:frontend     # Unit tests (Vitest)
+pnpm test:e2e          # E2E tests (Playwright)
 ```
 
 ## 📚 API Documentation
@@ -195,35 +242,34 @@ Key endpoints:
 
 ## 🔄 Development Workflow
 
-### Starting Both Servers
+### Quick Start Development
 
-**Terminal 1 (Backend):**
 ```bash
-./start-backend.sh
-# or
-cd backend && npm run dev
-```
+# Start all services at once
+pnpm dev
 
-**Terminal 2 (Frontend):**
-```bash
-./start-frontend.sh
-# or
-cd frontend && npm run dev
+# Or start services individually in separate terminals
+pnpm dev:backend   # Terminal 1
+pnpm dev:frontend  # Terminal 2
 ```
 
 ### Database Management
 
 ```bash
-cd backend
+# Generate Prisma client
+pnpm prisma:generate
+
+# Run migrations
+pnpm prisma:migrate
 
 # Create new migration
-npx prisma migrate dev --name migration_name
+pnpm --filter backend exec prisma migrate dev --name migration_name
 
 # Reset database
-npx prisma migrate reset
+pnpm --filter backend exec prisma migrate reset
 
 # Open Prisma Studio
-npx prisma studio
+pnpm prisma:studio
 ```
 
 ## 🐳 Docker Services
