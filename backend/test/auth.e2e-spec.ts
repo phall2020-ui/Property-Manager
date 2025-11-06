@@ -252,4 +252,71 @@ describe('Auth (e2e)', () => {
         .expect(401);
     });
   });
+
+  describe('Cookie Security', () => {
+    it('should set secure cookie flags', async () => {
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({
+          email: 'login-test@example.com',
+          password: 'password123',
+        });
+
+      const cookies = loginResponse.headers['set-cookie'];
+      expect(cookies).toBeDefined();
+      const cookieArray = Array.isArray(cookies) ? cookies : [cookies];
+      const refreshCookie = cookieArray.find((c: string) => c.startsWith('refresh_token='));
+      
+      expect(refreshCookie).toBeDefined();
+      // Check for HttpOnly flag
+      expect(refreshCookie).toMatch(/HttpOnly/i);
+      // Check for SameSite flag
+      expect(refreshCookie).toMatch(/SameSite/i);
+      // Check for Path
+      expect(refreshCookie).toMatch(/Path=\//);
+      // Note: Secure flag is environment-dependent (false in dev, true in prod)
+    });
+
+    it('should set cookie with correct max age', async () => {
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({
+          email: 'login-test@example.com',
+          password: 'password123',
+        });
+
+      const cookies = loginResponse.headers['set-cookie'];
+      const cookieArray = Array.isArray(cookies) ? cookies : [cookies];
+      const refreshCookie = cookieArray.find((c: string) => c.startsWith('refresh_token='));
+      
+      // Check for Max-Age (7 days = 604800 seconds)
+      expect(refreshCookie).toMatch(/Max-Age=604800/);
+    });
+
+    it('should clear cookie on logout', async () => {
+      // Login first
+      const loginResponse = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({
+          email: 'login-test@example.com',
+          password: 'password123',
+        });
+
+      const cookies = loginResponse.headers['set-cookie'];
+
+      // Logout
+      const logoutResponse = await request(app.getHttpServer())
+        .post('/api/auth/logout')
+        .set('Cookie', cookies)
+        .expect(200);
+
+      const clearedCookies = logoutResponse.headers['set-cookie'];
+      expect(clearedCookies).toBeDefined();
+      const clearedCookieArray = Array.isArray(clearedCookies) ? clearedCookies : [clearedCookies];
+      const clearedRefreshCookie = clearedCookieArray.find((c: string) => c.startsWith('refresh_token='));
+      
+      // Cookie should be cleared (empty value or expires in the past)
+      expect(clearedRefreshCookie).toMatch(/refresh_token=;/);
+    });
+  });
 });
