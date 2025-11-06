@@ -93,9 +93,6 @@ export function AddPropertyModal({
                 error={errors.postcode?.message}
                 {...register('postcode')}
               />
-              {errors.postcode && (
-                <p className="text-xs text-gray-500 mt-1">Must be a valid UK postcode</p>
-              )}
             </div>
           </div>
         </div>

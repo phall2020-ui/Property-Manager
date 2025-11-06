@@ -111,10 +111,6 @@ export interface RequestOptions extends Omit<AxiosRequestConfig, 'url'> {
    * for backward compatibility. If `body` is provided, it will be used as `data`.
    */
   body?: any;
-  /**
-   * Credentials option from fetch API - ignored in axios as withCredentials is always true
-   */
-  credentials?: RequestCredentials;
 }
 
 // Create axios instance with base configuration
@@ -231,7 +227,7 @@ axiosInstance.interceptors.response.use(
  */
 export async function apiRequest<T = unknown>(
   url: string,
-  { skipAuth, body, credentials, ...options }: RequestOptions = {}
+  { skipAuth, body, ...options }: RequestOptions = {}
 ): Promise<T> {
   try {
     // Handle backward compatibility: convert `body` to `data` if provided
