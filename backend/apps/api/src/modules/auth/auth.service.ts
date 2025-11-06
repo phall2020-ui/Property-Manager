@@ -2,8 +2,9 @@ import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
+import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
+import { Role } from '../../common/types/role.type';
 
 @Injectable()
 export class AuthService {
@@ -13,35 +14,42 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  async signup(email: string, password: string, name: string) {
+  async signup(email: string, password: string, name: string, role: Role = 'LANDLORD') {
     // Check if user exists
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new ConflictException('Email already registered');
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Hash password with Argon2 (Step 1 requirement)
+    const passwordHash = await argon2.hash(password);
 
-    // Create landlord org and user
-    const org = await this.prisma.org.create({
-      data: {
-        name: `${name}'s Organisation`,
-        type: 'LANDLORD',
-      },
-    });
+    // Create landlord org if role is LANDLORD
+    let org;
+    let landlordId;
+    if (role === 'LANDLORD') {
+      org = await this.prisma.org.create({
+        data: {
+          name: `${name}'s Organisation`,
+          type: 'LANDLORD',
+        },
+      });
+      landlordId = org.id;
+    }
 
     const user = await this.prisma.user.create({
       data: {
         email,
         name,
         passwordHash,
-        orgMemberships: {
+        role, // New field from Step 1
+        landlordId, // New field from Step 1
+        orgMemberships: org ? {
           create: {
             orgId: org.id,
-            role: 'LANDLORD',
+            role: role,
           },
-        },
+        } : undefined,
       },
       include: {
         orgMemberships: {
@@ -52,8 +60,8 @@ export class AuthService {
       },
     });
 
-    // Generate tokens
-    const { accessToken, refreshToken } = await this.generateTokens(user.id);
+    // Generate tokens with new session-based approach
+    const { accessToken, refreshToken } = await this.generateTokens(user.id, user.role, user.landlordId);
 
     return { accessToken, refreshToken, user };
   }
@@ -75,14 +83,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Verify password
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    // Verify password with Argon2 (Step 1 requirement)
+    const valid = await argon2.verify(user.passwordHash, password);
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate tokens
-    const { accessToken, refreshToken } = await this.generateTokens(user.id);
+    // Generate tokens with session storage
+    const { accessToken, refreshToken } = await this.generateTokens(user.id, user.role, user.landlordId);
 
     return { accessToken, refreshToken, user };
   }
@@ -97,6 +105,9 @@ export class AuthService {
       // Check if token exists and is not revoked
       const storedToken = await this.prisma.refreshToken.findUnique({
         where: { jti: payload.jti },
+        include: {
+          user: true, // Include user to get role and landlordId
+        },
       });
 
       if (!storedToken) {
@@ -104,7 +115,7 @@ export class AuthService {
       }
 
       if (storedToken.revokedAt) {
-        // Token reuse detected! Revoke entire chain for this user
+        // Token reuse detected! Revoke entire chain for this user (Step 1: rotation security)
         await this.revokeAllUserTokens(storedToken.userId);
         throw new UnauthorizedException('Token reuse detected - all sessions revoked');
       }
@@ -119,9 +130,11 @@ export class AuthService {
         data: { revokedAt: new Date() },
       });
 
-      // Generate new tokens
+      // Generate new tokens with rotation (Step 1)
       const { accessToken, refreshToken, jti: newJti } = await this.generateTokens(
         storedToken.userId,
+        storedToken.user.role,
+        storedToken.user.landlordId,
       );
 
       // Link old token to new one
@@ -151,7 +164,7 @@ export class AuthService {
     }
   }
 
-  private async generateTokens(userId: string) {
+  private async generateTokens(userId: string, role?: string | null, landlordId?: string | null) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -165,11 +178,13 @@ export class AuthService {
 
     const jti = uuidv4();
 
-    // Access token payload
+    // Access token payload (Step 1: Include sub, role, landlordId)
     const accessPayload = {
       sub: userId,
       email: user.email,
       name: user.name,
+      role: role || user.role, // New: role field
+      landlordId: landlordId || user.landlordId, // New: landlordId field
       orgs: user.orgMemberships.map((m) => ({
         orgId: m.orgId,
         orgName: m.org.name,
@@ -193,7 +208,7 @@ export class AuthService {
       expiresIn: this.config.get<string>('app.jwt.refreshExpiresIn') || '7d',
     });
 
-    // Store refresh token
+    // Store refresh token in database
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
 
@@ -201,6 +216,16 @@ export class AuthService {
       data: {
         userId,
         jti,
+        expiresAt,
+      },
+    });
+
+    // Also create Session for new auth flow (Step 1)
+    const refreshHash = await argon2.hash(refreshToken);
+    await this.prisma.session.create({
+      data: {
+        userId,
+        refreshHash,
         expiresAt,
       },
     });

@@ -1,168 +1,260 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { propertiesApi } from '../../lib/api';
+import { enhancedPropertiesApi, complianceApi } from '../../lib/api';
+import { fmtGBP, grossYieldPct, annualisedRentGBP } from '../../lib/calculations';
+import Header from '../../components/Header';
+import MetricCard from '../../components/properties/MetricCard';
+import PropertyMiniMap from '../../components/properties/PropertyMiniMap';
+import TabBar from '../../components/properties/TabBar';
+import ComplianceCard from '../../components/compliance/ComplianceCard';
+import EmptyState from '../../components/compliance/EmptyState';
+import type { Property } from '../../lib/types';
 
-interface Property {
+interface ComplianceItem {
   id: string;
-  address1: string;
-  address2?: string;
-  city?: string;
-  postcode?: string;
-  bedrooms?: number;
-  createdAt: string;
-  updatedAt: string;
+  propertyId: string;
+  propertyAddress: string;
+  type: string;
+  status: 'OK' | 'DUE_SOON' | 'OVERDUE' | 'MISSING';
+  dueDate: string | null;
+  expiryDate: string | null;
+  hasEvidence: boolean;
+  documentId?: string;
 }
 
 export default function PropertyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<string>('overview');
 
   const { data: property, isLoading, error } = useQuery<Property>({
-    queryKey: ['properties', id],
-    queryFn: () => propertiesApi.getById(id!),
+    queryKey: ['enhanced-properties', id],
+    queryFn: () => enhancedPropertiesApi.getById(id!),
     enabled: !!id,
+  });
+
+  const { data: complianceItems, isLoading: complianceLoading } = useQuery<ComplianceItem[]>({
+    queryKey: ['compliance', 'property', id],
+    queryFn: () => complianceApi.getPropertyCompliance(id!),
+    enabled: !!id && activeTab === 'compliance',
   });
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="space-y-6">
+        <Header />
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-        Error loading property: {(error as Error).message}
+      <div className="space-y-6">
+        <Header />
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          Error loading property: {(error as Error).message}
+        </div>
       </div>
     );
   }
 
   if (!property) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
-        Property not found
+      <div className="space-y-6">
+        <Header />
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+          Property not found
+        </div>
       </div>
     );
   }
 
+  const grossYield = grossYieldPct(property.monthlyRent, property.estimatedValue);
+  const overdueCount = complianceItems?.filter(item => item.status === 'OVERDUE').length || 0;
+  const dueSoonCount = complianceItems?.filter(item => item.status === 'DUE_SOON').length || 0;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <button
-            onClick={() => navigate('/properties')}
-            className="text-blue-600 hover:text-blue-900 text-sm mb-2"
-          >
-            ← Back to Properties
-          </button>
-          <h2 className="text-2xl font-bold text-gray-900">Property Details</h2>
-        </div>
-      </div>
-
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Address Information</h3>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-500">Address Line 1</label>
-              <p className="mt-1 text-sm text-gray-900">{property.address1}</p>
-            </div>
-
-            {property.address2 && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500">Address Line 2</label>
-                <p className="mt-1 text-sm text-gray-900">{property.address2}</p>
-              </div>
+      <Header />
+      
+      <div>
+        <button
+          onClick={() => navigate('/properties')}
+          className="text-blue-600 hover:text-blue-900 text-sm mb-2 hover:underline"
+        >
+          ← Back to Properties
+        </button>
+        <h2 className="text-3xl font-bold text-brand-text">{property.name || property.address.line1}</h2>
+        <p className="text-brand-subtle mt-1">
+          {property.address.line1}, {property.address.city && `${property.address.city}, `}{property.address.postcode}
+        </p>
+        {(overdueCount > 0 || dueSoonCount > 0) && (
+          <div className="mt-2 flex gap-2">
+            {overdueCount > 0 && (
+              <span className="text-sm font-medium text-red-600">
+                {overdueCount} overdue
+              </span>
             )}
-
-            {property.city && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500">City</label>
-                <p className="mt-1 text-sm text-gray-900">{property.city}</p>
-              </div>
-            )}
-
-            {property.postcode && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500">Postcode</label>
-                <p className="mt-1 text-sm text-gray-900">{property.postcode}</p>
-              </div>
-            )}
-
-            {property.bedrooms != null && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500">Bedrooms</label>
-                <p className="mt-1 text-sm text-gray-900">{property.bedrooms}</p>
-              </div>
+            {dueSoonCount > 0 && (
+              <span className="text-sm font-medium text-amber-600">
+                {dueSoonCount} due soon
+              </span>
             )}
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
-        </div>
-        <div className="px-6 py-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link
-              to={`/tenancies?propertyId=${property.id}`}
-              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
-            >
-              <h4 className="font-medium text-gray-900">View Tenancies</h4>
-              <p className="text-sm text-gray-600 mt-1">Manage tenancy agreements</p>
-            </Link>
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
 
+      {activeTab === 'overview' && (
+        <>
+          {/* Metrics Section */}
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <MetricCard label="Monthly Rent" value={fmtGBP(property.monthlyRent)} />
+            <MetricCard label="Annualised Rent" value={fmtGBP(annualisedRentGBP(property.monthlyRent))} />
+            <MetricCard
+              label="Gross Yield"
+              value={grossYield == null ? '—' : `${grossYield.toFixed(2)}%`}
+            />
+          </section>
+
+          {/* Details & Map Section */}
+          <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <div className="md:col-span-2 rounded-xl bg-white p-6 shadow-card">
+              <div className="mb-4 font-medium text-lg text-brand-text">Key Details</div>
+              <dl className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+                <dt className="text-brand-subtle">Status</dt>
+                <dd className="font-medium text-brand-text">{property.status ?? '—'}</dd>
+                
+                <dt className="text-brand-subtle">Bedrooms</dt>
+                <dd className="font-medium text-brand-text">{property.bedrooms ?? '—'}</dd>
+                
+                <dt className="text-brand-subtle">Bathrooms</dt>
+                <dd className="font-medium text-brand-text">{property.bathrooms ?? '—'}</dd>
+                
+                <dt className="text-brand-subtle">Floor Area</dt>
+                <dd className="font-medium text-brand-text">
+                  {property.floorAreaM2 ? `${property.floorAreaM2} m²` : '—'}
+                </dd>
+                
+                <dt className="text-brand-subtle">Estimated Value</dt>
+                <dd className="font-medium text-brand-text">
+                  {property.estimatedValue ? fmtGBP(property.estimatedValue) : '—'}
+                </dd>
+                
+                <dt className="text-brand-subtle">Occupancy Rate</dt>
+                <dd className="font-medium text-brand-text">
+                  {property.occupancyRate == null ? '—' : `${Math.round(property.occupancyRate * 100)}%`}
+                </dd>
+
+                {property.annualInsurance && (
+                  <>
+                    <dt className="text-brand-subtle">Annual Insurance</dt>
+                    <dd className="font-medium text-brand-text">{fmtGBP(property.annualInsurance)}</dd>
+                  </>
+                )}
+
+                {property.annualServiceCharge && (
+                  <>
+                    <dt className="text-brand-subtle">Service Charge</dt>
+                    <dd className="font-medium text-brand-text">{fmtGBP(property.annualServiceCharge)}</dd>
+                  </>
+                )}
+              </dl>
+            </div>
+            
+            {property.lat && property.lng && (
+              <div className="rounded-xl bg-white p-6 shadow-card">
+                <div className="mb-4 font-medium text-lg text-brand-text">Location</div>
+                <PropertyMiniMap lat={property.lat} lng={property.lng} />
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {activeTab === 'compliance' && (
+        <div className="space-y-6">
+          {complianceLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : complianceItems && complianceItems.length > 0 ? (
+            <>
+              {(overdueCount > 0 || dueSoonCount > 0) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <div className="flex items-start">
+                    <span className="text-2xl mr-3">⚠️</span>
+                    <div>
+                      <h3 className="text-amber-900 font-semibold">Attention Required</h3>
+                      <p className="text-amber-800 text-sm mt-1">
+                        {overdueCount > 0 && `${overdueCount} overdue item${overdueCount > 1 ? 's' : ''}`}
+                        {overdueCount > 0 && dueSoonCount > 0 && ' and '}
+                        {dueSoonCount > 0 && `${dueSoonCount} due soon`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {complianceItems.map((item) => (
+                  <ComplianceCard
+                    key={item.id}
+                    type={item.type}
+                    status={item.status}
+                    dueDate={item.dueDate}
+                    hasEvidence={item.hasEvidence}
+                    onUpload={() => console.log('Upload evidence for:', item.type)}
+                    onMarkDone={() => console.log('Mark done:', item.type)}
+                  />
+                ))}
+              </div>
+            </>
+          ) : (
+            <EmptyState
+              title="All Up to Date!"
+              message="No compliance items are currently set for this property."
+            />
+          )}
+        </div>
+      )}
+
+      {activeTab === 'tenancies' && (
+        <div className="rounded-xl bg-white p-6 shadow-card">
+          <p className="text-brand-subtle">Tenancies tab - Coming soon</p>
+        </div>
+      )}
+
+      {activeTab === 'finance' && (
+        <div className="rounded-xl bg-white p-6 shadow-card">
+          <p className="text-brand-subtle">Finance tab - Coming soon</p>
+        </div>
+      )}
+
+      {activeTab === 'maintenance' && (
+        <div className="rounded-xl bg-white p-6 shadow-card">
+          <div className="space-y-4">
+            <p className="text-brand-subtle">Maintenance tickets for this property</p>
             <Link
               to={`/tickets?propertyId=${property.id}`}
-              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
+              className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              <h4 className="font-medium text-gray-900">View Tickets</h4>
-              <p className="text-sm text-gray-600 mt-1">Maintenance requests</p>
-            </Link>
-
-            <Link
-              to={`/tenancies/new?propertyId=${property.id}`}
-              className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-center"
-            >
-              <h4 className="font-medium text-gray-900">Create Tenancy</h4>
-              <p className="text-sm text-gray-600 mt-1">Add new tenant</p>
+              View All Tickets
             </Link>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">System Information</h3>
+      {activeTab === 'documents' && (
+        <div className="rounded-xl bg-white p-6 shadow-card">
+          <p className="text-brand-subtle">Documents tab - Coming soon</p>
         </div>
-        <div className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-500">Property ID</label>
-              <p className="mt-1 text-sm text-gray-900 font-mono">{property.id}</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-500">Created</label>
-              <p className="mt-1 text-sm text-gray-900">
-                {new Date(property.createdAt).toLocaleString()}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-500">Last Updated</label>
-              <p className="mt-1 text-sm text-gray-900">
-                {new Date(property.updatedAt).toLocaleString()}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

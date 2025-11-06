@@ -25,7 +25,6 @@ export default function TicketsListPage() {
 
   const primaryOrg = user?.organisations?.[0];
   const isTenant = primaryOrg?.role === 'TENANT';
-  const isLandlord = primaryOrg?.role === 'LANDLORD';
 
   if (isLoading) {
     return (

@@ -49,6 +49,12 @@ export async function login(dto: LoginDTO): Promise<AuthResponse> {
       credentials: 'include', // Important: include cookies
     });
     console.log('Login response:', data);
+    
+    // Validate response has required fields
+    if (!data || !data.accessToken) {
+      throw new Error('Invalid response from server: missing access token');
+    }
+    
     setTokens(data.accessToken, null); // No refresh token in response
     return data;
   } catch (error) {
@@ -62,17 +68,28 @@ export async function login(dto: LoginDTO): Promise<AuthResponse> {
  * continue onboarding by creating their first property.
  */
 export async function signup(dto: SignupDTO): Promise<AuthResponse> {
-  // Backend expects 'name' not 'displayName'
-  const { displayName, ...rest } = dto;
-  const data = await apiRequest<AuthResponse>(`/auth/signup`, {
-    method: 'POST',
-    body: JSON.stringify({ ...rest, name: displayName }),
-    headers: { 'Content-Type': 'application/json' },
-    skipAuth: true,
-    credentials: 'include', // Important: include cookies
-  });
-  setTokens(data.accessToken, null); // No refresh token in response
-  return data;
+  try {
+    // Backend expects 'name' not 'displayName'
+    const { displayName, ...rest } = dto;
+    const data = await apiRequest<AuthResponse>(`/auth/signup`, {
+      method: 'POST',
+      body: JSON.stringify({ ...rest, name: displayName }),
+      headers: { 'Content-Type': 'application/json' },
+      skipAuth: true,
+      credentials: 'include', // Important: include cookies
+    });
+    
+    // Validate response has required fields
+    if (!data || !data.accessToken) {
+      throw new Error('Invalid response from server: missing access token');
+    }
+    
+    setTokens(data.accessToken, null); // No refresh token in response
+    return data;
+  } catch (error) {
+    console.error('Signup error:', error);
+    throw error;
+  }
 }
 
 /**

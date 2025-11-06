@@ -28,7 +28,7 @@ export default function LoginPage() {
       console.log('User data:', user);
       
       if (!user || !user.organisations || user.organisations.length === 0) {
-        setError('Failed to fetch user data or no organizations found');
+        setError('Failed to fetch user data or no organizations found. Please try logging in again.');
         return;
       }
       
@@ -59,7 +59,13 @@ export default function LoginPage() {
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.detail || err.message || 'Login failed');
+      // Handle different error scenarios
+      const errorMessage = err.detail || 
+                          err.message || 
+                          err.response?.data?.detail ||
+                          err.response?.data?.message ||
+                          'Login failed. Please check your credentials and try again.';
+      setError(errorMessage);
     }
   };
   return (
