@@ -29,7 +29,7 @@ export class TicketsController {
   async create(@Body() dto: CreateTicketDto, @CurrentUser() user: any) {
     return this.ticketsService.create({
       ...dto,
-      createdById: user.sub,
+      createdById: user.id,
     });
   }
 
@@ -59,7 +59,7 @@ export class TicketsController {
     @Body() dto: CreateQuoteDto,
     @CurrentUser() user: any,
   ) {
-    return this.ticketsService.createQuote(id, user.sub, dto.amount, dto.notes);
+    return this.ticketsService.createQuote(id, user.id, dto.amount, dto.notes);
   }
 
   @Roles('LANDLORD')
@@ -80,7 +80,7 @@ export class TicketsController {
     @Body() body: { completionNotes?: string },
     @CurrentUser() user: any,
   ) {
-    return this.ticketsService.completeTicket(id, user.sub, body.completionNotes);
+    return this.ticketsService.completeTicket(id, user.id, body.completionNotes);
   }
 
   @Post(':id/attachments')

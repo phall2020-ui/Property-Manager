@@ -19,31 +19,46 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginDTO) => {
     setError(null);
     try {
-      await login(data);
+      console.log('Attempting login...');
+      const loginResponse = await login(data);
+      console.log('Login successful:', loginResponse);
+      
+      console.log('Fetching user data...');
       const user = await getMe();
-      if (!user) {
-        setError('Failed to fetch user data');
+      console.log('User data:', user);
+      
+      if (!user || !user.organisations || user.organisations.length === 0) {
+        setError('Failed to fetch user data or no organizations found');
         return;
       }
+      
       // Navigate based on primary role (first org membership)
-      const primaryRole = user.organisations?.[0]?.role;
+      const primaryRole = user.organisations[0].role;
+      console.log('Primary role:', primaryRole);
+      
       switch (primaryRole) {
         case 'LANDLORD':
+          console.log('Redirecting to /dashboard');
           router.push('/dashboard');
           break;
         case 'TENANT':
+          console.log('Redirecting to /report-issue');
           router.push('/report-issue');
           break;
         case 'CONTRACTOR':
+          console.log('Redirecting to /jobs');
           router.push('/jobs');
           break;
         case 'OPS':
+          console.log('Redirecting to /queue');
           router.push('/queue');
           break;
         default:
+          console.log('Unknown role, redirecting to /');
           router.push('/');
       }
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.detail || err.message || 'Login failed');
     }
   };
