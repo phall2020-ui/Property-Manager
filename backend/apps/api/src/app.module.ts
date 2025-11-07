@@ -23,6 +23,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AuthGuard } from './common/guards/auth.guard';
 import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
+import { IdempotencyMiddleware } from './common/middleware/idempotency.middleware';
 import { AppController } from './app.controller';
 
 @Module({
@@ -82,5 +83,14 @@ export class AppModule implements NestModule {
     consumer
       .apply(TraceIdMiddleware, TenantMiddleware)
       .forRoutes('*');
+    
+    // Apply idempotency middleware to critical finance endpoints
+    consumer
+      .apply(IdempotencyMiddleware)
+      .forRoutes(
+        'finance/invoices',
+        'finance/payments',
+        'finance/mandates',
+      );
   }
 }
