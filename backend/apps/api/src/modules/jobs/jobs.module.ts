@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TicketJobsProcessor } from './processors/ticket-jobs.processor';
 import { JobsService } from './jobs.service';
+import { JobsController } from './jobs.controller';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { EventsModule } from '../events/events.module';
 
@@ -99,6 +100,7 @@ export class JobsModule {
         ),
       ],
       providers: [...providers, TicketJobsProcessor],
+      controllers: [JobsController],
       exports,
     };
   }
