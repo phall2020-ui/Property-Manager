@@ -35,7 +35,7 @@ export default function QueueListPage() {
   const { data: stats } = useQuery<QueueStats>({
     queryKey: ['queue-stats'],
     queryFn: () => queueApi.getStats(),
-    refetchInterval: 5000, // Refresh stats every 5 seconds
+    refetchInterval: 30000, // Refresh stats every 30 seconds (reduced from 5s)
   });
 
   const filteredItems = useMemo(() => {

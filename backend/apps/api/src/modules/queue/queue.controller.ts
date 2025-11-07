@@ -2,11 +2,14 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { Logger } from '@nestjs/common';
 
 @ApiTags('queue')
 @Controller('queue')
 @ApiBearerAuth()
 export class QueueController {
+  private readonly logger = new Logger(QueueController.name);
+
   constructor(
     @InjectQueue('tickets') private ticketsQueue: Queue,
     @InjectQueue('notifications') private notificationsQueue: Queue,
@@ -58,7 +61,7 @@ export class QueueController {
 
       return allItems;
     } catch (error) {
-      console.warn('Queue listing failed - Redis may not be available:', error.message);
+      this.logger.warn('Queue listing failed - Redis may not be available', error.message);
       return [];
     }
   }
@@ -103,7 +106,7 @@ export class QueueController {
         delayed: totalDelayed,
       };
     } catch (error) {
-      console.warn('Queue stats failed - Redis may not be available:', error.message);
+      this.logger.warn('Queue stats failed - Redis may not be available', error.message);
       return {
         waiting: 0,
         active: 0,

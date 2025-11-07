@@ -2,11 +2,14 @@ import { Controller, Get, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { Logger } from '@nestjs/common';
 
 @ApiTags('jobs')
 @Controller('jobs')
 @ApiBearerAuth()
 export class JobsController {
+  private readonly logger = new Logger(JobsController.name);
+
   constructor(
     @InjectQueue('tickets') private ticketsQueue: Queue,
     @InjectQueue('notifications') private notificationsQueue: Queue,
@@ -54,7 +57,7 @@ export class JobsController {
       return allJobs;
     } catch (error) {
       // If Redis is not available, return empty array
-      console.warn('Jobs listing failed - Redis may not be available:', error.message);
+      this.logger.warn('Jobs listing failed - Redis may not be available', error.message);
       return [];
     }
   }
@@ -86,7 +89,7 @@ export class JobsController {
 
       return null;
     } catch (error) {
-      console.warn('Job retrieval failed:', error.message);
+      this.logger.warn('Job retrieval failed', error.message);
       return null;
     }
   }

@@ -341,6 +341,22 @@ export const queueApi = {
 // Documents API
 export const documentsApi = {
   signUpload: async (contentType: string) => {
+    // Validate content type
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    
+    if (!allowedTypes.includes(contentType)) {
+      throw new Error(`Content type ${contentType} is not allowed`);
+    }
+    
     const response = await api.post('/attachments/sign', { contentType });
     return response.data;
   },

@@ -43,8 +43,8 @@ export default function TicketCreatePage() {
           ...newTicket,
           status: 'OPEN',
           createdAt: new Date().toISOString(),
-          property: newTicket.propertyId 
-            ? properties?.find((p: any) => p.id === newTicket.propertyId)
+          property: newTicket.propertyId && properties
+            ? properties.find((p: any) => p.id === newTicket.propertyId)
             : undefined,
         };
         return old ? [...old, optimisticTicket] : [optimisticTicket];
