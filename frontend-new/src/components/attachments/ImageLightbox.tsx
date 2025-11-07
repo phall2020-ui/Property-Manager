@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Attachment } from '../../types/attachments';
 import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 
@@ -14,6 +14,21 @@ export default function ImageLightbox({ images, initialIndex, onClose }: ImageLi
   const [rotation, setRotation] = useState(0);
 
   const currentImage = images[currentIndex];
+
+  const resetTransforms = useCallback(() => {
+    setZoom(1);
+    setRotation(0);
+  }, []);
+
+  const handlePrevious = useCallback(() => {
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+    resetTransforms();
+  }, [images.length, resetTransforms]);
+
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+    resetTransforms();
+  }, [images.length, resetTransforms]);
 
   useEffect(() => {
     const handleKeyPress = (e: globalThis.KeyboardEvent) => {
@@ -38,17 +53,7 @@ export default function ImageLightbox({ images, initialIndex, onClose }: ImageLi
       document.removeEventListener('keydown', handleKeyPress);
       document.body.style.overflow = 'unset';
     };
-  }, [currentIndex, images.length]);
-
-  const handlePrevious = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
-    resetTransforms();
-  };
-
-  const handleNext = () => {
-    setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
-    resetTransforms();
-  };
+  }, [onClose, handlePrevious, handleNext]);
 
   const handleZoomIn = () => {
     setZoom((prev) => Math.min(prev + 0.5, 3));
@@ -60,11 +65,6 @@ export default function ImageLightbox({ images, initialIndex, onClose }: ImageLi
 
   const handleRotate = () => {
     setRotation((prev) => (prev + 90) % 360);
-  };
-
-  const resetTransforms = () => {
-    setZoom(1);
-    setRotation(0);
   };
 
   const handleDownload = () => {

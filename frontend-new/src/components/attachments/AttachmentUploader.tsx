@@ -34,12 +34,15 @@ export default function AttachmentUploader({ ticketId, onUploadComplete }: Attac
       
       return result;
     },
-    onError: (error: any, { file }) => {
+    onError: (error: Error, { file }) => {
+      const message = error instanceof Error && 'response' in error 
+        ? (error as any).response?.data?.message  // eslint-disable-line @typescript-eslint/no-explicit-any
+        : 'Upload failed';
       setUploads(prev =>
         prev.map(u => u.file === file ? { 
           ...u, 
           status: 'error' as const, 
-          error: error?.response?.data?.message || 'Upload failed' 
+          error: message
         } : u)
       );
     },

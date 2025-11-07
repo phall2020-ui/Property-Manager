@@ -31,8 +31,11 @@ export default function AppointmentProposeForm({ ticketId, onSuccess }: Appointm
       setFormError('');
       onSuccess?.();
     },
-    onError: (error: any) => {
-      setFormError(error?.response?.data?.message || 'Failed to propose appointment');
+    onError: (error: Error) => {
+      const message = error instanceof Error && 'response' in error 
+        ? (error as any).response?.data?.message  // eslint-disable-line @typescript-eslint/no-explicit-any
+        : 'Failed to propose appointment';
+      setFormError(message);
     },
   });
 
