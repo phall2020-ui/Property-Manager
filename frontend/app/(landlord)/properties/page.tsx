@@ -51,11 +51,16 @@ export default function PropertiesPage() {
       // Snapshot the previous value
       const previousProperties = queryClient.getQueryData(['properties']);
 
+      // Generate a unique temporary ID using crypto API if available, fallback to timestamp + random
+      const tempId = typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? `temp-${crypto.randomUUID()}`
+        : `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
       // Optimistically update to the new value
       queryClient.setQueryData(['properties'], (old: Property[] | undefined) => [
         ...(old || []),
         {
-          id: 'temp-' + Date.now(), // Temporary ID
+          id: tempId,
           ...newProperty,
           addressLine1: newProperty.address1,
           addressLine2: newProperty.address2,

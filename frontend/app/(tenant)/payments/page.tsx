@@ -26,11 +26,16 @@ export default function TenantPaymentsPage() {
     if (!debouncedSearchTerm) return invoices;
     
     const query = debouncedSearchTerm.toLowerCase();
-    return invoices.filter((invoice: Invoice) => 
-      invoice.reference?.toLowerCase().includes(query) ||
-      invoice.tenancy?.property?.addressLine1?.toLowerCase().includes(query) ||
-      invoice.status?.toLowerCase().includes(query)
-    );
+    return invoices.filter((invoice: Invoice) => {
+      // Safely check each field - some may not exist in the type but are returned by API
+      const reference = (invoice as any).reference?.toLowerCase() || '';
+      const propertyAddress = (invoice as any).tenancy?.property?.addressLine1?.toLowerCase() || '';
+      const status = invoice.status?.toLowerCase() || '';
+      
+      return reference.includes(query) || 
+             propertyAddress.includes(query) || 
+             status.includes(query);
+    });
   }, [invoices, debouncedSearchTerm]);
 
   if (isLoading) {

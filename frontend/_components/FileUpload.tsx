@@ -203,7 +203,11 @@ export function FileUpload({
 
       const updatedFiles = [...files, ...validFiles];
       setFiles(updatedFiles);
-      onFilesChange(updatedFiles.map((f) => f.file));
+      
+      // Stabilize callback invocation
+      if (onFilesChange) {
+        onFilesChange(updatedFiles.map((f) => f.file));
+      }
 
       // Auto-upload if enabled
       if (autoUpload) {
@@ -214,13 +218,18 @@ export function FileUpload({
 
         try {
           const uploadedFiles = await Promise.all(uploadPromises);
-          onUploadComplete?.(uploadedFiles);
+          // Stabilize callback invocation
+          if (onUploadComplete) {
+            onUploadComplete(uploadedFiles);
+          }
         } catch (err) {
           console.error('Error uploading files:', err);
         }
       }
     },
-    [files, maxFiles, autoUpload, onFilesChange, onUploadComplete]
+    // Note: files dependency is intentional here for functionality
+    // onFilesChange and onUploadComplete should be memoized in parent components using useCallback
+    [files, maxFiles, autoUpload, validateFile, uploadFile]
   );
 
   const removeFile = useCallback(
@@ -229,10 +238,14 @@ export function FileUpload({
       // Revoke object URL to free memory
       URL.revokeObjectURL(files[index].preview);
       setFiles(newFiles);
-      onFilesChange(newFiles.map((f) => f.file));
+      
+      // Stabilize callback invocation
+      if (onFilesChange) {
+        onFilesChange(newFiles.map((f) => f.file));
+      }
       setError(null);
     },
-    [files, onFilesChange]
+    [files]
   );
 
   const uploadAllFiles = async () => {
@@ -252,8 +265,9 @@ export function FileUpload({
     const results = await Promise.all(uploadPromises);
     const successfulUploads = results.filter((r): r is UploadedFile => r !== null);
     
-    if (successfulUploads.length > 0) {
-      onUploadComplete?.(successfulUploads);
+    // Stabilize callback invocation
+    if (successfulUploads.length > 0 && onUploadComplete) {
+      onUploadComplete(successfulUploads);
     }
   };
 
