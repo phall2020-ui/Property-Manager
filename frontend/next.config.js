@@ -1,13 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  i18n: {
-    locales: ['en-GB'],
-    defaultLocale: 'en-GB',
-  },
+  // Note: i18n is not supported with App Router. Use next-intl or similar for internationalization.
   images: {
     // Allow images from an S3 bucket or CDN. Adjust domain to your actual bucket or CDN domain.
-    domains: ['localhost', 'example-bucket.s3.amazonaws.com'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'example-bucket.s3.amazonaws.com',
+      },
+    ],
   },
   async rewrites() {
     return [
