@@ -37,26 +37,30 @@ export default function TicketCreatePage() {
       const previousTickets = queryClient.getQueryData(['tickets']);
       
       // Optimistically update to the new value
-      queryClient.setQueryData(['tickets'], (old: any[]) => {
+      queryClient.setQueryData(['tickets'], (old: unknown) => {
+        const tickets = Array.isArray(old) ? old : [];
         const optimisticTicket = {
           id: `temp-${Date.now()}`,
           ...newTicket,
           status: 'OPEN',
           createdAt: new Date().toISOString(),
           property: newTicket.propertyId && properties
-            ? properties.find((p: any) => p.id === newTicket.propertyId)
+            ? properties.find((p: { id: string }) => p.id === newTicket.propertyId)
             : undefined,
         };
-        return old ? [...old, optimisticTicket] : [optimisticTicket];
+        return [...tickets, optimisticTicket];
       });
       
       // Return a context object with the snapshotted value
       return { previousTickets };
     },
-    onError: (err: any, _newTicket, context) => {
+    onError: (err: unknown, _newTicket, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       queryClient.setQueryData(['tickets'], context?.previousTickets);
-      setError(err.response?.data?.message || 'Failed to create ticket');
+      const errorMessage = err && typeof err === 'object' && 'response' in err
+        ? (err.response as { data?: { message?: string } })?.data?.message || 'Failed to create ticket'
+        : 'Failed to create ticket';
+      setError(errorMessage);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });

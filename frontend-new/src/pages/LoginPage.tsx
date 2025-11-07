@@ -37,7 +37,7 @@ export default function LoginPage() {
     try {
       await login(email.trim(), password);
       navigate('/dashboard');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Login error:', err);
       setError(extractErrorMessage(err));
     } finally {

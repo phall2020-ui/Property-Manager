@@ -17,20 +17,25 @@ export function isValidEmail(email: string): boolean {
  * @param err Error object from axios or fetch
  * @returns User-friendly error message
  */
-export function extractErrorMessage(err: any): string {
-  if (err.response) {
-    // Server responded with error
-    return err.response.data?.detail || 
-           err.response.data?.message || 
-           err.response.data?.error ||
-           `Request failed with status ${err.response.status}`;
-  } else if (err.request) {
-    // Request was made but no response
-    return 'Unable to connect to server. Please check your connection and try again.';
-  } else if (err.message) {
-    // Something else happened
-    return err.message;
-  } else {
-    return 'An unexpected error occurred. Please try again.';
+export function extractErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object') {
+    if ('response' in err) {
+      const response = (err as { response?: { data?: { detail?: string; message?: string; error?: string }; status?: number } }).response;
+      if (response) {
+        return response.data?.detail || 
+               response.data?.message || 
+               response.data?.error ||
+               `Request failed with status ${response.status || 'unknown'}`;
+      }
+    }
+    if ('request' in err) {
+      // Request was made but no response
+      return 'Unable to connect to server. Please check your connection and try again.';
+    }
+    if ('message' in err && typeof (err as { message: unknown }).message === 'string') {
+      // Something else happened
+      return (err as { message: string }).message;
+    }
   }
+  return 'An unexpected error occurred. Please try again.';
 }
