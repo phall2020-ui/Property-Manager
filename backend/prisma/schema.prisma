@@ -380,6 +380,7 @@ model Ticket {
   priority              String // LOW, STANDARD, HIGH, URGENT
   status                String    @default("OPEN") // OPEN, TRIAGED, QUOTED, APPROVED, SCHEDULED, IN_PROGRESS, COMPLETED, AUDITED, CANCELLED
   attachments           String? // JSON array as string
+  tags                  String? // JSON array as string (e.g., ["urgent", "high-priority"])
   inProgressAt          DateTime? // When status flipped to IN_PROGRESS
   noShowAt              DateTime? // If the job didn't start within grace period
   scheduledWindowStart  DateTime? // Denormalized from Appointment for faster queries
@@ -403,6 +404,12 @@ model Ticket {
   @@index([status])
   @@index([status, propertyId])
   @@index([scheduledWindowStart])
+  @@index([createdAt])
+  @@index([category])
+  @@index([assignedToId])
+  @@index([landlordId, createdAt])
+  @@index([landlordId, category])
+  @@index([landlordId, assignedToId])
 }
 
 // Appointments for scheduling maintenance visits
