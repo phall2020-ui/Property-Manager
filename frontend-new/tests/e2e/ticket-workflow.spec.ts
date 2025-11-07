@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 /**
  * E2E Test: Complete Ticket Workflow
@@ -16,7 +17,7 @@ test.describe('Ticket Workflow E2E', () => {
   let ticketId: string;
 
   // Helper function to login
-  async function login(page: any, email: string, password: string) {
+  async function login(page: Page, email: string, password: string) {
     await page.goto('/');
     await page.getByLabel(/email/i).fill(email);
     await page.getByLabel(/password/i).fill(password);
@@ -27,7 +28,7 @@ test.describe('Ticket Workflow E2E', () => {
   }
 
   // Helper function to logout
-  async function logout(page: any) {
+  async function logout(page: Page) {
     // Look for logout button or user menu
     const logoutButton = page.getByRole('button', { name: /logout|sign out/i });
     if (await logoutButton.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -229,7 +230,7 @@ test.describe('Ticket Assignment E2E', () => {
   const landlordEmail = 'landlord@example.com';
   const password = 'password123';
 
-  async function login(page: any, email: string, password: string) {
+  async function login(page: Page, email: string, password: string) {
     await page.goto('/');
     await page.getByLabel(/email/i).fill(email);
     await page.getByLabel(/password/i).fill(password);

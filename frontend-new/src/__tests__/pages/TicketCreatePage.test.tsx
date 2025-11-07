@@ -5,6 +5,7 @@ import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TicketCreatePage from '../../pages/tickets/TicketCreatePage';
+import { ToastProvider } from '../../contexts/ToastContext';
 import * as api from '../../lib/api';
 
 // Mock the API
@@ -49,9 +50,11 @@ describe('TicketCreatePage', () => {
   const renderTicketCreatePage = () => {
     return render(
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <TicketCreatePage />
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <TicketCreatePage />
+          </BrowserRouter>
+        </ToastProvider>
       </QueryClientProvider>
     );
   };
