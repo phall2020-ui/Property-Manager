@@ -136,7 +136,7 @@ export default function OnboardingPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Landlord Onboarding</h1>
         <p className="mt-2 text-gray-600">
-          Let's get your property set up. This will only take a few minutes.
+          Let&apos;s get your property set up. This will only take a few minutes.
         </p>
       </div>
 
@@ -279,7 +279,7 @@ export default function OnboardingPage() {
               <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
                 <p className="text-sm text-blue-800">
                   <strong>Maximum deposit:</strong> £
-                  {(((formData.rentAmount * 12) / 52) * 5).toFixed(2)} (5 weeks' rent)
+                  {(((formData.rentAmount * 12) / 52) * 5).toFixed(2)} (5 weeks&apos; rent)
                 </p>
                 {formData.depositAmount > ((formData.rentAmount * 12) / 52) * 5 && (
                   <p className="text-sm text-amber-600 mt-1">
@@ -293,7 +293,7 @@ export default function OnboardingPage() {
               <h3 className="font-medium text-gray-900 mb-2">What happens next?</h3>
               <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
                 <li>Your property will be created</li>
-                <li>You'll be able to invite tenants</li>
+                <li>You&apos;ll be able to invite tenants</li>
                 <li>You can upload required documents (Gas Safety, EPC, etc.)</li>
                 <li>Set up compliance reminders</li>
               </ul>

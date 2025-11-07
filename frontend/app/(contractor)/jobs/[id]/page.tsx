@@ -185,7 +185,7 @@ export default function JobDetailPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Mark Job Complete</h3>
           <p className="text-gray-600 mb-4">
-            Once you've finished the work, mark this job as complete.
+            Once you&apos;ve finished the work, mark this job as complete.
           </p>
           <Button
             variant="primary"
