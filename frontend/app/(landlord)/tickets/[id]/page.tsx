@@ -10,7 +10,7 @@ import { Badge } from '@/components/Badge';
 import { Card } from '@/components/Card';
 import { ApproveQuoteModal } from '@/components/ApproveQuoteModal';
 import { DeclineQuoteModal } from '@/components/DeclineQuoteModal';
-import { ArrowLeft, Calendar, MapPin, User, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, User, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 interface TimelineEvent {
   id: string;
@@ -167,6 +167,25 @@ export default function LandlordTicketDetailPage() {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const formatEventType = (eventType: string) => {
+    return eventType
+      .split('_')
+      .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  const getEventIcon = (eventType: string) => {
+    if (eventType.includes('CREATED')) return '🎫';
+    if (eventType.includes('QUOTE')) return '💰';
+    if (eventType.includes('APPROVED')) return '✅';
+    if (eventType.includes('REJECTED')) return '❌';
+    if (eventType.includes('ASSIGNED')) return '👷';
+    if (eventType.includes('PROGRESS')) return '🔧';
+    if (eventType.includes('COMPLETED')) return '✔️';
+    if (eventType.includes('CANCELLED')) return '🚫';
+    return '📝';
+  };
   
   return (
     <div className="space-y-6">
@@ -210,7 +229,7 @@ export default function LandlordTicketDetailPage() {
               <Badge color={getStatusColor(ticket.status)}>{ticket.status}</Badge>
             </div>
             
-            <div className="grid grid-cols-2 gap-4 mt-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <Calendar className="h-4 w-4" />
                 <span>Created {new Date(ticket.createdAt).toLocaleDateString()}</span>
@@ -219,6 +238,12 @@ export default function LandlordTicketDetailPage() {
                 <Calendar className="h-4 w-4" />
                 <span>Updated {new Date(ticket.updatedAt).toLocaleDateString()}</span>
               </div>
+              {ticket.inProgressAt && (
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Clock className="h-4 w-4" />
+                  <span>Started {new Date(ticket.inProgressAt).toLocaleDateString()}</span>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -228,6 +253,56 @@ export default function LandlordTicketDetailPage() {
             <p className="text-gray-700 whitespace-pre-wrap">{ticket.description}</p>
           </Card>
 
+          {/* Appointment Information */}
+          {(ticket.scheduledWindowStart || ticket.scheduledWindowEnd) && (
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Scheduled Appointment</h2>
+              <div className="flex items-center space-x-2 text-gray-700">
+                <Calendar className="h-5 w-5 text-blue-600" />
+                <div>
+                  {ticket.scheduledWindowStart && (
+                    <p className="text-sm">
+                      <span className="font-medium">Start:</span>{' '}
+                      {new Date(ticket.scheduledWindowStart).toLocaleString()}
+                    </p>
+                  )}
+                  {ticket.scheduledWindowEnd && (
+                    <p className="text-sm">
+                      <span className="font-medium">End:</span>{' '}
+                      {new Date(ticket.scheduledWindowEnd).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Attachments */}
+          {ticket.attachments && Array.isArray(ticket.attachments) && ticket.attachments.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Attachments</h2>
+              <div className="grid grid-cols-2 gap-4">
+                {ticket.attachments.map((attachment: any, index: number) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-3">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {attachment.filename || `Attachment ${index + 1}`}
+                    </p>
+                    {attachment.url && (
+                      <a
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline mt-1 block"
+                      >
+                        View/Download
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {/* Timeline */}
           {timeline.length > 0 && (
             <Card className="p-6">
@@ -236,22 +311,31 @@ export default function LandlordTicketDetailPage() {
                 {timeline.map((event, index) => (
                   <div key={event.id} className="flex space-x-4">
                     <div className="flex-shrink-0">
-                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <div className="h-2 w-2 rounded-full bg-blue-600"></div>
+                      <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-lg">
+                        {getEventIcon(event.eventType)}
                       </div>
                       {index < timeline.length - 1 && (
                         <div className="ml-4 h-full w-0.5 bg-gray-200"></div>
                       )}
                     </div>
                     <div className="flex-1 pb-4">
-                      <p className="text-sm font-medium text-gray-900">{event.eventType}</p>
+                      <p className="text-sm font-medium text-gray-900">{formatEventType(event.eventType)}</p>
                       <p className="text-xs text-gray-500">
                         {new Date(event.createdAt).toLocaleString()}
+                        {event.createdBy && ` • ${event.createdBy}`}
                       </p>
-                      {event.metadata && (
-                        <pre className="text-xs text-gray-600 mt-1">
-                          {JSON.stringify(event.metadata, null, 2)}
-                        </pre>
+                      {event.metadata && Object.keys(event.metadata).length > 0 && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
+                          {event.metadata.amount && (
+                            <p className="text-gray-700">Amount: £{event.metadata.amount}</p>
+                          )}
+                          {event.metadata.notes && (
+                            <p className="text-gray-700 mt-1">{event.metadata.notes}</p>
+                          )}
+                          {event.metadata.reason && (
+                            <p className="text-gray-700 mt-1">Reason: {event.metadata.reason}</p>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -279,8 +363,32 @@ export default function LandlordTicketDetailPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Property</p>
-                <p className="text-sm font-medium text-gray-900 mt-1">{ticket.propertyId}</p>
+                {ticket.property ? (
+                  <div className="mt-1">
+                    <p className="text-sm font-medium text-gray-900">{ticket.property.addressLine1}</p>
+                    {ticket.property.address2 && (
+                      <p className="text-sm text-gray-600">{ticket.property.address2}</p>
+                    )}
+                    <p className="text-sm text-gray-600">
+                      {ticket.property.city} {ticket.property.postcode}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium text-gray-900 mt-1">{ticket.propertyId}</p>
+                )}
               </div>
+              {ticket.createdByRole && (
+                <div>
+                  <p className="text-sm text-gray-600">Reported By</p>
+                  <p className="text-sm font-medium text-gray-900 mt-1 capitalize">{ticket.createdByRole.toLowerCase()}</p>
+                </div>
+              )}
+              {ticket.assignedToId && (
+                <div>
+                  <p className="text-sm text-gray-600">Assigned To</p>
+                  <p className="text-sm font-medium text-gray-900 mt-1">Contractor</p>
+                </div>
+              )}
               {ticket.quoteAmount && (
                 <div>
                   <p className="text-sm text-gray-600">Quote Amount</p>

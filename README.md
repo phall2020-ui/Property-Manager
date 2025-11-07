@@ -59,14 +59,33 @@ Property-Manager/
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Gitpod (Automatic Setup) ⚡
+
+**Everything starts automatically!** When you open this project in Gitpod:
+
+1. ✅ Dependencies are installed
+2. ✅ Database is set up and seeded
+3. ✅ Backend and frontend start automatically
+4. ✅ URLs are configured for Gitpod
+
+Just wait ~2 minutes and you'll see:
+- 🌐 Frontend URL
+- 🔧 Backend API URL
+- 📚 API Documentation URL
+- 👤 Test credentials
+
+**See:** [.devcontainer/README.md](.devcontainer/README.md) for details.
+
+### Local Development
+
+#### Prerequisites
 
 - **Node.js** 18 or later (v20+ recommended, `.nvmrc` file included)
   - If using [nvm](https://github.com/nvm-sh/nvm), run `nvm use` in the project root
 - **Docker** and **Docker Compose** (optional - only needed for PostgreSQL/Redis, SQLite is default)
 - **npm** or **yarn**
 
-### Automated Setup
+#### Automated Setup
 
 Run the setup script to install dependencies and configure the database:
 
