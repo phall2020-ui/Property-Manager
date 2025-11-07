@@ -34,13 +34,38 @@ export default function JobDetailPage() {
         headers: { 'Content-Type': 'application/json' },
       });
     },
+    onMutate: async (data) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['ticket', jobId] });
+
+      // Snapshot the previous value
+      const previousTicket = queryClient.getQueryData<Ticket>(['ticket', jobId]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData<Ticket>(['ticket', jobId], (old) => ({
+        ...(old as Ticket),
+        status: TicketStatus.NEEDS_APPROVAL,
+        quote: {
+          amount: data.amount,
+          eta: data.eta,
+          notes: data.notes,
+        },
+      }));
+
+      // Return a context object with the snapshotted value
+      return { previousTicket };
+    },
+    onError: (err: any, _newData, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousTicket) {
+        queryClient.setQueryData<Ticket>(['ticket', jobId], context.previousTicket);
+      }
+      setActionError(err.detail || 'Failed to submit quote');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', jobId] });
       setIsQuoteModalOpen(false);
       setActionError(null);
-    },
-    onError: (err: any) => {
-      setActionError(err.detail || 'Failed to submit quote');
     },
   });
   const updateStatus = useMutation<unknown, any, TicketStatus>({

@@ -7,13 +7,17 @@ import { apiRequest } from '@/lib/apiClient';
 import { Ticket, TicketStatus } from '@/types/models';
 import { Table } from '@/components/Table';
 import { Badge } from '@/components/Badge';
-import { StatusBadge } from '@/components/StatusBadge';
-import { useDebounce } from '@/hooks/useDebounce';
+import { Card } from '@/components/Card';
 import { Search } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
+
+// Constants
+const PROPERTY_ID_DISPLAY_LENGTH = 8;
 
 export default function ContractorJobsPage() {
   const { searchTerm, debouncedSearchTerm, setSearchTerm } = useDebounce('', 300);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   const {
     data: tickets,
@@ -24,20 +28,26 @@ export default function ContractorJobsPage() {
     queryFn: () => apiRequest<Ticket[]>('/tickets'),
   });
 
-  // Filter jobs with debounced search
-  const filteredJobs = useMemo(() => {
+  // Get unique categories
+  const categories = useMemo(() => {
+    if (!tickets) return [];
+    const cats = new Set(tickets.map(t => t.category).filter(Boolean));
+    return Array.from(cats);
+  }, [tickets]);
+
+  // Filter tickets/jobs
+  const filteredTickets = useMemo(() => {
     if (!tickets) return [];
     
     return tickets.filter(ticket => {
-      // Search filter
+      // Search filter - use debounced value
       if (debouncedSearchTerm) {
         const query = debouncedSearchTerm.toLowerCase();
         const matchesSearch = 
           ticket.title?.toLowerCase().includes(query) ||
           ticket.description?.toLowerCase().includes(query) ||
           ticket.id.toLowerCase().includes(query) ||
-          ticket.propertyId?.toLowerCase().includes(query) ||
-          ticket.category?.toLowerCase().includes(query);
+          ticket.propertyId?.toLowerCase().includes(query);
         if (!matchesSearch) return false;
       }
 
@@ -46,37 +56,60 @@ export default function ContractorJobsPage() {
         return false;
       }
 
+      // Category filter
+      if (categoryFilter !== 'all' && ticket.category !== categoryFilter) {
+        return false;
+      }
+
       return true;
     });
-  }, [tickets, debouncedSearchTerm, statusFilter]);
+  }, [tickets, debouncedSearchTerm, statusFilter, categoryFilter]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-gray-500">Loading jobs...</p>
-      </div>
-    );
-  }
+  // Count by status
+  const statusCounts = useMemo(() => {
+    if (!tickets) return {};
+    return tickets.reduce((acc, ticket) => {
+      acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [tickets]);
 
-  if (error) {
-    return (
-      <div className="p-4">
-        <p className="text-red-600">Unable to load jobs</p>
-      </div>
-    );
-  }
+  if (isLoading) return <p>Loading…</p>;
+  if (error) return <p className="text-red-600">Unable to load jobs</p>;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Jobs</h2>
+      {/* Header */}
+      <div>
+        <h2 className="text-3xl font-bold text-gray-900">Jobs</h2>
+        <p className="text-gray-600 mt-1">{filteredTickets.length} jobs available</p>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${statusFilter === 'all' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setStatusFilter('all')}>
+          <p className="text-sm text-gray-600">All Jobs</p>
+          <p className="text-2xl font-bold text-gray-900">{tickets?.length || 0}</p>
+        </Card>
+        <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${statusFilter === TicketStatus.OPEN ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setStatusFilter(TicketStatus.OPEN)}>
+          <p className="text-sm text-gray-600">Open</p>
+          <p className="text-2xl font-bold text-blue-600">{statusCounts[TicketStatus.OPEN] || 0}</p>
+        </Card>
+        <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${statusFilter === TicketStatus.IN_PROGRESS ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setStatusFilter(TicketStatus.IN_PROGRESS)}>
+          <p className="text-sm text-gray-600">In Progress</p>
+          <p className="text-2xl font-bold text-orange-600">{statusCounts[TicketStatus.IN_PROGRESS] || 0}</p>
+        </Card>
+        <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${statusFilter === TicketStatus.COMPLETED ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setStatusFilter(TicketStatus.COMPLETED)}>
+          <p className="text-sm text-gray-600">Completed</p>
+          <p className="text-2xl font-bold text-green-600">{statusCounts[TicketStatus.COMPLETED] || 0}</p>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card className="p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Search */}
-          <div className="relative md:col-span-2">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
@@ -87,93 +120,99 @@ export default function ContractorJobsPage() {
             />
           </div>
 
-          {/* Status Filter */}
+          {/* Category Filter */}
           <div>
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="all">All Statuses</option>
-              <option value={TicketStatus.OPEN}>Open</option>
-              <option value={TicketStatus.ASSIGNED}>Assigned</option>
-              <option value={TicketStatus.IN_PROGRESS}>In Progress</option>
-              <option value={TicketStatus.COMPLETED}>Completed</option>
+              <option value="all">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
             </select>
           </div>
 
           {/* Clear Filters */}
-          {(searchTerm || statusFilter !== 'all') && (
-            <div className="md:col-span-3">
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setStatusFilter('all');
-                }}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                Clear filters
-              </button>
-            </div>
+          {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setCategoryFilter('all');
+              }}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Clear all filters
+            </button>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Jobs Table */}
-      {filteredJobs && filteredJobs.length > 0 ? (
-        <div className="bg-white rounded-lg shadow">
+      <Card className="overflow-hidden">
+        {filteredTickets.length > 0 ? (
           <Table
-            data={filteredJobs}
+            data={filteredTickets}
             columns={[
               {
                 header: 'Job',
-                accessor: 'title',
+                accessor: 'id',
                 render: (ticket) => (
-                  <Link href={`/jobs/${ticket.id}`} className="text-blue-600 hover:text-blue-800 font-medium">
-                    {ticket.title || `Job #${ticket.id.substring(0, 8)}`}
+                  <Link href={`/jobs/${ticket.id}`} className="text-primary underline">
+                    {ticket.title || ticket.id}
                   </Link>
                 ),
               },
               {
                 header: 'Status',
                 accessor: 'status',
-                render: (ticket) => <StatusBadge status={ticket.status} />,
-              },
-              { 
-                header: 'Category', 
-                accessor: 'category',
-                render: (ticket) => (
-                  <span className="text-gray-900">{ticket.category || '-'}</span>
-                ),
+                render: (ticket) => {
+                  let color: 'info' | 'success' | 'warning' | 'danger' = 'info';
+                  if (ticket.status === TicketStatus.COMPLETED) color = 'success';
+                  else if (ticket.status === TicketStatus.IN_PROGRESS) color = 'warning';
+                  else if (ticket.status === TicketStatus.REJECTED) color = 'danger';
+                  return <Badge color={color}>{ticket.status}</Badge>;
+                },
               },
               { 
                 header: 'Property', 
                 accessor: 'propertyId',
                 render: (ticket) => (
-                  <span className="text-sm text-gray-600">{ticket.propertyId?.substring(0, 8) || '-'}</span>
+                  <span className="text-sm text-gray-600">
+                    {ticket.propertyId?.substring(0, PROPERTY_ID_DISPLAY_LENGTH) || 'N/A'}...
+                  </span>
+                )
+              },
+              { header: 'Category', accessor: 'category' },
+              {
+                header: 'Created',
+                accessor: 'createdAt',
+                render: (ticket) => (
+                  <span className="text-sm text-gray-600">
+                    {new Date(ticket.createdAt).toLocaleDateString()}
+                  </span>
                 ),
               },
             ]}
           />
-        </div>
-      ) : searchTerm || statusFilter !== 'all' ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <p className="text-gray-500">No jobs match your search criteria</p>
-          <button
-            onClick={() => {
-              setSearchTerm('');
-              setStatusFilter('all');
-            }}
-            className="mt-4 text-blue-600 hover:text-blue-800"
-          >
-            Clear filters
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <p className="text-gray-500">No jobs available.</p>
-        </div>
-      )}
+        ) : (
+          <div className="p-12 text-center">
+            <p className="text-gray-500">No jobs match your filters</p>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setCategoryFilter('all');
+              }}
+              className="mt-4 text-blue-600 hover:text-blue-800"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

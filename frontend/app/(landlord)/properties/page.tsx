@@ -35,7 +35,7 @@ export default function PropertiesPage() {
     queryFn: () => apiRequest<Property[]>('/properties'),
   });
 
-  // Add property mutation
+  // Add property mutation with optimistic updates
   const addPropertyMutation = useMutation({
     mutationFn: async (data: CreatePropertyDTO) => {
       return apiRequest('/properties', {
@@ -43,6 +43,40 @@ export default function PropertiesPage() {
         body: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' },
       });
+    },
+    onMutate: async (newProperty) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['properties'] });
+
+      // Snapshot the previous value
+      const previousProperties = queryClient.getQueryData(['properties']);
+
+      // Generate a unique temporary ID using crypto API if available, fallback to timestamp + random
+      const tempId = typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? `temp-${crypto.randomUUID()}`
+        : `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['properties'], (old: Property[] | undefined) => [
+        ...(old || []),
+        {
+          id: tempId,
+          ...newProperty,
+          addressLine1: newProperty.address1,
+          addressLine2: newProperty.address2,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as Property,
+      ]);
+
+      // Return a context object with the snapshotted value
+      return { previousProperties };
+    },
+    onError: (_err, _newProperty, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousProperties) {
+        queryClient.setQueryData(['properties'], context.previousProperties);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['properties'] });

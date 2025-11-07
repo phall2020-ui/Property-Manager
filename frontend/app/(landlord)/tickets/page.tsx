@@ -12,6 +12,7 @@ import { Button } from '@/components/Button';
 import { CreateTicketModal } from '@/components/CreateTicketModal';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Search, Filter, Plus } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function LandlordTicketsPage() {
   const { searchTerm, debouncedSearchTerm, setSearchTerm } = useDebounce('', 300);
@@ -42,7 +43,7 @@ export default function LandlordTicketsPage() {
     if (!tickets) return [];
     
     return tickets.filter(ticket => {
-      // Search filter with debounced term
+      // Search filter - use debounced value
       if (debouncedSearchTerm) {
         const query = debouncedSearchTerm.toLowerCase();
         const matchesSearch = 
