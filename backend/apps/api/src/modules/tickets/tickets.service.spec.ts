@@ -69,6 +69,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
               findUnique: jest.fn(),
               update: jest.fn(),
               findMany: jest.fn(),
+              count: jest.fn(),
             },
             ticketTimeline: {
               create: jest.fn(),
@@ -676,10 +677,12 @@ describe('TicketsService - Landlord & Scheduling', () => {
     it('should filter tickets by landlord role', async () => {
       const mockTickets = [mockTicket];
       jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue(mockTickets as any);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(1);
 
       const result = await service.findMany(['landlord-org-456'], 'LANDLORD');
 
-      expect(result).toHaveLength(1);
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -694,10 +697,12 @@ describe('TicketsService - Landlord & Scheduling', () => {
     it('should filter tickets by tenant role', async () => {
       const mockTickets = [mockTicket];
       jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue(mockTickets as any);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(1);
 
       const result = await service.findMany(['tenant-org-999'], 'TENANT');
 
-      expect(result).toHaveLength(1);
+      expect(result.data).toHaveLength(1);
+      expect(result.pagination.total).toBe(1);
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -711,9 +716,11 @@ describe('TicketsService - Landlord & Scheduling', () => {
 
     it('should apply status filter', async () => {
       jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(0);
 
-      await service.findMany(['landlord-org-456'], 'LANDLORD', { status: 'OPEN' });
+      const result = await service.findMany(['landlord-org-456'], 'LANDLORD', { status: 'OPEN' });
 
+      expect(result.data).toHaveLength(0);
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -746,6 +753,166 @@ describe('TicketsService - Landlord & Scheduling', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].status).toBe('PROPOSED');
+    });
+  });
+
+  describe('pagination and search', () => {
+    it('should apply pagination with default values', async () => {
+      jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue([mockTicket] as any);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(1);
+
+      const result = await service.findMany(['landlord-org-456'], 'LANDLORD', {});
+
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.limit).toBe(20);
+      expect(result.pagination.total).toBe(1);
+      expect(result.pagination.totalPages).toBe(1);
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 20,
+        }),
+      );
+    });
+
+    it('should apply custom pagination', async () => {
+      jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(50);
+
+      const result = await service.findMany(['landlord-org-456'], 'LANDLORD', {
+        page: 2,
+        limit: 10,
+      });
+
+      expect(result.pagination.page).toBe(2);
+      expect(result.pagination.limit).toBe(10);
+      expect(result.pagination.total).toBe(50);
+      expect(result.pagination.totalPages).toBe(5);
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 10,
+          take: 10,
+        }),
+      );
+    });
+
+    it('should apply search filter', async () => {
+      jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(0);
+
+      await service.findMany(['landlord-org-456'], 'LANDLORD', {
+        search: 'boiler',
+      });
+
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              { title: { contains: 'boiler', mode: 'insensitive' } },
+              { description: { contains: 'boiler', mode: 'insensitive' } },
+              { id: { contains: 'boiler', mode: 'insensitive' } },
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('should limit pagination to max 100 items', async () => {
+      jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue([]);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(0);
+
+      await service.findMany(['landlord-org-456'], 'LANDLORD', {
+        limit: 200, // Request more than max
+      });
+
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 100, // Should be capped at 100
+        }),
+      );
+    });
+  });
+
+  describe('quote amount validation', () => {
+    it('should reject quote below minimum amount', async () => {
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(mockTicket as any);
+
+      await expect(
+        service.createQuote('ticket-123', 'contractor-456', 5, 'Too low'),
+      ).rejects.toThrow('Quote amount must be at least $10');
+    });
+
+    it('should reject quote above maximum amount', async () => {
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(mockTicket as any);
+
+      await expect(
+        service.createQuote('ticket-123', 'contractor-456', 60000, 'Too high'),
+      ).rejects.toThrow('Quote amount cannot exceed $50000');
+    });
+
+    it('should accept quote within valid range', async () => {
+      const mockQuote = {
+        id: 'quote-1',
+        ticketId: 'ticket-123',
+        contractorId: 'contractor-456',
+        amount: 150,
+        status: 'PROPOSED',
+      };
+
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(mockTicket as any);
+      jest.spyOn(prisma.quote, 'create').mockResolvedValue(mockQuote as any);
+      jest.spyOn(prisma.ticket, 'update').mockResolvedValue(mockTicket as any);
+      jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
+
+      const result = await service.createQuote('ticket-123', 'contractor-456', 150, 'Valid quote');
+
+      expect(result.amount).toBe(150);
+      expect(prisma.quote.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('role-based status transitions', () => {
+    it('should allow OPS role to perform any valid transition', async () => {
+      const ticket = { ...mockTicket, status: 'OPEN' };
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(ticket as any);
+      jest.spyOn(prisma.ticket, 'update').mockResolvedValue({ ...ticket, status: 'TRIAGED' } as any);
+      jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
+
+      const result = await service.updateStatus('ticket-123', 'TRIAGED', 'user-123', ['landlord-org-456'], 'OPS');
+
+      expect(result.status).toBe('TRIAGED');
+    });
+
+    it('should restrict TENANT role to limited transitions', async () => {
+      const ticket = { ...mockTicket, status: 'TRIAGED' };
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(ticket as any);
+
+      await expect(
+        service.updateStatus('ticket-123', 'QUOTED', 'user-123', ['tenant-org-999'], 'TENANT'),
+      ).rejects.toThrow('Role TENANT cannot transition ticket from TRIAGED to QUOTED');
+    });
+
+    it('should allow CONTRACTOR to submit quotes', async () => {
+      const ticket = { ...mockTicket, status: 'TRIAGED' };
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(ticket as any);
+      jest.spyOn(prisma.ticket, 'update').mockResolvedValue({ ...ticket, status: 'QUOTED' } as any);
+      jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
+
+      // Include landlord org in userOrgIds for access control
+      const result = await service.updateStatus('ticket-123', 'QUOTED', 'contractor-456', ['landlord-org-456'], 'CONTRACTOR');
+
+      expect(result.status).toBe('QUOTED');
+    });
+
+    it('should allow LANDLORD to approve quotes', async () => {
+      const ticket = { ...mockTicket, status: 'QUOTED' };
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(ticket as any);
+      jest.spyOn(prisma.ticket, 'update').mockResolvedValue({ ...ticket, status: 'APPROVED' } as any);
+      jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
+
+      const result = await service.updateStatus('ticket-123', 'APPROVED', 'user-123', ['landlord-org-456'], 'LANDLORD');
+
+      expect(result.status).toBe('APPROVED');
     });
   });
 });
