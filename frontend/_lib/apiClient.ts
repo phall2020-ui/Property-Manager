@@ -1,14 +1,33 @@
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { z } from 'zod';
 
 /**
- * API client wrapper around the native fetch API that transparently attaches a
- * bearer token and attempts a single refresh on 401. All responses are
- * validated via zod schemas defined in `_types`. Problem details are thrown
- * as JavaScript errors for consumption in React Query.
+ * API client using Axios with interceptors for better request/response handling.
+ * This replaces the previous fetch-based implementation with axios for:
+ * - Better interceptor support
+ * - Request/response transformation
+ * - Automatic retries on 401
+ * - Better error handling
  */
 
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: string | null) => void;
+  reject: (error: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
 /**
  * Set the current in‑memory access token. Refresh token is now handled
@@ -53,79 +72,192 @@ const ProblemDetails = z.object({
   status: z.number().optional(),
   detail: z.string().optional(),
   instance: z.string().optional(),
+  message: z.string().optional(),
 });
 
 export type Problem = z.infer<typeof ProblemDetails>;
 
-async function parseProblem(response: Response): Promise<Problem> {
-  let data: unknown;
-  try {
-    data = await response.json();
-  } catch {
-    // Non‑JSON error
-    return { title: 'Unknown error', status: response.status, detail: response.statusText };
+function parseProblem(error: AxiosError): Problem {
+  if (error.response?.data) {
+    const result = ProblemDetails.safeParse(error.response.data);
+    if (result.success) return result.data;
+    
+    // If not in problem details format, try to extract message
+    const data = error.response.data as any;
+    if (data.message) {
+      return {
+        title: 'Error',
+        status: error.response.status,
+        detail: data.message,
+      };
+    }
   }
-  const result = ProblemDetails.safeParse(data);
-  if (result.success) return result.data;
-  return { title: 'Unknown error', status: response.status, detail: response.statusText };
+  
+  return {
+    title: error.message || 'Unknown error',
+    status: error.response?.status,
+    detail: error.response?.statusText,
+  };
 }
 
-export interface RequestOptions extends RequestInit {
+export interface RequestOptions extends Omit<AxiosRequestConfig, 'url'> {
   /**
    * If `true` the Authorization header will not be appended and no refresh
    * attempt will be made. Useful for login/signup endpoints.
    */
   skipAuth?: boolean;
+  /**
+   * Request body - supports both `body` (fetch-style) and `data` (axios-style)
+   * for backward compatibility. If `body` is provided, it will be used as `data`.
+   */
+  body?: any;
 }
 
+// Create axios instance with base configuration
+const axiosInstance = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_BASE || '',
+  withCredentials: true, // Always include cookies for httpOnly refresh token
+  timeout: 30000, // 30 second timeout
+});
+
+// Request interceptor to attach access token
+axiosInstance.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    // Check if request has skipAuth flag
+    const skipAuth = (config as any).skipAuth;
+    
+    if (accessToken && !skipAuth) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    
+    // Log request in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    }
+    
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle 401 and refresh token
+axiosInstance.interceptors.response.use(
+  (response: AxiosResponse) => {
+    // Log response in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[API Response] ${response.status} ${response.config.url}`);
+    }
+    return response;
+  },
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean; skipAuth?: boolean };
+    
+    // If error is 401 and we haven't retried yet and not skipAuth
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.skipAuth) {
+      if (isRefreshing) {
+        // If already refreshing, queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+            }
+            return axiosInstance(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        // Attempt refresh using httpOnly cookie
+        const refreshResponse = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_BASE || ''}/auth/refresh`,
+          {},
+          {
+            withCredentials: true,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        );
+
+        const { accessToken: newAccessToken } = refreshResponse.data;
+        setTokens(newAccessToken, null); // Refresh token stays in cookie
+        
+        // Update the authorization header
+        if (originalRequest.headers) {
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        }
+        
+        processQueue(null, newAccessToken);
+        isRefreshing = false;
+        
+        return axiosInstance(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        isRefreshing = false;
+        setTokens(null, null);
+        
+        // Token refresh failed - user needs to login again
+        return Promise.reject(refreshError);
+      }
+    }
+
+    // Log error in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[API Error] ${error.response?.status} ${error.config?.url}`, error.response?.data);
+    }
+
+    // Convert axios error to Problem format and reject
+    const problem = parseProblem(error);
+    return Promise.reject(problem);
+  }
+);
+
 /**
- * Perform an HTTP request against the API base. This helper automatically
+ * Perform an HTTP request using axios. This helper automatically
  * prefixes the URL with `NEXT_PUBLIC_API_BASE`, attaches the current access
  * token, and attempts a refresh on 401. If the refresh is successful the
- * original request is retried. Throws a Problem on non‑OK responses.
+ * original request is retried. Throws a Problem on non-OK responses.
  */
 export async function apiRequest<T = unknown>(
   url: string,
-  { skipAuth, ...options }: RequestOptions = {}
+  { skipAuth, body, ...options }: RequestOptions = {}
 ): Promise<T> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE || '';
-  const headers = new Headers(options.headers);
-  if (accessToken && !skipAuth) {
-    headers.set('Authorization', `Bearer ${accessToken}`);
-  }
-  const send = async (): Promise<Response> => {
-    return fetch(`${baseUrl}${url}`, {
-      ...options,
-      headers,
-      credentials: 'include', // Always include cookies for httpOnly refresh token
-    });
-  };
-  let response = await send();
-  if (response.status === 401 && !skipAuth) {
-    // Attempt refresh once using httpOnly cookie
-    const refreshResponse = await fetch(`${baseUrl}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include', // Send refresh token cookie
-    });
-    if (refreshResponse.ok) {
-      const { accessToken: newAccessToken } = await refreshResponse.json();
-      setTokens(newAccessToken, null); // Refresh token stays in cookie
-      headers.set('Authorization', `Bearer ${newAccessToken}`);
-      response = await send();
-    } else {
-      // Refresh failed, clear tokens
-      setTokens(null, null);
-    }
-  }
-  if (!response.ok) {
-    throw await parseProblem(response);
-  }
-  // Attempt to parse JSON; if fails, return undefined
   try {
-    const data = await response.json();
-    return data as T;
-  } catch {
-    return undefined as T;
+    // Handle backward compatibility: convert `body` to `data` if provided
+    const requestConfig: any = {
+      url,
+      ...options,
+      skipAuth, // Pass skipAuth through config
+    };
+    
+    // If body is provided (fetch-style), use it as data (axios-style)
+    if (body !== undefined) {
+      // If body is already a string (JSON stringified), parse it for axios
+      if (typeof body === 'string') {
+        try {
+          requestConfig.data = JSON.parse(body);
+        } catch {
+          requestConfig.data = body;
+        }
+      } else {
+        requestConfig.data = body;
+      }
+    }
+    
+    const response = await axiosInstance.request<T>(requestConfig);
+    return response.data;
+  } catch (error) {
+    // Error is already processed by interceptor
+    throw error;
   }
 }
+
+// Export axios instance for direct use if needed
+export { axiosInstance };

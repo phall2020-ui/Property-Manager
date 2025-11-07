@@ -46,7 +46,7 @@ export async function login(dto: LoginDTO): Promise<AuthResponse> {
       body: JSON.stringify(dto),
       headers: { 'Content-Type': 'application/json' },
       skipAuth: true,
-      credentials: 'include', // Important: include cookies
+      
     });
     console.log('Login response:', data);
     
@@ -76,7 +76,7 @@ export async function signup(dto: SignupDTO): Promise<AuthResponse> {
       body: JSON.stringify({ ...rest, name: displayName }),
       headers: { 'Content-Type': 'application/json' },
       skipAuth: true,
-      credentials: 'include', // Important: include cookies
+      
     });
     
     // Validate response has required fields
@@ -102,7 +102,7 @@ export async function acceptInvite(dto: AcceptInviteDTO): Promise<AuthResponse> 
     body: JSON.stringify(dto),
     headers: { 'Content-Type': 'application/json' },
     skipAuth: true,
-    credentials: 'include', // Important: include cookies
+    
   });
   setTokens(data.accessToken, null); // No refresh token in response
   return data;
@@ -131,7 +131,7 @@ export async function logout(): Promise<void> {
   try {
     await apiRequest(`/auth/logout`, { 
       method: 'POST',
-      credentials: 'include', // Send cookie to be cleared
+      
     });
   } catch {
     /* ignore */

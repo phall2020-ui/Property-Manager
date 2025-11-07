@@ -5,17 +5,17 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/apiClient';
 import { Ticket, TicketStatus } from '@/types/models';
-import { SubmitQuoteSchema, SubmitQuoteDTO } from '@/lib/schemas';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { SubmitQuoteDTO } from '@/lib/schemas';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
+import { SubmitQuoteModal } from '@/components/SubmitQuoteModal';
 
 export default function JobDetailPage() {
   const params = useParams<{ id: string }>();
   const jobId = params?.id;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const {
     data: job,
     isLoading,
@@ -25,7 +25,6 @@ export default function JobDetailPage() {
     queryFn: () => apiRequest<Ticket>(`/tickets/${jobId}`),
     enabled: typeof jobId === 'string',
   });
-  const quoteForm = useForm<SubmitQuoteDTO>({ resolver: zodResolver(SubmitQuoteSchema) });
   const [actionError, setActionError] = useState<string | null>(null);
   const submitQuote = useMutation<unknown, any, SubmitQuoteDTO>({
     mutationFn: async (data: SubmitQuoteDTO) => {
@@ -37,6 +36,8 @@ export default function JobDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', jobId] });
+      setIsQuoteModalOpen(false);
+      setActionError(null);
     },
     onError: (err: any) => {
       setActionError(err.detail || 'Failed to submit quote');
@@ -143,57 +144,16 @@ export default function JobDetailPage() {
       {job.status === TicketStatus.OPEN || job.status === TicketStatus.ASSIGNED ? (
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Submit Your Quote</h3>
-          <form
-            onSubmit={quoteForm.handleSubmit((data) => submitQuote.mutate(data))}
-            className="space-y-4"
+          <p className="text-gray-600 mb-4">
+            Review the job details and submit your quote for approval.
+          </p>
+          <Button 
+            variant="primary" 
+            onClick={() => setIsQuoteModalOpen(true)}
+            className="w-full"
           >
-          <div>
-            <label className="block text-sm font-medium" htmlFor="amount">
-              Amount (£)
-            </label>
-            <input
-              id="amount"
-              type="number"
-              step="0.01"
-              {...quoteForm.register('amount', { valueAsNumber: true })}
-              className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
-            />
-            {quoteForm.formState.errors.amount && (
-              <p className="text-xs text-red-600">{quoteForm.formState.errors.amount.message}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium" htmlFor="eta">
-              ETA (date)
-            </label>
-            <input
-              id="eta"
-              type="date"
-              {...quoteForm.register('eta')}
-              className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
-            />
-            {quoteForm.formState.errors.eta && (
-              <p className="text-xs text-red-600">{quoteForm.formState.errors.eta.message}</p>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium" htmlFor="notes">
-              Notes
-            </label>
-            <textarea
-              id="notes"
-              rows={3}
-              {...quoteForm.register('notes')}
-              className="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-primary focus:ring-primary"
-            ></textarea>
-            {quoteForm.formState.errors.notes && (
-              <p className="text-xs text-red-600">{quoteForm.formState.errors.notes.message}</p>
-            )}
-          </div>
-            <Button type="submit" variant="primary" disabled={submitQuote.isPending} className="w-full">
-              {submitQuote.isPending ? 'Submitting…' : 'Submit Quote'}
-            </Button>
-          </form>
+            Submit Quote
+          </Button>
         </div>
       ) : null}
       {/* Status actions */}
@@ -243,6 +203,15 @@ export default function JobDetailPage() {
           <p className="text-green-800 font-medium">✓ This job has been completed</p>
         </div>
       )}
+
+      {/* Submit Quote Modal */}
+      <SubmitQuoteModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        onSubmit={(data) => submitQuote.mutate(data)}
+        isSubmitting={submitQuote.isPending}
+        ticketTitle={job.title}
+      />
     </div>
   );
 }

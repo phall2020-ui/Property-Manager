@@ -2,14 +2,19 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { apiRequest } from '@/lib/apiClient';
 import { Property } from '@/types/models';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { Badge } from '@/components/Badge';
+import { SearchInput } from '@/components/SearchInput';
+import { TableSkeleton } from '@/components/LoadingSkeleton';
+import { AddPropertyModal } from '@/components/AddPropertyModal';
 import { getPropertyAddress1, getPropertyAddress2 } from '@/lib/propertyHelpers';
+import { useDebounce } from '@/hooks/useDebounce';
+import { CreatePropertyDTO } from '@/lib/schemas';
 
 /**
  * Properties Portfolio List Page
@@ -17,7 +22,9 @@ import { getPropertyAddress1, getPropertyAddress2 } from '@/lib/propertyHelpers'
  */
 export default function PropertiesPage() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
+  const queryClient = useQueryClient();
+  const { searchTerm, debouncedSearchTerm, setSearchTerm } = useDebounce('', 300);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const {
     data: properties,
@@ -28,9 +35,25 @@ export default function PropertiesPage() {
     queryFn: () => apiRequest<Property[]>('/properties'),
   });
 
-  // Filter properties by search query
+  // Add property mutation
+  const addPropertyMutation = useMutation({
+    mutationFn: async (data: CreatePropertyDTO) => {
+      return apiRequest('/properties', {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      setIsAddModalOpen(false);
+    },
+  });
+
+  // Filter properties by debounced search query
   const filteredProperties = properties?.filter((property) => {
-    const searchLower = searchQuery.toLowerCase();
+    if (!debouncedSearchTerm) return true;
+    const searchLower = debouncedSearchTerm.toLowerCase();
     return (
       property.addressLine1?.toLowerCase().includes(searchLower) ||
       property.city?.toLowerCase().includes(searchLower) ||
@@ -40,8 +63,22 @@ export default function PropertiesPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-500">Loading properties…</p>
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="h-8 w-64 bg-gray-200 animate-pulse rounded mb-2"></div>
+            <div className="h-4 w-32 bg-gray-200 animate-pulse rounded"></div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow p-6">
+              <div className="h-6 w-3/4 bg-gray-200 animate-pulse rounded mb-2"></div>
+              <div className="h-4 w-1/2 bg-gray-200 animate-pulse rounded mb-4"></div>
+              <div className="h-4 w-full bg-gray-200 animate-pulse rounded"></div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -86,7 +123,7 @@ export default function PropertiesPage() {
         </div>
         <Button
           variant="primary"
-          onClick={() => router.push('/onboarding')}
+          onClick={() => setIsAddModalOpen(true)}
         >
           + Add Property
         </Button>
@@ -94,12 +131,10 @@ export default function PropertiesPage() {
 
       {/* Search */}
       <div className="max-w-md">
-        <input
-          type="text"
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
           placeholder="Search by address, city, or postcode..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
       </div>
 
@@ -158,13 +193,21 @@ export default function PropertiesPage() {
         ))}
       </div>
 
-      {filteredProperties?.length === 0 && searchQuery && (
+      {filteredProperties?.length === 0 && searchTerm && (
         <div className="text-center py-12">
           <p className="text-gray-500">
-            No properties match your search "{searchQuery}"
+            No properties match your search "{searchTerm}"
           </p>
         </div>
       )}
+
+      {/* Add Property Modal */}
+      <AddPropertyModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={(data) => addPropertyMutation.mutate(data)}
+        isSubmitting={addPropertyMutation.isPending}
+      />
     </div>
   );
 }
