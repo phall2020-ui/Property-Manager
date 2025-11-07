@@ -29,12 +29,38 @@ export default function TicketCreatePage() {
       description: string;
       priority: string;
     }) => ticketsApi.create(data),
+    onMutate: async (newTicket) => {
+      // Cancel any outgoing refetches to avoid overwriting our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['tickets'] });
+      
+      // Snapshot the previous value
+      const previousTickets = queryClient.getQueryData(['tickets']);
+      
+      // Optimistically update to the new value
+      queryClient.setQueryData(['tickets'], (old: any[]) => {
+        const optimisticTicket = {
+          id: `temp-${Date.now()}`,
+          ...newTicket,
+          status: 'OPEN',
+          createdAt: new Date().toISOString(),
+          property: newTicket.propertyId && properties
+            ? properties.find((p: any) => p.id === newTicket.propertyId)
+            : undefined,
+        };
+        return old ? [...old, optimisticTicket] : [optimisticTicket];
+      });
+      
+      // Return a context object with the snapshotted value
+      return { previousTickets };
+    },
+    onError: (err: any, _newTicket, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      queryClient.setQueryData(['tickets'], context?.previousTickets);
+      setError(err.response?.data?.message || 'Failed to create ticket');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       navigate('/tickets');
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || 'Failed to create ticket');
     },
   });
 

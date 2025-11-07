@@ -25,12 +25,46 @@ export default function PropertyCreatePage() {
       postcode: string;
       bedrooms?: number;
     }) => propertiesApi.create(data),
+    onMutate: async (newProperty) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['properties'] });
+      await queryClient.cancelQueries({ queryKey: ['enhanced-properties'] });
+      
+      // Snapshot the previous values
+      const previousProperties = queryClient.getQueryData(['properties']);
+      const previousEnhanced = queryClient.getQueryData(['enhanced-properties']);
+      
+      // Optimistically update to the new value
+      const optimisticProperty = {
+        id: `temp-${Date.now()}`,
+        ...newProperty,
+        createdAt: new Date().toISOString(),
+      };
+      
+      queryClient.setQueryData(['properties'], (old: any[]) => 
+        old ? [...old, optimisticProperty] : [optimisticProperty]
+      );
+      queryClient.setQueryData(['enhanced-properties'], (old: any[]) => 
+        old ? [...old, optimisticProperty] : [optimisticProperty]
+      );
+      
+      // Return a context with the snapshotted values
+      return { previousProperties, previousEnhanced };
+    },
+    onError: (err: any, _newProperty, context) => {
+      // Roll back on error
+      if (context?.previousProperties) {
+        queryClient.setQueryData(['properties'], context.previousProperties);
+      }
+      if (context?.previousEnhanced) {
+        queryClient.setQueryData(['enhanced-properties'], context.previousEnhanced);
+      }
+      setError(err.response?.data?.message || 'Failed to create property');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['properties'] });
+      queryClient.invalidateQueries({ queryKey: ['enhanced-properties'] });
       navigate('/properties');
-    },
-    onError: (err: any) => {
-      setError(err.response?.data?.message || 'Failed to create property');
     },
   });
 

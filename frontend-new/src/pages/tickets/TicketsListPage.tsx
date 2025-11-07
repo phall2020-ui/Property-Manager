@@ -1,7 +1,9 @@
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ticketsApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
+import TableSkeleton from '../../components/skeletons/TableSkeleton';
 
 interface Ticket {
   id: string;
@@ -18,6 +20,10 @@ interface Ticket {
 
 export default function TicketsListPage() {
   const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [priorityFilter, setPriorityFilter] = useState<string>('All');
+  
   const { data: tickets, isLoading, error } = useQuery<Ticket[]>({
     queryKey: ['tickets'],
     queryFn: () => ticketsApi.list(),
@@ -26,10 +32,26 @@ export default function TicketsListPage() {
   const primaryOrg = user?.organisations?.[0];
   const isTenant = primaryOrg?.role === 'TENANT';
 
+  const filteredTickets = useMemo(() => {
+    if (!tickets) return [];
+    
+    return tickets.filter((ticket) => {
+      const searchText = `${ticket.title} ${ticket.description} ${ticket.property?.address1 || ''}`.toLowerCase();
+      const matchesSearch = searchQuery ? searchText.includes(searchQuery.toLowerCase()) : true;
+      const matchesStatus = statusFilter === 'All' ? true : ticket.status === statusFilter;
+      const matchesPriority = priorityFilter === 'All' ? true : ticket.priority === priorityFilter;
+      
+      return matchesSearch && matchesStatus && matchesPriority;
+    });
+  }, [tickets, searchQuery, statusFilter, priorityFilter]);
+
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">Maintenance Tickets</h2>
+        </div>
+        <TableSkeleton rows={5} columns={6} />
       </div>
     );
   }
@@ -90,7 +112,41 @@ export default function TicketsListPage() {
         )}
       </div>
 
-      {tickets && tickets.length > 0 ? (
+      {/* Search and Filter Controls */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search tickets..."
+          className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
+        >
+          <option>All</option>
+          <option>OPEN</option>
+          <option>ASSIGNED</option>
+          <option>QUOTED</option>
+          <option>APPROVED</option>
+          <option>IN_PROGRESS</option>
+          <option>COMPLETED</option>
+        </select>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-600"
+        >
+          <option>All</option>
+          <option>URGENT</option>
+          <option>HIGH</option>
+          <option>MEDIUM</option>
+          <option>LOW</option>
+        </select>
+      </div>
+
+      {filteredTickets.length > 0 ? (
         <div className="bg-white shadow rounded-lg overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -116,7 +172,7 @@ export default function TicketsListPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {tickets.map((ticket) => (
+              {filteredTickets.map((ticket) => (
                 <tr key={ticket.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <Link

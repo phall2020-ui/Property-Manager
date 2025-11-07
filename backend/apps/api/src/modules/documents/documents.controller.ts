@@ -12,6 +12,22 @@ export class DocumentsController {
   @ApiOperation({ summary: 'Get a signed S3 URL for uploading a document' })
   @ApiBearerAuth()
   async sign(@Body('contentType') contentType: string) {
+    // Validate content type to prevent XSS
+    const allowedTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+    
+    if (!contentType || !allowedTypes.includes(contentType)) {
+      throw new Error('Invalid or unsupported content type');
+    }
+    
     return this.documentsService.signUpload(contentType);
   }
 
@@ -20,6 +36,18 @@ export class DocumentsController {
   @ApiBearerAuth()
   async create(@Body() dto: CreateDocumentDto) {
     const expiryDate = dto.expiryDate ? new Date(dto.expiryDate) : undefined;
-    return this.documentsService.createDocument({ ...dto, expiryDate });
+    
+    // Create a sanitized object to prevent XSS
+    const sanitizedData = {
+      ownerType: dto.ownerType,
+      ownerId: dto.ownerId,
+      docType: dto.docType,
+      url: dto.url,
+      hash: dto.hash,
+      expiryDate,
+      extracted: dto.extracted,
+    };
+    
+    return this.documentsService.createDocument(sanitizedData);
   }
 }
