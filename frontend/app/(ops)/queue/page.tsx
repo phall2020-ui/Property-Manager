@@ -79,7 +79,7 @@ export default function OpsQueuePage() {
           <option value={TicketStatus.OPEN}>Open</option>
           <option value={TicketStatus.ASSIGNED}>Assigned</option>
           <option value={TicketStatus.IN_PROGRESS}>In Progress</option>
-          <option value={TicketStatus.AWAITING_APPROVAL}>Awaiting Approval</option>
+          <option value={TicketStatus.NEEDS_APPROVAL}>Needs Approval</option>
           <option value={TicketStatus.COMPLETED}>Completed</option>
         </select>
       </div>
