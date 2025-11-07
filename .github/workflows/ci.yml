@@ -25,7 +25,7 @@ jobs:
         working-directory: frontend-new
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -51,7 +51,7 @@ jobs:
         working-directory: frontend-new
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -82,7 +82,7 @@ jobs:
         working-directory: backend
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -108,7 +108,7 @@ jobs:
         working-directory: backend
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -164,7 +164,7 @@ jobs:
           --health-retries=5
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -207,7 +207,7 @@ jobs:
         working-directory: frontend-new
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -259,7 +259,7 @@ jobs:
           --health-retries=5
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -302,7 +302,7 @@ jobs:
         working-directory: frontend-new
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -345,7 +345,7 @@ jobs:
         working-directory: frontend-new
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -380,7 +380,7 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -405,7 +405,7 @@ jobs:
       url: https://api-staging.example.com
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Deploy to staging
         run: |
@@ -432,7 +432,7 @@ jobs:
       url: https://api.example.com
     
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Deploy to production
         run: |

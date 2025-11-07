@@ -18,7 +18,7 @@ jobs:
     outputs:
       preview_url: ${{ steps.vercel.outputs.preview-url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Build once to fail fast on compile errors
       - uses: actions/setup-node@v4
@@ -56,7 +56,7 @@ jobs:
       # If your backend needs a token/URL, set them as secrets and map here.
       # API_BASE_URL: ${{ secrets.API_BASE_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -85,7 +85,7 @@ jobs:
       LHCI_GITHUB_APP_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PREVIEW_URL: ${{ needs.vercel-preview.outputs.preview_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: npm ci
         working-directory: frontend
       - name: Run Lighthouse CI
