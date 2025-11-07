@@ -14,7 +14,6 @@ export class PropertiesService {
   async findOne(id: string, ownerOrgId: string) {
     const property = await this.prisma.property.findUnique({ 
       where: { id },
-      include: { images: true },
     });
     if (!property || property.ownerOrgId !== ownerOrgId || property.deletedAt) {
       throw new NotFoundException();
@@ -46,13 +45,13 @@ export class PropertiesService {
       AND: [],
     };
 
-    // Add search filter (ILIKE simulation for SQLite)
+    // Add search filter
     if (options?.search) {
       where.AND.push({
         OR: [
-          { addressLine1: { contains: options.search, mode: 'insensitive' } },
-          { city: { contains: options.search, mode: 'insensitive' } },
-          { postcode: { contains: options.search, mode: 'insensitive' } },
+          { addressLine1: { contains: options.search } },
+          { city: { contains: options.search } },
+          { postcode: { contains: options.search } },
         ],
       });
     }
@@ -62,10 +61,10 @@ export class PropertiesService {
       where.AND.push({ propertyType: options.type });
     }
     if (options?.city) {
-      where.AND.push({ city: { equals: options.city, mode: 'insensitive' } });
+      where.AND.push({ city: { equals: options.city } });
     }
     if (options?.postcode) {
-      where.AND.push({ postcode: { equals: options.postcode, mode: 'insensitive' } });
+      where.AND.push({ postcode: { equals: options.postcode } });
     }
 
     // Remove AND if empty
@@ -91,7 +90,6 @@ export class PropertiesService {
         skip,
         take: pageSize,
         orderBy,
-        include: { images: true },
       }),
       this.prisma.property.count({ where }),
     ]);
