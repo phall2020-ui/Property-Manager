@@ -10,6 +10,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { CreateTicketModal } from '@/components/CreateTicketModal';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Search, Filter, Plus } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 
