@@ -4,10 +4,17 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Set minimal default permissions
+permissions:
+  contents: read
+
 jobs:
   vercel-preview:
     name: Deploy Vercel Preview
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # For posting PR comments
     outputs:
       preview_url: ${{ steps.vercel.outputs.preview-url }}
     steps:
@@ -41,6 +48,9 @@ jobs:
     name: Playwright E2E + a11y
     needs: vercel-preview
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # For uploading artifacts
     env:
       BASE_URL: ${{ needs.vercel-preview.outputs.preview_url }}
       # If your backend needs a token/URL, set them as secrets and map here.
@@ -68,6 +78,9 @@ jobs:
     name: Lighthouse CI (Core pages)
     needs: vercel-preview
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # For uploading artifacts
     env:
       LHCI_GITHUB_APP_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       PREVIEW_URL: ${{ needs.vercel-preview.outputs.preview_url }}
