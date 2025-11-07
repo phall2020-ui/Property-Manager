@@ -143,11 +143,17 @@ export default function TenantPaymentsPage() {
                   <div>
                     <div className="font-semibold">{invoice.number}</div>
                     <div className="text-sm text-gray-600">
-                      Issued: {new Date(invoice.issueDate).toLocaleDateString('en-GB')}
-                      {invoice.dueDate && ` • Due: ${new Date(invoice.dueDate).toLocaleDateString('en-GB')}`}
+                      {(invoice as any).periodStart && (invoice as any).periodEnd ? (
+                        <>
+                          {new Date((invoice as any).periodStart).toLocaleDateString('en-GB')} -{' '}
+                          {new Date((invoice as any).periodEnd).toLocaleDateString('en-GB')}
+                        </>
+                      ) : (
+                        'N/A'
+                      )}
                     </div>
                     <div className="text-sm text-gray-600">
-                      Invoice #{invoice.number}
+                      Property: {(invoice as any).tenancy?.property?.addressLine1 || 'N/A'}
                     </div>
                   </div>
                   <div className="text-right">
@@ -172,10 +178,10 @@ export default function TenantPaymentsPage() {
                     </span>
                   </div>
                 </div>
-                {(invoice.paidAmount || 0) > 0 && (
+                {(invoice.paidAmount ?? 0) > 0 && (
                   <div className="text-sm text-gray-600">
-                    Paid: £{(invoice.paidAmount || 0).toFixed(2)} of £
-                    {(invoice.lineTotal || 0).toFixed(2)}
+                    Paid: £{invoice.paidAmount?.toFixed(2)} of £
+                    {((invoice as any).amountGBP || (invoice as any).amount)?.toFixed(2)}
                   </div>
                 )}
               </div>
@@ -212,7 +218,7 @@ export default function TenantPaymentsPage() {
             £
             {filteredInvoices
               .filter((inv: Invoice) => inv.status === 'PAID')
-              .reduce((sum: number, inv: Invoice) => sum + (inv.lineTotal || 0), 0)
+              .reduce((sum: number, inv: Invoice) => sum + ((inv as any).amountGBP || (inv as any).amount || 0), 0)
               .toFixed(2)}
           </div>
         </div>

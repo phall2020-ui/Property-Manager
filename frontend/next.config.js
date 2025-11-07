@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  experimental: {
-    // Enable the App Router directory.
-    appDir: true,
-  },
   i18n: {
     locales: ['en-GB'],
     defaultLocale: 'en-GB',
