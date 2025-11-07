@@ -170,4 +170,268 @@ export class JobsService implements OnModuleInit {
       delay,
     });
   }
+
+  // ============================================================================
+  // Queue Management Methods
+  // ============================================================================
+
+  /**
+   * Get all available queues with their counts
+   */
+  async getQueues() {
+    if (!this.redisAvailable) {
+      throw new Error('Redis not available');
+    }
+
+    const queues = [
+      { name: 'tickets', queue: this.ticketsQueue },
+      { name: 'notifications', queue: this.notificationsQueue },
+      { name: 'dead-letter', queue: this.deadLetterQueue },
+    ];
+
+    const results = await Promise.all(
+      queues.map(async ({ name, queue }) => {
+        const [waiting, active, delayed, completed, failed] = await Promise.all([
+          queue.getWaitingCount(),
+          queue.getActiveCount(),
+          queue.getDelayedCount(),
+          queue.getCompletedCount(),
+          queue.getFailedCount(),
+        ]);
+
+        return {
+          name,
+          waiting,
+          active,
+          delayed,
+          completed,
+          failed,
+        };
+      })
+    );
+
+    return results;
+  }
+
+  /**
+   * Get detailed stats for a specific queue
+   */
+  async getQueue(name: string) {
+    const queue = this.getQueueByName(name);
+    if (!queue) {
+      throw new Error(`Queue ${name} not found`);
+    }
+
+    const [waiting, active, delayed, completed, failed] = await Promise.all([
+      queue.getWaitingCount(),
+      queue.getActiveCount(),
+      queue.getDelayedCount(),
+      queue.getCompletedCount(),
+      queue.getFailedCount(),
+    ]);
+
+    return {
+      name,
+      waiting,
+      active,
+      delayed,
+      completed,
+      failed,
+    };
+  }
+
+  /**
+   * List jobs in a queue by status with pagination
+   */
+  async listJobs(
+    queueName: string,
+    status: 'waiting' | 'active' | 'delayed' | 'completed' | 'failed',
+    page: number = 1,
+    pageSize: number = 25
+  ) {
+    const queue = this.getQueueByName(queueName);
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not found`);
+    }
+
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize - 1;
+
+    let jobs;
+    switch (status) {
+      case 'waiting':
+        jobs = await queue.getWaiting(start, end);
+        break;
+      case 'active':
+        jobs = await queue.getActive(start, end);
+        break;
+      case 'delayed':
+        jobs = await queue.getDelayed(start, end);
+        break;
+      case 'completed':
+        jobs = await queue.getCompleted(start, end);
+        break;
+      case 'failed':
+        jobs = await queue.getFailed(start, end);
+        break;
+      default:
+        throw new Error(`Invalid status: ${status}`);
+    }
+
+    const jobDetails = await Promise.all(
+      jobs.map(async (job) => ({
+        id: job.id,
+        name: job.name,
+        data: job.data,
+        status: await job.getState(),
+        progress: job.progress,
+        attemptsMade: job.attemptsMade,
+        timestamp: job.timestamp,
+        processedOn: job.processedOn,
+        finishedOn: job.finishedOn,
+        failedReason: job.failedReason,
+      }))
+    );
+
+    return jobDetails;
+  }
+
+  /**
+   * Get details for a specific job
+   */
+  async getJob(queueName: string, jobId: string) {
+    const queue = this.getQueueByName(queueName);
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not found`);
+    }
+
+    const job = await queue.getJob(jobId);
+    if (!job) {
+      return null;
+    }
+
+    return {
+      id: job.id,
+      name: job.name,
+      data: job.data,
+      status: await job.getState(),
+      progress: job.progress,
+      attemptsMade: job.attemptsMade,
+      timestamp: job.timestamp,
+      processedOn: job.processedOn,
+      finishedOn: job.finishedOn,
+      failedReason: job.failedReason,
+      stacktrace: job.stacktrace,
+      returnvalue: job.returnvalue,
+      opts: job.opts,
+    };
+  }
+
+  /**
+   * Retry a failed job
+   */
+  async retryJob(queueName: string, jobId: string) {
+    const queue = this.getQueueByName(queueName);
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not found`);
+    }
+
+    const job = await queue.getJob(jobId);
+    if (!job) {
+      throw new Error(`Job ${jobId} not found in queue ${queueName}`);
+    }
+
+    const state = await job.getState();
+    if (state !== 'failed') {
+      throw new Error(`Job ${jobId} is not in failed state (current: ${state})`);
+    }
+
+    await job.retry();
+    this.logger.log(`Retried job ${jobId} in queue ${queueName}`);
+    
+    return { success: true };
+  }
+
+  /**
+   * Remove a job from the queue
+   */
+  async removeJob(queueName: string, jobId: string) {
+    const queue = this.getQueueByName(queueName);
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not found`);
+    }
+
+    const job = await queue.getJob(jobId);
+    if (!job) {
+      throw new Error(`Job ${jobId} not found in queue ${queueName}`);
+    }
+
+    await job.remove();
+    this.logger.log(`Removed job ${jobId} from queue ${queueName}`);
+    
+    return { success: true };
+  }
+
+  /**
+   * Fail/cancel a job
+   */
+  async failJob(queueName: string, jobId: string, reason: string = 'Manually cancelled') {
+    const queue = this.getQueueByName(queueName);
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not found`);
+    }
+
+    const job = await queue.getJob(jobId);
+    if (!job) {
+      throw new Error(`Job ${jobId} not found in queue ${queueName}`);
+    }
+
+    await job.moveToFailed(new Error(reason), '', true);
+    this.logger.log(`Failed job ${jobId} in queue ${queueName}: ${reason}`);
+    
+    return { success: true };
+  }
+
+  /**
+   * Get queue statistics
+   */
+  async stats(queueName: string) {
+    const queue = this.getQueueByName(queueName);
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not found`);
+    }
+
+    const [counts, metrics] = await Promise.all([
+      queue.getJobCounts(),
+      queue.getMetrics('completed', Date.now() - 86400000, Date.now()) // Last 24 hours
+    ]);
+
+    return {
+      counts,
+      metrics,
+    };
+  }
+
+  /**
+   * Check if Redis is available
+   */
+  isRedisAvailable(): boolean {
+    return this.redisAvailable;
+  }
+
+  /**
+   * Get queue by name (helper method)
+   */
+  private getQueueByName(name: string): Queue | null {
+    switch (name) {
+      case 'tickets':
+        return this.ticketsQueue;
+      case 'notifications':
+        return this.notificationsQueue;
+      case 'dead-letter':
+        return this.deadLetterQueue;
+      default:
+        return null;
+    }
+  }
 }

@@ -57,8 +57,8 @@ export default function JobDetailPage() {
     },
     onError: (err: any, _newData, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousTicket) {
-        queryClient.setQueryData<Ticket>(['ticket', jobId], context.previousTicket);
+      if (context && typeof context === 'object' && 'previousTicket' in context) {
+        queryClient.setQueryData<Ticket>(['ticket', jobId], context.previousTicket as Ticket);
       }
       setActionError(err.detail || 'Failed to submit quote');
     },

@@ -127,10 +127,14 @@ describe('Properties (e2e)', () => {
         .set('Authorization', `Bearer ${landlordToken}`)
         .expect(200);
 
-      expect(Array.isArray(response.body)).toBe(true);
-      expect(response.body.length).toBeGreaterThan(0);
-      expect(response.body[0]).toHaveProperty('addressLine1');
-      expect(response.body[0]).toHaveProperty('ownerOrgId');
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('total');
+      expect(response.body).toHaveProperty('page');
+      expect(response.body).toHaveProperty('pageSize');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBeGreaterThan(0);
+      expect(response.body.data[0]).toHaveProperty('addressLine1');
+      expect(response.body.data[0]).toHaveProperty('ownerOrgId');
     });
 
     it('should return empty array for tenant (no properties)', async () => {
@@ -139,8 +143,9 @@ describe('Properties (e2e)', () => {
         .set('Authorization', `Bearer ${tenantToken}`)
         .expect(200);
 
-      expect(Array.isArray(response.body)).toBe(true);
-      expect(response.body.length).toBe(0);
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data.length).toBe(0);
     });
 
     it('should reject request without auth', async () => {
@@ -277,7 +282,7 @@ describe('Properties (e2e)', () => {
         .set('Authorization', `Bearer ${landlordToken}`)
         .expect(200);
 
-      const hasOtherProperty = landlord1Properties.body.some(
+      const hasOtherProperty = landlord1Properties.body.data.some(
         (p: any) => p.addressLine1 === '999 Other Street',
       );
       expect(hasOtherProperty).toBe(false);
@@ -288,10 +293,172 @@ describe('Properties (e2e)', () => {
         .set('Authorization', `Bearer ${landlord2Token}`)
         .expect(200);
 
-      const hasOwnProperty = landlord2Properties.body.some(
+      const hasOwnProperty = landlord2Properties.body.data.some(
         (p: any) => p.addressLine1 === '999 Other Street',
       );
       expect(hasOwnProperty).toBe(true);
+    });
+  });
+
+  describe('/api/properties?search (GET)', () => {
+    it('should search properties by address', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/properties?search=Updated')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBeGreaterThan(0);
+      expect(response.body.data[0].addressLine1).toContain('Updated');
+    });
+
+    it('should search properties by city', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/properties?search=Manchester')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.length).toBeGreaterThan(0);
+      expect(response.body.data[0].city).toBe('Manchester');
+    });
+
+    it('should filter properties by type', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/properties?type=Flat')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeInstanceOf(Array);
+      if (response.body.data.length > 0) {
+        expect(response.body.data[0].propertyType).toBe('Flat');
+      }
+    });
+
+    it('should paginate results', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/properties?page=1&pageSize=1')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+
+      expect(response.body.page).toBe(1);
+      expect(response.body.pageSize).toBe(1);
+      expect(response.body.data.length).toBeLessThanOrEqual(1);
+    });
+
+    it('should sort properties by address', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/api/properties?sort=addressLine1&order=asc')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+
+      expect(response.body.data).toBeInstanceOf(Array);
+      if (response.body.data.length > 1) {
+        expect(response.body.data[0].addressLine1.localeCompare(response.body.data[1].addressLine1)).toBeLessThanOrEqual(0);
+      }
+    });
+  });
+
+  describe('/api/properties/:id (DELETE)', () => {
+    let deletePropertyId: string;
+
+    beforeEach(async () => {
+      // Create a property to delete
+      const response = await request(app.getHttpServer())
+        .post('/api/properties')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .send({
+          addressLine1: 'Delete Test Street',
+          city: 'London',
+          postcode: 'SW1A 2AA',
+        });
+      deletePropertyId = response.body.id;
+    });
+
+    it('should soft delete a property', async () => {
+      await request(app.getHttpServer())
+        .delete(`/api/properties/${deletePropertyId}`)
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+
+      // Property should not be in list
+      const listResponse = await request(app.getHttpServer())
+        .get('/api/properties')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+
+      const deleted = listResponse.body.data.find(
+        (p: any) => p.id === deletePropertyId,
+      );
+      expect(deleted).toBeUndefined();
+
+      // Property should return 404 on GET
+      await request(app.getHttpServer())
+        .get(`/api/properties/${deletePropertyId}`)
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(404);
+    });
+
+    it('should reject delete from non-owner', async () => {
+      await request(app.getHttpServer())
+        .delete(`/api/properties/${deletePropertyId}`)
+        .set('Authorization', `Bearer ${tenantToken}`)
+        .expect(404);
+    });
+
+    it('should return 404 for non-existent property', async () => {
+      await request(app.getHttpServer())
+        .delete('/api/properties/non-existent-id')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(404);
+    });
+  });
+
+  describe('/api/properties/:id/restore (POST)', () => {
+    let restorePropertyId: string;
+
+    beforeEach(async () => {
+      // Create and delete a property
+      const createResponse = await request(app.getHttpServer())
+        .post('/api/properties')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .send({
+          addressLine1: 'Restore Test Street',
+          city: 'London',
+          postcode: 'SW1A 3AA',
+        });
+      restorePropertyId = createResponse.body.id;
+
+      await request(app.getHttpServer())
+        .delete(`/api/properties/${restorePropertyId}`)
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+    });
+
+    it('should restore a soft-deleted property', async () => {
+      await request(app.getHttpServer())
+        .post(`/api/properties/${restorePropertyId}/restore`)
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(201);
+
+      // Property should be in list again
+      const listResponse = await request(app.getHttpServer())
+        .get('/api/properties')
+        .set('Authorization', `Bearer ${landlordToken}`)
+        .expect(200);
+
+      const restored = listResponse.body.data.find(
+        (p: any) => p.id === restorePropertyId,
+      );
+      expect(restored).toBeDefined();
+      expect(restored.addressLine1).toBe('Restore Test Street');
+    });
+
+    it('should reject restore from non-owner', async () => {
+      await request(app.getHttpServer())
+        .post(`/api/properties/${restorePropertyId}/restore`)
+        .set('Authorization', `Bearer ${tenantToken}`)
+        .expect(404);
     });
   });
 });

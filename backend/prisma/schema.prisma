@@ -120,32 +120,35 @@ model Landlord {
 
 // Properties owned by landlord organisations
 model Property {
-  id             String   @id @default(uuid())
-  landlordId     String?  // New: Direct landlord reference as per Step 2 requirements
-  addressLine1   String   // Renamed from address1 to match Step 2 spec
+  id             String    @id @default(uuid())
+  landlordId     String?   // New: Direct landlord reference as per Step 2 requirements
+  addressLine1   String    // Renamed from address1 to match Step 2 spec
   address2       String?
   city           String
   postcode       String
-  councilTaxBand String?  // New: as per Step 2 spec
+  councilTaxBand String?   // New: as per Step 2 spec
   bedrooms       Int?
-  propertyType   String?  // House, Flat, HMO, Maisonette, Bungalow, Other
-  furnished      String?  // Unfurnished, Part, Full
-  epcRating      String?  // A-G or Unknown
-  propertyValue  Float?   // For yield calculations
-  ownerOrgId     String   // Keep for backward compatibility
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  propertyType   String?   // House, Flat, HMO, Maisonette, Bungalow, Other
+  furnished      String?   // Unfurnished, Part, Full
+  epcRating      String?   // A-G or Unknown
+  propertyValue  Float?    // For yield calculations
+  ownerOrgId     String    // Keep for backward compatibility
+  deletedAt      DateTime? // Soft delete timestamp
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  landlord  Landlord?        @relation("LandlordProperties", fields: [landlordId], references: [id], onDelete: SetNull)
-  owner     Org              @relation("OwnedProperties", fields: [ownerOrgId], references: [id], onDelete: Cascade)
+  landlord  Landlord?          @relation("LandlordProperties", fields: [landlordId], references: [id], onDelete: SetNull)
+  owner     Org                @relation("OwnedProperties", fields: [ownerOrgId], references: [id], onDelete: Cascade)
   tenancies Tenancy[]
   tickets   Ticket[]
   documents PropertyDocument[]
   notes     PropertyNote[]
   auditLogs AuditLog[]
+  images    PropertyImage[]
 
   @@index([ownerOrgId])
   @@index([landlordId])
+  @@index([ownerOrgId, deletedAt])
 }
 
 // Tenancies linking properties to tenant organisations
@@ -500,6 +503,24 @@ model PropertyDocument {
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([propertyId])
+}
+
+// Images attached to properties
+model PropertyImage {
+  id         String   @id @default(uuid())
+  propertyId String
+  ownerOrgId String   // For tenant isolation
+  fileId     String   // Reference to storage service
+  url        String
+  name       String?
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([ownerOrgId, propertyId])
 }
 
 // Tenants linked to tenancies
@@ -1032,5 +1053,20 @@ model WebhookLog {
 
   @@index([provider, eventId])
   @@index([processed])
+  @@index([createdAt])
+}
+
+// Job audit log for tracking manual job actions
+model JobAudit {
+  id            String   @id @default(uuid())
+  queue         String   // Queue name (tickets, notifications, dead-letter)
+  jobId         String   // BullMQ job ID
+  action        String   // retry, remove, cancel
+  actorUserId   String   // User who performed the action
+  reason        String?  // Optional reason for the action
+  createdAt     DateTime @default(now())
+
+  @@index([queue, jobId])
+  @@index([actorUserId])
   @@index([createdAt])
 }
