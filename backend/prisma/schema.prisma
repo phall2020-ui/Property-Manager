@@ -658,27 +658,31 @@ model RentSchedule {
 
 // Invoices for rent and other charges (Step 5)
 model Invoice {
-  id            String   @id @default(uuid())
-  landlordId    String
-  propertyId    String
-  tenancyId     String
-  tenantUserId  String?  // Primary tenant for this invoice
-  number        String   @unique // Invoice number (backward compat)
-  reference     String   // Human-readable reference e.g. "2025-03 Rent"
-  periodStart   DateTime // Billing period start
-  periodEnd     DateTime // Billing period end
-  issueDate     DateTime? // Keep for backward compatibility
-  dueAt         DateTime // When payment is due
-  dueDate       DateTime? // Keep for backward compatibility
-  amountGBP     Float    // Total amount in GBP (Float for SQLite, Decimal for Postgres)
-  amount        Float?   // Keep for backward compatibility
-  lineTotal     Float?   // Keep for backward compatibility
-  taxTotal      Float?   // Keep for backward compatibility  
-  grandTotal    Float?   // Keep for backward compatibility
-  status        String   // DRAFT, DUE, PART_PAID, PAID, LATE, VOID
-  notes         String?  // Optional notes
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String    @id @default(uuid())
+  landlordId       String
+  propertyId       String
+  tenancyId        String
+  tenantUserId     String?   // Primary tenant for this invoice
+  number           String    @unique // Invoice number (backward compat)
+  reference        String    // Human-readable reference e.g. "2025-03 Rent"
+  periodStart      DateTime  // Billing period start
+  periodEnd        DateTime  // Billing period end
+  issueDate        DateTime? // Keep for backward compatibility
+  dueAt            DateTime  // When payment is due
+  dueDate          DateTime? // Keep for backward compatibility
+  amountGBP        Float     // Total amount in GBP (Float for SQLite, Decimal for Postgres)
+  amount           Float?    // Keep for backward compatibility
+  lineTotal        Float?    // Keep for backward compatibility
+  taxTotal         Float?    // Keep for backward compatibility  
+  grandTotal       Float?    // Keep for backward compatibility
+  status           String    // DRAFT, DUE, PART_PAID, PAID, LATE, VOID
+  notes            String?   // Optional notes
+  pdfUrl           String?   // URL to generated PDF invoice
+  reminderCount    Int       @default(0) // Number of payment reminders sent
+  lastReminderAt   DateTime? // Timestamp of last reminder sent
+  lateFeeTotal     Float     @default(0.0) // Total late fees applied
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   tenancy     Tenancy             @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
   lines       InvoiceLine[]
@@ -728,25 +732,26 @@ model CreditNote {
 
 // Payments received from tenants (Step 6)
 model Payment {
-  id           String    @id @default(uuid())
-  landlordId   String
-  propertyId   String
-  tenancyId    String
-  invoiceId    String
-  tenantUserId String?   // Keep for backward compatibility
-  amountGBP    Float     // Amount in GBP (Float for SQLite, Decimal for Postgres)
-  method       String    // BANK_TRANSFER, DD, CARD, CASH, OTHER
-  provider     String    // TEST, GOCARDLESS, STRIPE, OPEN_BANKING
-  providerRef  String    @unique // Provider reference (unique for idempotency)
-  status       String    // PENDING, SETTLED, FAILED
-  feeGBP       Float?    // Optional payment processing fee
-  vatGBP       Float?    // Optional VAT on fee
-  paidAt       DateTime  // When payment was made
-  amount       Float?    // Keep for backward compatibility
-  receivedAt   DateTime? // Keep for backward compatibility
-  externalId   String?   // Keep for backward compatibility
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  landlordId    String
+  propertyId    String
+  tenancyId     String
+  invoiceId     String
+  tenantUserId  String?   // Keep for backward compatibility
+  amountGBP     Float     // Amount in GBP (Float for SQLite, Decimal for Postgres)
+  method        String    // BANK_TRANSFER, DD, CARD, CASH, OTHER
+  provider      String    // TEST, GOCARDLESS, STRIPE, OPEN_BANKING
+  providerRef   String    @unique // Provider reference (unique for idempotency)
+  status        String    // PENDING, SETTLED, FAILED
+  feeGBP        Float?    // Optional payment processing fee
+  vatGBP        Float?    // Optional VAT on fee
+  paidAt        DateTime  // When payment was made
+  receiptNumber String?   // Receipt number for payment confirmation
+  amount        Float?    // Keep for backward compatibility
+  receivedAt    DateTime? // Keep for backward compatibility
+  externalId    String?   // Keep for backward compatibility
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   invoice     Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   allocations PaymentAllocation[]
@@ -925,20 +930,24 @@ model BalanceSnapshot {
 
 // Finance settings per landlord
 model FinanceSettings {
-  id               String   @id @default(uuid())
-  landlordId       String   @unique
-  invoicePrefix    String   @default("INV")
-  defaultDueDays   Int      @default(7)
-  lateFeeEnabled   Boolean  @default(false)
-  lateFeePercent   Float? // Daily percentage
-  lateFeeFixed     Float? // Or fixed amount per day
-  lateFeeGraceDays Int      @default(0)
-  lateFeeCap       Float? // Max late fee per invoice
-  vatOnFeesEnabled Boolean  @default(false)
-  vatRate          Float    @default(20.0)
-  currency         String   @default("GBP")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                  String   @id @default(uuid())
+  landlordId          String   @unique
+  invoicePrefix       String   @default("INV")
+  defaultDueDays      Int      @default(7)
+  lateFeeEnabled      Boolean  @default(false)
+  lateFeePercent      Float? // Daily percentage
+  lateFeeFixed        Float? // Or fixed amount per day
+  lateFeeGraceDays    Int      @default(0)
+  lateFeeCap          Float? // Max late fee per invoice
+  vatOnFeesEnabled    Boolean  @default(false)
+  vatRate             Float    @default(20.0)
+  currency            String   @default("GBP")
+  remindersEnabled    Boolean  @default(true) // Enable payment reminders
+  reminderGraceDays   Int      @default(1) // Days after due date before first reminder
+  reminderCadence     String   @default("1,3,7,14") // Comma-separated days for reminders
+  maxReminders        Int      @default(4) // Maximum number of reminders to send
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([landlordId])
 }

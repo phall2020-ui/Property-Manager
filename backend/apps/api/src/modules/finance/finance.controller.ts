@@ -19,6 +19,7 @@ import { MandateService } from './services/mandate.service';
 import { ReconciliationService } from './services/reconciliation.service';
 import { PayoutService } from './services/payout.service';
 import { FinanceMetricsService } from './services/finance-metrics.service';
+import { InvoicePdfService } from './services/invoice-pdf.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { RecordPaymentDto } from './dto/record-payment.dto';
 import { AllocatePaymentDto } from './dto/allocate-payment.dto';
@@ -36,6 +37,7 @@ export class FinanceController {
     private readonly reconciliationService: ReconciliationService,
     private readonly payoutService: PayoutService,
     private readonly metricsService: FinanceMetricsService,
+    private readonly invoicePdfService: InvoicePdfService,
   ) {}
 
   /**
@@ -389,6 +391,44 @@ export class FinanceController {
   ) {
     const landlordId = this.getLandlordId(user);
     return this.metricsService.exportPaymentsCSV(landlordId, from, to);
+  }
+
+  // ========== Invoice PDF Generation ==========
+
+  @Post('invoices/:id/pdf/regenerate')
+  @Roles('LANDLORD')
+  @ApiOperation({ summary: 'Regenerate PDF for an invoice' })
+  @ApiBearerAuth()
+  async regenerateInvoicePdf(
+    @Param('id') invoiceId: string,
+    @CurrentUser() user: any,
+  ) {
+    const landlordId = this.getLandlordId(user);
+    const pdfUrl = await this.invoicePdfService.regenerateInvoicePdf(invoiceId, landlordId);
+    return { pdfUrl };
+  }
+
+  @Get('invoices/:id/pdf')
+  @Roles('LANDLORD', 'TENANT')
+  @ApiOperation({ summary: 'Get PDF URL for an invoice' })
+  @ApiBearerAuth()
+  async getInvoicePdf(
+    @Param('id') invoiceId: string,
+    @CurrentUser() user: any,
+  ) {
+    // Get landlordId from user (landlords only)
+    // Tenants should access via tenant-finance controller
+    const landlordId = this.getLandlordId(user);
+    
+    const invoice = await this.invoiceService.getInvoice(invoiceId, landlordId);
+    
+    if (!invoice.pdfUrl) {
+      // Generate PDF if not exists
+      const pdfUrl = await this.invoicePdfService.generateInvoicePdf(invoiceId, landlordId);
+      return { pdfUrl };
+    }
+    
+    return { pdfUrl: invoice.pdfUrl };
   }
 
   // ========== Payment Webhook (Test Route) ==========

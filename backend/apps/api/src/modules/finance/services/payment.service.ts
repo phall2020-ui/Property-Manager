@@ -4,6 +4,7 @@ import { RecordPaymentDto } from '../dto/record-payment.dto';
 import { AllocationItemDto } from '../dto/allocate-payment.dto';
 import { WebhookPaymentDto } from '../dto/webhook-payment.dto';
 import { InvoiceService } from './invoice.service';
+import { ReceiptPdfService } from './receipt-pdf.service';
 import { EventsService } from '../../events/events.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 
@@ -12,6 +13,7 @@ export class PaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly invoiceService: InvoiceService,
+    private readonly receiptPdfService: ReceiptPdfService,
     private readonly eventsService: EventsService,
     private readonly notificationsService: NotificationsService,
   ) {}
@@ -95,6 +97,12 @@ export class PaymentService {
         amount: dto.amountGBP,
         method: dto.method,
       },
+    });
+
+    // Generate and send receipt (async, don't wait)
+    this.receiptPdfService.generateReceipt(payment.id).catch((err) => {
+      // Log but don't fail the payment if receipt fails
+      console.error(`Failed to generate receipt for payment ${payment.id}:`, err);
     });
 
     return this.getPayment(payment.id, landlordId);
