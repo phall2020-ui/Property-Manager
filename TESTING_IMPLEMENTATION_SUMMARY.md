@@ -9,7 +9,7 @@ This implementation establishes comprehensive testing infrastructure, CI/CD enha
 ### 1. Testing Infrastructure ✅
 
 #### Unit Tests
-- **Location**: `frontend-new/src/__tests__/`
+- **Location**: `frontend/src/__tests__/`
 - **Coverage**: 20 tests across 3 test suites
 - **Components Tested**:
   - `LoginPage.test.tsx` - Form validation, authentication flow, error handling
@@ -19,7 +19,7 @@ This implementation establishes comprehensive testing infrastructure, CI/CD enha
 **Run Command**: `npm test`
 
 #### E2E Tests with Accessibility
-- **Location**: `frontend-new/tests/e2e/smoke.spec.ts`
+- **Location**: `frontend/tests/e2e/smoke.spec.ts`
 - **Framework**: Playwright with axe-playwright
 - **Coverage**:
   - Home/login page load + a11y check
@@ -208,15 +208,15 @@ See `DEPENDENCY_UPGRADE_GUIDE.md` for full process.
 - `.github/dependabot.yml` - Automated dependency updates
 - `DEPENDENCY_UPGRADE_GUIDE.md` - Upgrade procedures
 - `BUNDLE_ANALYSIS.md` - Performance baseline
-- `frontend-new/src/__tests__/` - Unit tests (3 files)
-- `frontend-new/tests/e2e/smoke.spec.ts` - E2E tests
+- `frontend/src/__tests__/` - Unit tests (3 files)
+- `frontend/tests/e2e/smoke.spec.ts` - E2E tests
 
 ### Modified Files
 - `.github/workflows/ci.yml` - Added security audit jobs
-- `frontend-new/.lighthouserc.json` - Multiple routes
-- `frontend-new/vite.config.ts` - Bundle analyzer integration
-- `frontend-new/package.json` - New scripts
-- `frontend-new/tsconfig.app.json` - Exclude tests from build
+- `frontend/.lighthouserc.json` - Multiple routes
+- `frontend/vite.config.ts` - Bundle analyzer integration
+- `frontend/package.json` - New scripts
+- `frontend/tsconfig.app.json` - Exclude tests from build
 
 ## Support
 

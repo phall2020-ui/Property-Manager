@@ -27,20 +27,20 @@ Successfully implemented the Compliance Centre feature as specified in the Figma
 ### Frontend Implementation (React + TypeScript + Tailwind)
 
 #### Created Components:
-- `frontend-new/src/components/compliance/ComplianceStatusChip.tsx` - Status indicator badges
-- `frontend-new/src/components/compliance/ComplianceCard.tsx` - Property-level compliance item cards
-- `frontend-new/src/components/compliance/KPIStatCard.tsx` - Dashboard KPI metrics
-- `frontend-new/src/components/compliance/EmptyState.tsx` - Success state display
+- `frontend/src/components/compliance/ComplianceStatusChip.tsx` - Status indicator badges
+- `frontend/src/components/compliance/ComplianceCard.tsx` - Property-level compliance item cards
+- `frontend/src/components/compliance/KPIStatCard.tsx` - Dashboard KPI metrics
+- `frontend/src/components/compliance/EmptyState.tsx` - Success state display
 
 #### Created Pages:
-- `frontend-new/src/pages/compliance/ComplianceCentrePage.tsx` - Portfolio-level compliance dashboard
+- `frontend/src/pages/compliance/ComplianceCentrePage.tsx` - Portfolio-level compliance dashboard
 
 #### Updated Files:
-- `frontend-new/src/pages/properties/PropertyDetailPage.tsx` - Added Compliance tab
-- `frontend-new/src/App.tsx` - Added routing for /compliance
-- `frontend-new/src/components/Layout.tsx` - Added Compliance navigation link
-- `frontend-new/src/lib/api.ts` - Added compliance API functions
-- `frontend-new/tailwind.config.js` - Added design tokens (colors, spacing, shadows)
+- `frontend/src/pages/properties/PropertyDetailPage.tsx` - Added Compliance tab
+- `frontend/src/App.tsx` - Added routing for /compliance
+- `frontend/src/components/Layout.tsx` - Added Compliance navigation link
+- `frontend/src/lib/api.ts` - Added compliance API functions
+- `frontend/tailwind.config.js` - Added design tokens (colors, spacing, shadows)
 
 ### Design System Implementation
 

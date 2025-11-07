@@ -1,7 +1,7 @@
 # Testing Strategy & Coverage Summary
 
 **Date**: 2025-11-07  
-**Frontend**: frontend-new/ (Vite + React 19 + TypeScript)
+**Frontend**: frontend/ (Vite + React 19 + TypeScript)
 
 ## Test Infrastructure
 
