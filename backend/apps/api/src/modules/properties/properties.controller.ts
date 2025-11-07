@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Post, Patch, Query, ForbiddenException } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Patch, Delete, Query, ForbiddenException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
+import { DeletePropertyQueryDto } from './dto/delete-property-query.dto';
+import { ListPropertiesQueryDto } from './dto/list-properties-query.dto';
 import { PropertiesService } from './properties.service';
 
 @ApiTags('properties')
@@ -39,22 +41,17 @@ export class PropertiesController {
 
   @Roles('LANDLORD')
   @Get()
-  @ApiOperation({ summary: 'List properties of current landlord' })
+  @ApiOperation({ summary: 'List and search properties of current landlord' })
   @ApiBearerAuth()
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
   async findMany(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: ListPropertiesQueryDto,
     @CurrentUser() user?: any,
   ) {
     const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
     if (!landlordOrg) {
       throw new ForbiddenException('User is not a landlord');
     }
-    const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 20;
-    return this.propertiesService.findMany(landlordOrg.orgId, pageNum, limitNum);
+    return this.propertiesService.findMany(landlordOrg.orgId, query);
   }
 
   @Roles('LANDLORD')
@@ -74,5 +71,42 @@ export class PropertiesController {
       throw new ForbiddenException('User is not a landlord');
     }
     return this.propertiesService.update(id, landlordOrg.orgId, dto);
+  }
+
+  @Roles('LANDLORD')
+  @Delete(':id')
+  @ApiOperation({ 
+    summary: 'Soft delete a property',
+    description: 'Soft delete a property. Returns 409 if there are active or scheduled tenancies unless force=true. Optionally purge images with purgeImages=true.',
+  })
+  @ApiBearerAuth()
+  async delete(
+    @Param('id') id: string,
+    @Query() query: DeletePropertyQueryDto,
+    @CurrentUser() user: any,
+  ) {
+    const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
+    if (!landlordOrg) {
+      throw new ForbiddenException('User is not a landlord');
+    }
+    return this.propertiesService.delete(id, landlordOrg.orgId, query);
+  }
+
+  @Roles('LANDLORD')
+  @Post(':id/restore')
+  @ApiOperation({ 
+    summary: 'Restore a soft-deleted property',
+    description: 'Restore a property that was previously soft-deleted.',
+  })
+  @ApiBearerAuth()
+  async restore(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ) {
+    const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
+    if (!landlordOrg) {
+      throw new ForbiddenException('User is not a landlord');
+    }
+    return this.propertiesService.restore(id, landlordOrg.orgId);
   }
 }

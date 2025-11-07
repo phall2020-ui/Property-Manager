@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
@@ -12,20 +12,96 @@ export class PropertiesService {
   }
 
   async findOne(id: string, ownerOrgId: string) {
-    const property = await this.prisma.property.findUnique({ where: { id } });
-    if (!property || property.ownerOrgId !== ownerOrgId) {
+    const property = await this.prisma.property.findUnique({ 
+      where: { id },
+      include: { images: true },
+    });
+    if (!property || property.ownerOrgId !== ownerOrgId || property.deletedAt) {
       throw new NotFoundException();
     }
     return property;
   }
 
-  async findMany(ownerOrgId: string, page = 1, limit = 20) {
-    return this.prisma.property.findMany({
-      where: { ownerOrgId },
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-    });
+  async findMany(
+    ownerOrgId: string,
+    options?: {
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      type?: string;
+      city?: string;
+      postcode?: string;
+      sort?: string;
+      order?: string;
+    },
+  ) {
+    const page = options?.page || 1;
+    const pageSize = options?.pageSize || 20;
+    const skip = (page - 1) * pageSize;
+    
+    // Build where clause with filters
+    const where: any = {
+      ownerOrgId,
+      deletedAt: null,
+      AND: [],
+    };
+
+    // Add search filter (ILIKE simulation for SQLite)
+    if (options?.search) {
+      where.AND.push({
+        OR: [
+          { addressLine1: { contains: options.search, mode: 'insensitive' } },
+          { city: { contains: options.search, mode: 'insensitive' } },
+          { postcode: { contains: options.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    // Add specific filters
+    if (options?.type) {
+      where.AND.push({ propertyType: options.type });
+    }
+    if (options?.city) {
+      where.AND.push({ city: { equals: options.city, mode: 'insensitive' } });
+    }
+    if (options?.postcode) {
+      where.AND.push({ postcode: { equals: options.postcode, mode: 'insensitive' } });
+    }
+
+    // Remove AND if empty
+    if (where.AND.length === 0) {
+      delete where.AND;
+    }
+
+    // Determine sort order
+    const orderBy: any = {};
+    const sortField = options?.sort || 'updatedAt';
+    const sortOrder = options?.order || 'desc';
+    
+    if (sortField === 'address1' || sortField === 'addressLine1') {
+      orderBy.addressLine1 = sortOrder;
+    } else {
+      orderBy[sortField] = sortOrder;
+    }
+
+    // Execute query with count
+    const [data, total] = await Promise.all([
+      this.prisma.property.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy,
+        include: { images: true },
+      }),
+      this.prisma.property.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+    };
   }
 
   async update(
@@ -49,10 +125,10 @@ export class PropertiesService {
     // Verify ownership first
     const existing = await this.prisma.property.findUnique({
       where: { id },
-      select: { id: true, ownerOrgId: true },
+      select: { id: true, ownerOrgId: true, deletedAt: true },
     });
 
-    if (!existing || existing.ownerOrgId !== ownerOrgId) {
+    if (!existing || existing.ownerOrgId !== ownerOrgId || existing.deletedAt) {
       this.logger.warn(`Property update denied: id=${id}, ownerOrgId=${ownerOrgId}`);
       throw new NotFoundException('Property not found');
     }
@@ -87,5 +163,91 @@ export class PropertiesService {
     });
 
     return updated;
+  }
+
+  async delete(
+    id: string,
+    ownerOrgId: string,
+    options?: {
+      force?: boolean;
+      purgeImages?: boolean;
+    },
+  ) {
+    // Verify ownership and that property exists
+    const property = await this.prisma.property.findUnique({
+      where: { id },
+      include: {
+        tenancies: {
+          where: {
+            status: { in: ['ACTIVE', 'SCHEDULED'] },
+          },
+        },
+        images: true,
+      },
+    });
+
+    if (!property || property.ownerOrgId !== ownerOrgId || property.deletedAt) {
+      throw new NotFoundException('Property not found');
+    }
+
+    // Check for active/scheduled tenancies
+    if (property.tenancies.length > 0 && !options?.force) {
+      throw new ConflictException(
+        'Cannot delete property with active or scheduled tenancies. Use force=true to override.',
+      );
+    }
+
+    // Perform soft delete
+    const deleted = await this.prisma.property.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+
+    // Optionally purge images
+    if (options?.purgeImages && property.images.length > 0) {
+      await this.prisma.propertyImage.deleteMany({
+        where: { propertyId: id },
+      });
+      this.logger.log(`Purged ${property.images.length} images for property ${id}`);
+    }
+
+    this.logger.log({
+      action: 'property.deleted',
+      propertyId: id,
+      ownerOrgId,
+      force: options?.force,
+      purgeImages: options?.purgeImages,
+    });
+
+    return deleted;
+  }
+
+  async restore(id: string, ownerOrgId: string) {
+    // Verify ownership and that property is soft-deleted
+    const property = await this.prisma.property.findUnique({
+      where: { id },
+    });
+
+    if (!property || property.ownerOrgId !== ownerOrgId) {
+      throw new NotFoundException('Property not found');
+    }
+
+    if (!property.deletedAt) {
+      throw new ConflictException('Property is not deleted');
+    }
+
+    // Restore the property
+    const restored = await this.prisma.property.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+
+    this.logger.log({
+      action: 'property.restored',
+      propertyId: id,
+      ownerOrgId,
+    });
+
+    return restored;
   }
 }
