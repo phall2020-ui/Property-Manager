@@ -22,6 +22,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import { ProposeAppointmentDto } from './dto/propose-appointment.dto';
 import { ConfirmAppointmentDto } from './dto/confirm-appointment.dto';
+import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -306,6 +307,29 @@ export class TicketsController {
       body.ticketIds,
       body.contractorId,
       user.id,
+      primaryRole,
+    );
+  }
+
+  @Roles('LANDLORD', 'OPS')
+  @Patch(':id/assign')
+  @ApiOperation({ 
+    summary: 'Assign ticket to contractor',
+    description: 'Assign a specific ticket to a contractor. Landlords can assign tickets for their properties, OPS can assign any ticket.'
+  })
+  @ApiBearerAuth()
+  async assignTicket(
+    @Param('id') id: string,
+    @Body() dto: AssignTicketDto,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.assignTicket(
+      id,
+      dto.contractorId,
+      user.id,
+      userOrgIds,
       primaryRole,
     );
   }

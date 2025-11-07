@@ -23,6 +23,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { AuthGuard } from './common/guards/auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { IdempotencyMiddleware } from './common/middleware/idempotency.middleware';
@@ -75,11 +76,10 @@ import { AppController } from './app.controller';
       provide: APP_GUARD,
       useClass: ThrottlerGuard, // Step 1: Rate limiting guard
     },
-    // TODO: Update RolesGuard for org-based multi-tenancy
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: RolesGuard,
-    // },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard, // Role-based access control for org-based multi-tenancy
+    },
   ],
 })
 export class AppModule implements NestModule {
