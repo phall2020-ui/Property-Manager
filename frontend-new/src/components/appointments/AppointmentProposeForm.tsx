@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketsApi } from '../../lib/api';
 import { validateAppointmentTimes, isBusinessHours, getTimezoneAbbr } from '../../lib/date-utils';
 import { AlertCircle, Calendar, Clock } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 interface AppointmentProposeFormProps {
   ticketId: string;
@@ -12,6 +13,7 @@ interface AppointmentProposeFormProps {
 
 export default function AppointmentProposeForm({ ticketId, onSuccess }: AppointmentProposeFormProps) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [startDate, setStartDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -29,6 +31,7 @@ export default function AppointmentProposeForm({ ticketId, onSuccess }: Appointm
       setEndTime('');
       setNotes('');
       setFormError('');
+      toast.success('Appointment proposed successfully!');
       onSuccess?.();
     },
     onError: (error: Error) => {
@@ -36,6 +39,7 @@ export default function AppointmentProposeForm({ ticketId, onSuccess }: Appointm
         ? (error as any).response?.data?.message  // eslint-disable-line @typescript-eslint/no-explicit-any
         : 'Failed to propose appointment';
       setFormError(message);
+      toast.error(message);
     },
   });
 

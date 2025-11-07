@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ticketsApi, propertiesApi } from '../../lib/api';
 import { extractErrorMessage } from '../../lib/validation';
+import { useToast } from '../../contexts/ToastContext';
 
 export default function TicketCreatePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     propertyId: '',
@@ -58,10 +60,13 @@ export default function TicketCreatePage() {
     onError: (err: unknown, _newTicket, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       queryClient.setQueryData(['tickets'], context?.previousTickets);
-      setError(extractErrorMessage(err) || 'Failed to create ticket');
+      const errorMessage = extractErrorMessage(err) || 'Failed to create ticket';
+      setError(errorMessage);
+      toast.error(errorMessage);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      toast.success('Ticket created successfully!');
       navigate('/tickets');
     },
   });
