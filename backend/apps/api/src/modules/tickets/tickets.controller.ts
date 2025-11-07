@@ -128,8 +128,22 @@ export class TicketsController {
     @Query('sort_dir') sortDir?: string,
     @CurrentUser() user?: any,
   ) {
+    // Ensure query parameters are strings, not arrays
+    const qStr = Array.isArray(q) ? q[0] : q;
+    const idStr = Array.isArray(id) ? id[0] : id;
+    const dateFromStr = Array.isArray(dateFrom) ? dateFrom[0] : dateFrom;
+    const dateToStr = Array.isArray(dateTo) ? dateTo[0] : dateTo;
+    const categoryStr = Array.isArray(category) ? category[0] : category;
+    const contractorIdStr = Array.isArray(contractorId) ? contractorId[0] : contractorId;
+    const statusStr = Array.isArray(status) ? status[0] : status;
+    const priorityStr = Array.isArray(priority) ? priority[0] : priority;
+    const pageStr = Array.isArray(page) ? page[0] : page;
+    const pageSizeStr = Array.isArray(pageSize) ? pageSize[0] : pageSize;
+    const sortByStr = Array.isArray(sortBy) ? sortBy[0] : sortBy;
+    const sortDirStr = Array.isArray(sortDir) ? sortDir[0] : sortDir;
+
     // Validate search query length
-    if (q && q.length < 2) {
+    if (qStr && qStr.length < 2) {
       throw new BadRequestException('Search query (q) must be at least 2 characters');
     }
 
@@ -137,18 +151,18 @@ export class TicketsController {
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     
     return this.ticketsService.findMany(userOrgIds, primaryRole, { 
-      q,
-      id,
-      dateFrom,
-      dateTo,
-      category,
-      contractorId,
-      status,
-      priority,
-      page: page ? parseInt(page, 10) : undefined,
-      pageSize: pageSize ? parseInt(pageSize, 10) : undefined,
-      sortBy: sortBy || 'created_at',
-      sortDir: (sortDir === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc',
+      q: qStr,
+      id: idStr,
+      dateFrom: dateFromStr,
+      dateTo: dateToStr,
+      category: categoryStr,
+      contractorId: contractorIdStr,
+      status: statusStr,
+      priority: priorityStr,
+      page: pageStr ? parseInt(pageStr, 10) : undefined,
+      pageSize: pageSizeStr ? parseInt(pageSizeStr, 10) : undefined,
+      sortBy: sortByStr || 'created_at',
+      sortDir: (sortDirStr === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc',
     });
   }
 
