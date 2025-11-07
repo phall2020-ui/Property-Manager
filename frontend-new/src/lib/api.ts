@@ -311,3 +311,59 @@ export const enhancedPropertiesApi = {
     }
   },
 };
+
+// Jobs API
+export const jobsApi = {
+  list: async () => {
+    const response = await api.get('/jobs');
+    return response.data;
+  },
+
+  getById: async (id: string) => {
+    const response = await api.get(`/jobs/${id}`);
+    return response.data;
+  },
+};
+
+// Queue API  
+export const queueApi = {
+  list: async () => {
+    const response = await api.get('/queue');
+    return response.data;
+  },
+
+  getStats: async () => {
+    const response = await api.get('/queue/stats');
+    return response.data;
+  },
+};
+
+// Documents API
+export const documentsApi = {
+  signUpload: async (contentType: string) => {
+    const response = await api.post('/attachments/sign', { contentType });
+    return response.data;
+  },
+
+  create: async (data: {
+    filename: string;
+    contentType: string;
+    s3Key: string;
+    entityType: string;
+    entityId: string;
+    expiryDate?: string;
+  }) => {
+    const response = await api.post('/documents', data);
+    return response.data;
+  },
+
+  list: async (entityType: string, entityId: string) => {
+    const response = await api.get(`/documents/${entityType}/${entityId}`);
+    return response.data;
+  },
+
+  delete: async (id: string) => {
+    const response = await api.delete(`/documents/${id}`);
+    return response.data;
+  },
+};

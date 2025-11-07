@@ -10,6 +10,8 @@ import PropertyDetailPage from './pages/properties/PropertyDetailPage';
 import TicketsListPage from './pages/tickets/TicketsListPage';
 import TicketCreatePage from './pages/tickets/TicketCreatePage';
 import ComplianceCentrePage from './pages/compliance/ComplianceCentrePage';
+import JobsListPage from './pages/jobs/JobsListPage';
+import QueueListPage from './pages/queue/QueueListPage';
 
 const queryClient = new QueryClient();
 
@@ -98,6 +100,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ComplianceCentrePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/jobs"
+              element={
+                <ProtectedRoute>
+                  <JobsListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/queue"
+              element={
+                <ProtectedRoute>
+                  <QueueListPage />
                 </ProtectedRoute>
               }
             />

@@ -17,6 +17,7 @@ import { FlagsModule } from './modules/flags/flags.module';
 import { EventsModule } from './modules/events/events.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { DocumentsModule } from './modules/documents/documents.module';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -48,6 +49,7 @@ import { AppController } from './app.controller';
     EventsModule,
     NotificationsModule,
     JobsModule.forRoot(),
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [
