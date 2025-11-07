@@ -9,8 +9,8 @@ import AppointmentCard from '../../components/appointments/AppointmentCard';
 import MiniCalendar from '../../components/appointments/MiniCalendar';
 import AttachmentUploader from '../../components/attachments/AttachmentUploader';
 import AttachmentList from '../../components/attachments/AttachmentList';
-import { Appointment } from '../../types/appointments';
-import { Attachment } from '../../types/attachments';
+import type { Appointment } from '../../types/appointments';
+import type { Attachment } from '../../types/attachments';
 
 interface Ticket {
   id: string;

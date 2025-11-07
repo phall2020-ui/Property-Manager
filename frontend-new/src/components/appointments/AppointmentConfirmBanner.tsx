@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketsApi } from '../../lib/api';
 import { formatDateRange } from '../../lib/date-utils';
-import { Appointment } from '../../types/appointments';
+import type { Appointment } from '../../types/appointments';
 import { Calendar, CheckCircle } from 'lucide-react';
 
 interface AppointmentConfirmBannerProps {

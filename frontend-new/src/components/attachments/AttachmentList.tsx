@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketsApi } from '../../lib/api';
-import { Attachment } from '../../types/attachments';
-import { formatFileSize, isImageFile, getFileIcon } from '../../lib/file-utils';
+import type { Attachment } from '../../types/attachments';
+import { formatFileSize, isImageFile } from '../../lib/file-utils';
 import { Download, Trash2, FileText, Image as ImageIcon, Eye } from 'lucide-react';
 import ImageLightbox from './ImageLightbox';
 

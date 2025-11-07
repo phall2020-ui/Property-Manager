@@ -1,8 +1,9 @@
-import { useState, useRef, DragEvent, ChangeEvent } from 'react';
+import type { DragEvent, ChangeEvent } from 'react';
+import { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketsApi } from '../../lib/api';
 import { validateFile, validateTotalSize, formatFileSize, isImageFile } from '../../lib/file-utils';
-import { UploadProgress } from '../../types/attachments';
+import type { UploadProgress } from '../../types/attachments';
 import { Upload, X, FileText, Image, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface AttachmentUploaderProps {

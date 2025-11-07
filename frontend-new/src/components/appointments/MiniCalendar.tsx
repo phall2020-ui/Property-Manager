@@ -1,4 +1,4 @@
-import { Appointment } from '../../types/appointments';
+import type { Appointment } from '../../types/appointments';
 import { formatDateRange } from '../../lib/date-utils';
 import { Calendar, Clock } from 'lucide-react';
 

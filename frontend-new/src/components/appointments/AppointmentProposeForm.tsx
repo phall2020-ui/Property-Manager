@@ -1,4 +1,5 @@
-import { useState, FormEvent } from 'react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketsApi } from '../../lib/api';
 import { validateAppointmentTimes, isBusinessHours, getTimezoneAbbr } from '../../lib/date-utils';
@@ -66,13 +67,6 @@ export default function AppointmentProposeForm({ ticketId, onSuccess }: Appointm
       endAt: endDateTime?.toISOString(),
       notes: notes.trim() || undefined,
     });
-  };
-
-  // Get min datetime (now + 1 hour)
-  const getMinDateTime = () => {
-    const now = new Date();
-    now.setHours(now.getHours() + 1);
-    return now.toISOString().slice(0, 16);
   };
 
   // Check if selected time is during business hours

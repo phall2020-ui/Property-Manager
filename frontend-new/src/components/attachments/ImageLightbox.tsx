@@ -1,5 +1,5 @@
-import { useState, useEffect, KeyboardEvent } from 'react';
-import { Attachment } from '../../types/attachments';
+import { useState, useEffect } from 'react';
+import type { Attachment } from '../../types/attachments';
 import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 
 interface ImageLightboxProps {
