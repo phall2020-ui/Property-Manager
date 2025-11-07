@@ -34,13 +34,38 @@ export default function JobDetailPage() {
         headers: { 'Content-Type': 'application/json' },
       });
     },
+    onMutate: async (data) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['ticket', jobId] });
+
+      // Snapshot the previous value
+      const previousTicket = queryClient.getQueryData(['ticket', jobId]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['ticket', jobId], (old: any) => ({
+        ...old,
+        status: TicketStatus.NEEDS_APPROVAL,
+        quote: {
+          amount: data.amount,
+          eta: data.eta,
+          notes: data.notes,
+        },
+      }));
+
+      // Return a context object with the snapshotted value
+      return { previousTicket };
+    },
+    onError: (err: any, _newData, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousTicket) {
+        queryClient.setQueryData(['ticket', jobId], context.previousTicket);
+      }
+      setActionError(err.detail || 'Failed to submit quote');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', jobId] });
       setIsQuoteModalOpen(false);
       setActionError(null);
-    },
-    onError: (err: any) => {
-      setActionError(err.detail || 'Failed to submit quote');
     },
   });
   const updateStatus = useMutation<unknown, any, TicketStatus>({
@@ -185,7 +210,7 @@ export default function JobDetailPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold mb-4">Mark Job Complete</h3>
           <p className="text-gray-600 mb-4">
-            Once you've finished the work, mark this job as complete.
+            Once you&apos;ve finished the work, mark this job as complete.
           </p>
           <Button
             variant="primary"

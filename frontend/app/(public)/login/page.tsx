@@ -108,7 +108,7 @@ export default function LoginPage() {
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </button>
         <p className="text-sm">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <a href="/signup" className="text-primary underline">
             Sign up
           </a>

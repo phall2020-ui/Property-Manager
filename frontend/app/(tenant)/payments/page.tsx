@@ -1,18 +1,36 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { listTenantInvoices } from '@/lib/financeClient';
+import { Search } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function TenantPaymentsPage() {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const { searchTerm, debouncedSearchTerm, setSearchTerm } = useDebounce('', 300);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-invoices', { status: statusFilter }],
     queryFn: () => listTenantInvoices({ status: statusFilter || undefined }),
   });
+
+  // Memoize invoices to prevent recreation on every render
+  const invoices = useMemo(() => data?.data || [], [data?.data]);
+
+  // Filter invoices by search term
+  const filteredInvoices = useMemo(() => {
+    if (!debouncedSearchTerm) return invoices;
+    
+    const query = debouncedSearchTerm.toLowerCase();
+    return invoices.filter((invoice: any) => 
+      invoice.reference?.toLowerCase().includes(query) ||
+      invoice.tenancy?.property?.addressLine1?.toLowerCase().includes(query) ||
+      invoice.status?.toLowerCase().includes(query)
+    );
+  }, [invoices, debouncedSearchTerm]);
 
   if (isLoading) {
     return (
@@ -23,27 +41,54 @@ export default function TenantPaymentsPage() {
     );
   }
 
-  const invoices = data?.data || [];
-
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">My Payments</h1>
 
-      {/* Filter */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-2">Filter by Status</label>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="border rounded px-3 py-2"
-        >
-          <option value="">All</option>
-          <option value="DUE">Due</option>
-          <option value="PART_PAID">Part Paid</option>
-          <option value="PAID">Paid</option>
-          <option value="LATE">Late</option>
-        </select>
+      {/* Filters */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by reference, property, or status..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        {/* Status Filter */}
+        <div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">All</option>
+            <option value="DUE">Due</option>
+            <option value="PART_PAID">Part Paid</option>
+            <option value="PAID">Paid</option>
+            <option value="LATE">Late</option>
+          </select>
+        </div>
       </div>
+
+      {/* Clear Filters */}
+      {(searchTerm || statusFilter) && (
+        <div className="mb-4">
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setStatusFilter('');
+            }}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            Clear all filters
+          </button>
+        </div>
+      )}
 
       {/* Payment Instructions */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -77,10 +122,12 @@ export default function TenantPaymentsPage() {
           <h2 className="text-lg font-semibold">Invoices</h2>
         </div>
         <div className="divide-y">
-          {invoices.length === 0 ? (
-            <div className="p-6 text-center text-gray-500">No invoices found</div>
+          {filteredInvoices.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              {searchTerm || statusFilter ? 'No invoices match your filters' : 'No invoices found'}
+            </div>
           ) : (
-            invoices.map((invoice: any) => (
+            filteredInvoices.map((invoice: any) => (
               <div
                 key={invoice.id}
                 className="p-4 hover:bg-gray-50 cursor-pointer"
@@ -137,7 +184,7 @@ export default function TenantPaymentsPage() {
           <div className="text-sm text-gray-600">Total Due</div>
           <div className="text-2xl font-bold">
             £
-            {invoices
+            {filteredInvoices
               .filter((inv: any) => ['DUE', 'PART_PAID', 'LATE'].includes(inv.status))
               .reduce((sum: number, inv: any) => sum + (inv.balance || 0), 0)
               .toFixed(2)}
@@ -147,7 +194,7 @@ export default function TenantPaymentsPage() {
           <div className="text-sm text-gray-600">Overdue</div>
           <div className="text-2xl font-bold text-red-600">
             £
-            {invoices
+            {filteredInvoices
               .filter((inv: any) => inv.status === 'LATE')
               .reduce((sum: number, inv: any) => sum + (inv.balance || 0), 0)
               .toFixed(2)}
@@ -157,7 +204,7 @@ export default function TenantPaymentsPage() {
           <div className="text-sm text-gray-600">Paid This Year</div>
           <div className="text-2xl font-bold text-green-600">
             £
-            {invoices
+            {filteredInvoices
               .filter((inv: any) => inv.status === 'PAID')
               .reduce((sum: number, inv: any) => sum + (inv.amountGBP || inv.amount || 0), 0)
               .toFixed(2)}

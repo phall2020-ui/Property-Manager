@@ -1,26 +1,39 @@
 'use client';
 
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, X, FileImage, Loader2 } from 'lucide-react';
+import { Upload, X, FileImage, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface FileUploadProps {
   onFilesChange: (files: File[]) => void;
+  onUploadComplete?: (uploadedFiles: UploadedFile[]) => void;
   maxFiles?: number;
   maxSizeMB?: number;
   acceptedTypes?: string[];
   disabled?: boolean;
   label?: string;
   helperText?: string;
+  uploadEndpoint?: string;
+  autoUpload?: boolean;
 }
 
 interface FileWithPreview {
   file: File;
   preview: string;
   progress: number;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  error?: string;
+  uploadedUrl?: string;
+}
+
+interface UploadedFile {
+  filename: string;
+  url: string;
+  size: number;
+  mimeType: string;
 }
 
 /**
- * FileUpload component with drag-drop, preview, and validation
+ * FileUpload component with drag-drop, preview, upload to server, and validation
  * Supports:
  * - Drag and drop
  * - Click to browse
@@ -28,17 +41,23 @@ interface FileWithPreview {
  * - File size validation
  * - File type validation
  * - Multiple files (configurable max)
- * - Progress indication
+ * - Progress indication with real upload progress
  * - Remove files
+ * - Auto-upload or manual upload
+ * - Multipart/form-data upload
+ * - Error handling per file
  */
 export function FileUpload({
   onFilesChange,
+  onUploadComplete,
   maxFiles = 3,
   maxSizeMB = 10,
-  acceptedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+  acceptedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'],
   disabled = false,
   label = 'Upload Files',
   helperText,
+  uploadEndpoint = '/api/documents/upload',
+  autoUpload = false,
 }: FileUploadProps) {
   const [files, setFiles] = useState<FileWithPreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -62,8 +81,93 @@ export function FileUpload({
     return null;
   };
 
+  const uploadFile = async (fileWithPreview: FileWithPreview, index: number) => {
+    const formData = new FormData();
+    formData.append('file', fileWithPreview.file);
+
+    try {
+      // Update status to uploading
+      setFiles(prevFiles => 
+        prevFiles.map((f, i) => 
+          i === index ? { ...f, status: 'uploading' as const, progress: 0 } : f
+        )
+      );
+
+      // Create XMLHttpRequest for progress tracking
+      const xhr = new XMLHttpRequest();
+
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          setFiles(prevFiles => 
+            prevFiles.map((f, i) => 
+              i === index ? { ...f, progress: percentComplete } : f
+            )
+          );
+        }
+      });
+
+      // Handle completion
+      return new Promise<UploadedFile>((resolve, reject) => {
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              setFiles(prevFiles => 
+                prevFiles.map((f, i) => 
+                  i === index 
+                    ? { ...f, status: 'success' as const, progress: 100, uploadedUrl: response.url } 
+                    : f
+                )
+              );
+              resolve({
+                filename: fileWithPreview.file.name,
+                url: response.url,
+                size: fileWithPreview.file.size,
+                mimeType: fileWithPreview.file.type,
+              });
+            } catch (parseError) {
+              reject(new Error('Invalid server response'));
+            }
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error during upload'));
+        });
+
+        xhr.addEventListener('abort', () => {
+          reject(new Error('Upload cancelled'));
+        });
+
+        // NOTE: Since the backend endpoint doesn't exist yet, this will fail
+        // In a real implementation, this would upload to the server
+        xhr.open('POST', uploadEndpoint);
+        
+        // Get access token if available
+        const accessToken = localStorage.getItem('accessToken');
+        if (accessToken) {
+          xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+        }
+        
+        xhr.send(formData);
+      });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Upload failed';
+      setFiles(prevFiles => 
+        prevFiles.map((f, i) => 
+          i === index ? { ...f, status: 'error' as const, error: errorMessage } : f
+        )
+      );
+      throw err;
+    }
+  };
+
   const addFiles = useCallback(
-    (newFiles: FileList | File[]) => {
+    async (newFiles: FileList | File[]) => {
       setError(null);
       const fileArray = Array.from(newFiles);
 
@@ -87,15 +191,31 @@ export function FileUpload({
         validFiles.push({
           file,
           preview,
-          progress: 100, // In real upload, this would be updated
+          progress: 0,
+          status: 'pending',
         });
       }
 
       const updatedFiles = [...files, ...validFiles];
       setFiles(updatedFiles);
       onFilesChange(updatedFiles.map((f) => f.file));
+
+      // Auto-upload if enabled
+      if (autoUpload) {
+        const startIndex = files.length;
+        const uploadPromises = validFiles.map((fileWithPreview, idx) => 
+          uploadFile(fileWithPreview, startIndex + idx)
+        );
+
+        try {
+          const uploadedFiles = await Promise.all(uploadPromises);
+          onUploadComplete?.(uploadedFiles);
+        } catch (err) {
+          console.error('Error uploading files:', err);
+        }
+      }
     },
-    [files, maxFiles, onFilesChange]
+    [files, maxFiles, autoUpload, onFilesChange, onUploadComplete]
   );
 
   const removeFile = useCallback(
@@ -109,6 +229,28 @@ export function FileUpload({
     },
     [files, onFilesChange]
   );
+
+  const uploadAllFiles = async () => {
+    const pendingFiles = files
+      .map((f, i) => ({ file: f, index: i }))
+      .filter(({ file }) => file.status === 'pending' || file.status === 'error');
+
+    if (pendingFiles.length === 0) return;
+
+    const uploadPromises = pendingFiles.map(({ file, index }) => 
+      uploadFile(file, index).catch(err => {
+        console.error(`Error uploading ${file.file.name}:`, err);
+        return null;
+      })
+    );
+
+    const results = await Promise.all(uploadPromises);
+    const successfulUploads = results.filter((r): r is UploadedFile => r !== null);
+    
+    if (successfulUploads.length > 0) {
+      onUploadComplete?.(successfulUploads);
+    }
+  };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -160,6 +302,8 @@ export function FileUpload({
       files.forEach((file) => URL.revokeObjectURL(file.preview));
     };
   }, []);
+
+  const hasPendingFiles = files.some(f => f.status === 'pending' || f.status === 'error');
 
   return (
     <div className="space-y-2">
@@ -215,6 +359,20 @@ export function FileUpload({
         <p className="text-sm text-gray-500">{helperText}</p>
       )}
 
+      {/* Manual upload button */}
+      {!autoUpload && hasPendingFiles && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            uploadAllFiles();
+          }}
+          disabled={disabled}
+          className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Upload Files
+        </button>
+      )}
+
       {/* File previews */}
       {files.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
@@ -234,6 +392,23 @@ export function FileUpload({
                 ) : (
                   <FileImage className="h-12 w-12 text-gray-400" />
                 )}
+                
+                {/* Status overlay */}
+                {fileWithPreview.status === 'uploading' && (
+                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 text-white animate-spin" />
+                  </div>
+                )}
+                {fileWithPreview.status === 'success' && (
+                  <div className="absolute top-2 right-2">
+                    <CheckCircle2 className="h-6 w-6 text-green-500 bg-white rounded-full" />
+                  </div>
+                )}
+                {fileWithPreview.status === 'error' && (
+                  <div className="absolute top-2 right-2">
+                    <AlertCircle className="h-6 w-6 text-red-500 bg-white rounded-full" />
+                  </div>
+                )}
               </div>
 
               {/* File info */}
@@ -245,8 +420,15 @@ export function FileUpload({
                   {(fileWithPreview.file.size / 1024).toFixed(1)} KB
                 </p>
 
+                {/* Error message */}
+                {fileWithPreview.status === 'error' && fileWithPreview.error && (
+                  <p className="text-xs text-red-600 mt-1">
+                    {fileWithPreview.error}
+                  </p>
+                )}
+
                 {/* Progress bar (if uploading) */}
-                {fileWithPreview.progress < 100 && (
+                {fileWithPreview.status === 'uploading' && (
                   <div className="mt-2 w-full bg-gray-200 rounded-full h-1">
                     <div
                       className="bg-blue-600 h-1 rounded-full transition-all duration-300"
@@ -262,7 +444,7 @@ export function FileUpload({
                   e.stopPropagation();
                   removeFile(index);
                 }}
-                disabled={disabled}
+                disabled={disabled || fileWithPreview.status === 'uploading'}
                 className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 disabled:opacity-50"
                 aria-label={`Remove ${fileWithPreview.file.name}`}
               >

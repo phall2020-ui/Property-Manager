@@ -35,7 +35,7 @@ export default function PropertiesPage() {
     queryFn: () => apiRequest<Property[]>('/properties'),
   });
 
-  // Add property mutation
+  // Add property mutation with optimistic updates
   const addPropertyMutation = useMutation({
     mutationFn: async (data: CreatePropertyDTO) => {
       return apiRequest('/properties', {
@@ -43,6 +43,35 @@ export default function PropertiesPage() {
         body: JSON.stringify(data),
         headers: { 'Content-Type': 'application/json' },
       });
+    },
+    onMutate: async (newProperty) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['properties'] });
+
+      // Snapshot the previous value
+      const previousProperties = queryClient.getQueryData(['properties']);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData(['properties'], (old: any) => [
+        ...(old || []),
+        {
+          id: 'temp-' + Date.now(), // Temporary ID
+          ...newProperty,
+          addressLine1: newProperty.address1,
+          addressLine2: newProperty.address2,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ]);
+
+      // Return a context object with the snapshotted value
+      return { previousProperties };
+    },
+    onError: (_err, _newProperty, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousProperties) {
+        queryClient.setQueryData(['properties'], context.previousProperties);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['properties'] });
@@ -100,7 +129,7 @@ export default function PropertiesPage() {
             Welcome to Your Property Portfolio
           </h2>
           <p className="text-gray-600 mb-6">
-            You haven't added any properties yet. Let's get started by adding your first property.
+            You haven&apos;t added any properties yet. Let&apos;s get started by adding your first property.
           </p>
           <Button
             variant="primary"
@@ -196,7 +225,7 @@ export default function PropertiesPage() {
       {filteredProperties?.length === 0 && searchTerm && (
         <div className="text-center py-12">
           <p className="text-gray-500">
-            No properties match your search "{searchTerm}"
+            No properties match your search &quot;{searchTerm}&quot;
           </p>
         </div>
       )}

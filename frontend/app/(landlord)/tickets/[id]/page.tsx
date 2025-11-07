@@ -131,7 +131,7 @@ export default function LandlordTicketDetailPage() {
         <Card className="p-8 text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to Load Ticket</h3>
-          <p className="text-gray-600 mb-4">The ticket you're looking for could not be found.</p>
+          <p className="text-gray-600 mb-4">The ticket you&apos;re looking for could not be found.</p>
           <Button variant="primary" onClick={() => router.push('/tickets')}>
             Back to Tickets
           </Button>

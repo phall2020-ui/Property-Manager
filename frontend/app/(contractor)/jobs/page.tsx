@@ -1,14 +1,21 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/apiClient';
 import { Ticket, TicketStatus } from '@/types/models';
 import { Table } from '@/components/Table';
 import { Badge } from '@/components/Badge';
+import { Card } from '@/components/Card';
+import { Search } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 
 export default function ContractorJobsPage() {
+  const { searchTerm, debouncedSearchTerm, setSearchTerm } = useDebounce('', 300);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+
   const {
     data: tickets,
     isLoading,
@@ -17,42 +24,190 @@ export default function ContractorJobsPage() {
     queryKey: ['tickets'],
     queryFn: () => apiRequest<Ticket[]>('/tickets'),
   });
+
+  // Get unique categories
+  const categories = useMemo(() => {
+    if (!tickets) return [];
+    const cats = new Set(tickets.map(t => t.category).filter(Boolean));
+    return Array.from(cats);
+  }, [tickets]);
+
+  // Filter tickets/jobs
+  const filteredTickets = useMemo(() => {
+    if (!tickets) return [];
+    
+    return tickets.filter(ticket => {
+      // Search filter - use debounced value
+      if (debouncedSearchTerm) {
+        const query = debouncedSearchTerm.toLowerCase();
+        const matchesSearch = 
+          ticket.title?.toLowerCase().includes(query) ||
+          ticket.description?.toLowerCase().includes(query) ||
+          ticket.id.toLowerCase().includes(query) ||
+          ticket.propertyId?.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // Status filter
+      if (statusFilter !== 'all' && ticket.status !== statusFilter) {
+        return false;
+      }
+
+      // Category filter
+      if (categoryFilter !== 'all' && ticket.category !== categoryFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [tickets, debouncedSearchTerm, statusFilter, categoryFilter]);
+
+  // Count by status
+  const statusCounts = useMemo(() => {
+    if (!tickets) return {};
+    return tickets.reduce((acc, ticket) => {
+      acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [tickets]);
+
   if (isLoading) return <p>Loading…</p>;
   if (error) return <p className="text-red-600">Unable to load jobs</p>;
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Jobs</h2>
-      {tickets && tickets.length > 0 ? (
-        <Table
-          data={tickets}
-          columns={[
-            {
-              header: 'Job',
-              accessor: 'id',
-              render: (ticket) => (
-                <Link href={`/jobs/${ticket.id}`} className="text-primary underline">
-                  {ticket.id}
-                </Link>
-              ),
-            },
-            {
-              header: 'Status',
-              accessor: 'status',
-              render: (ticket) => {
-                let color: 'info' | 'success' | 'warning' | 'danger' = 'info';
-                if (ticket.status === TicketStatus.COMPLETED) color = 'success';
-                else if (ticket.status === TicketStatus.IN_PROGRESS) color = 'warning';
-                else if (ticket.status === TicketStatus.REJECTED) color = 'danger';
-                return <Badge color={color}>{ticket.status}</Badge>;
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h2 className="text-3xl font-bold text-gray-900">Jobs</h2>
+        <p className="text-gray-600 mt-1">{filteredTickets.length} jobs available</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${statusFilter === 'all' ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setStatusFilter('all')}>
+          <p className="text-sm text-gray-600">All Jobs</p>
+          <p className="text-2xl font-bold text-gray-900">{tickets?.length || 0}</p>
+        </Card>
+        <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${statusFilter === TicketStatus.OPEN ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setStatusFilter(TicketStatus.OPEN)}>
+          <p className="text-sm text-gray-600">Open</p>
+          <p className="text-2xl font-bold text-blue-600">{statusCounts[TicketStatus.OPEN] || 0}</p>
+        </Card>
+        <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${statusFilter === TicketStatus.IN_PROGRESS ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setStatusFilter(TicketStatus.IN_PROGRESS)}>
+          <p className="text-sm text-gray-600">In Progress</p>
+          <p className="text-2xl font-bold text-orange-600">{statusCounts[TicketStatus.IN_PROGRESS] || 0}</p>
+        </Card>
+        <Card className={`p-4 cursor-pointer hover:shadow-md transition-shadow ${statusFilter === TicketStatus.COMPLETED ? 'ring-2 ring-blue-500' : ''}`} onClick={() => setStatusFilter(TicketStatus.COMPLETED)}>
+          <p className="text-sm text-gray-600">Completed</p>
+          <p className="text-2xl font-bold text-green-600">{statusCounts[TicketStatus.COMPLETED] || 0}</p>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card className="p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search jobs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Clear Filters */}
+          {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all') && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setCategoryFilter('all');
+              }}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Clear all filters
+            </button>
+          )}
+        </div>
+      </Card>
+
+      {/* Jobs Table */}
+      <Card className="overflow-hidden">
+        {filteredTickets.length > 0 ? (
+          <Table
+            data={filteredTickets}
+            columns={[
+              {
+                header: 'Job',
+                accessor: 'id',
+                render: (ticket) => (
+                  <Link href={`/jobs/${ticket.id}`} className="text-primary underline">
+                    {ticket.title || ticket.id}
+                  </Link>
+                ),
               },
-            },
-            { header: 'Property', accessor: 'propertyId' },
-            { header: 'Category', accessor: 'category' },
-          ]}
-        />
-      ) : (
-        <p>No jobs available.</p>
-      )}
+              {
+                header: 'Status',
+                accessor: 'status',
+                render: (ticket) => {
+                  let color: 'info' | 'success' | 'warning' | 'danger' = 'info';
+                  if (ticket.status === TicketStatus.COMPLETED) color = 'success';
+                  else if (ticket.status === TicketStatus.IN_PROGRESS) color = 'warning';
+                  else if (ticket.status === TicketStatus.REJECTED) color = 'danger';
+                  return <Badge color={color}>{ticket.status}</Badge>;
+                },
+              },
+              { 
+                header: 'Property', 
+                accessor: 'propertyId',
+                render: (ticket) => (
+                  <span className="text-sm text-gray-600">{ticket.propertyId?.substring(0, 8) || 'N/A'}...</span>
+                )
+              },
+              { header: 'Category', accessor: 'category' },
+              {
+                header: 'Created',
+                accessor: 'createdAt',
+                render: (ticket) => (
+                  <span className="text-sm text-gray-600">
+                    {new Date(ticket.createdAt).toLocaleDateString()}
+                  </span>
+                ),
+              },
+            ]}
+          />
+        ) : (
+          <div className="p-12 text-center">
+            <p className="text-gray-500">No jobs match your filters</p>
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setCategoryFilter('all');
+              }}
+              className="mt-4 text-blue-600 hover:text-blue-800"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
