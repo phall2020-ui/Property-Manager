@@ -3,7 +3,6 @@ import {
   Post,
   Get,
   Body,
-  UseGuards,
   Request,
   HttpCode,
   HttpStatus,
@@ -15,7 +14,6 @@ import { ReconciliationService } from './services/reconciliation.service';
 import {
   CreateBankConnectionDto,
   BankConnectionResponseDto,
-  SyncBankAccountsDto,
 } from './dto/bank-connection.dto';
 import {
   ReconcileAutoDto,

@@ -23,7 +23,7 @@ async function main() {
   });
 
   // Create Landlord User
-  const landlordUser = await prisma.user.create({
+  const _landlordUser = await prisma.user.create({
     data: {
       email: 'landlord@example.com',
       name: 'Alice Landlord',
@@ -53,7 +53,7 @@ async function main() {
   });
 
   // Create Contractor User (no org, standalone)
-  const contractorUser = await prisma.user.create({
+  const _contractorUser = await prisma.user.create({
     data: {
       email: 'contractor@example.com',
       name: 'Charlie Contractor',
@@ -377,7 +377,7 @@ async function main() {
     },
   });
 
-  const unmatchedBankTx = await prisma.bankTransaction.create({
+  const _unmatchedBankTx = await prisma.bankTransaction.create({
     data: {
       landlordId: landlordOrg.id,
       bankAccountId: bankAccount.id,

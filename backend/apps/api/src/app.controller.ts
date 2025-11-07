@@ -19,7 +19,14 @@ export class AppController {
   @Public()
   @Get('health')
   async getHealthCheck() {
-    const health: any = {
+    const health: {
+      status: string;
+      timestamp: string;
+      version: string;
+      environment: string;
+      database?: string;
+      redis?: string;
+    } = {
       status: 'ok',
       timestamp: new Date().toISOString(),
       version: process.env.BUILD_SHA || 'dev',
