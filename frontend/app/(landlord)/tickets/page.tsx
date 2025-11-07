@@ -30,7 +30,7 @@ export default function LandlordTicketsPage() {
     refetchIntervalInBackground: false,
   });
   
-  const tickets = ticketsResponse?.data || [];
+  const tickets = useMemo(() => ticketsResponse?.data || [], [ticketsResponse]);
 
   // Get unique categories
   const categories = useMemo(() => {

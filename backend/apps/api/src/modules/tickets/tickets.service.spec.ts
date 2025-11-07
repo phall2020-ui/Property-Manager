@@ -625,6 +625,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
         mimetype: 'image/jpeg',
         size: 102400,
       } as any);
+      jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
 
       const result = await service.uploadAttachment(
         'ticket-123',
@@ -633,10 +634,18 @@ describe('TicketsService - Landlord & Scheduling', () => {
         'image/jpeg',
         102400,
         ['landlord-org-456'],
+        'user-123',
       );
 
       expect(result).toHaveProperty('filename', 'photo.jpg');
       expect(prisma.ticketAttachment.create).toHaveBeenCalled();
+      expect(prisma.ticketTimeline.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            actorId: 'user-123',
+          }),
+        }),
+      );
 
       findOneSpy.mockRestore();
     });

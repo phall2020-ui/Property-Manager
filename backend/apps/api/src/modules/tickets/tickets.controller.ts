@@ -23,6 +23,8 @@ import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import { ProposeAppointmentDto } from './dto/propose-appointment.dto';
 import { ConfirmAppointmentDto } from './dto/confirm-appointment.dto';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
+import { BulkUpdateStatusDto } from './dto/bulk-update-status.dto';
+import { BulkAssignDto } from './dto/bulk-assign.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -92,10 +94,15 @@ export class TicketsController {
   @Get()
   @ApiOperation({ 
     summary: 'List tickets',
-    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports filtering by propertyId, status, and search (by title, description, or ID). Includes pagination.'
+    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports comprehensive filtering: propertyId, status, category, priority, contractorId, date ranges, and search (by title, description, or ID). Includes pagination.'
   })
   @ApiQuery({ name: 'propertyId', required: false, description: 'Filter by property ID' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status (OPEN, TRIAGED, QUOTED, etc.)' })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by ticket category' })
+  @ApiQuery({ name: 'priority', required: false, description: 'Filter by priority (LOW, STANDARD, HIGH, URGENT)' })
+  @ApiQuery({ name: 'contractorId', required: false, description: 'Filter by assigned contractor ID' })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Filter tickets created on or after this date (ISO 8601 format)' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'Filter tickets created on or before this date (ISO 8601 format)' })
   @ApiQuery({ name: 'search', required: false, description: 'Search by title, description, or ticket ID' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20, max: 100)' })
@@ -103,6 +110,11 @@ export class TicketsController {
   async findMany(
     @Query('propertyId') propertyId?: string,
     @Query('status') status?: string,
+    @Query('category') category?: string,
+    @Query('priority') priority?: string,
+    @Query('contractorId') contractorId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -112,7 +124,12 @@ export class TicketsController {
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     return this.ticketsService.findMany(userOrgIds, primaryRole, { 
       propertyId, 
-      status, 
+      status,
+      category,
+      priority,
+      contractorId,
+      startDate,
+      endDate,
       search,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
@@ -189,7 +206,10 @@ export class TicketsController {
   }
 
   @Post(':id/attachments')
-  @ApiOperation({ summary: 'Upload ticket attachment' })
+  @ApiOperation({ 
+    summary: 'Upload ticket attachment',
+    description: 'Upload a file attachment to a ticket. Maximum file size: 10MB. Allowed types: images (jpg, jpeg, png, gif, webp), documents (pdf, doc, docx, txt), and spreadsheets (xls, xlsx, csv).'
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBearerAuth()
   @UseInterceptors(
@@ -202,6 +222,37 @@ export class TicketsController {
         },
       }),
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+      fileFilter: (req, file, cb) => {
+        // Allowed MIME types
+        const allowedMimeTypes = [
+          // Images
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+          // Documents
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+          // Spreadsheets
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'text/csv',
+        ];
+
+        if (allowedMimeTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              `Invalid file type: ${file.mimetype}. Allowed types: images (jpg, jpeg, png, gif, webp), documents (pdf, doc, docx, txt), spreadsheets (xls, xlsx, csv)`
+            ),
+            false,
+          );
+        }
+      },
     }),
   )
   async uploadAttachment(
@@ -209,15 +260,40 @@ export class TicketsController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: any,
   ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
-    return this.ticketsService.uploadAttachment(
-      id,
-      file.originalname,
-      file.path,
-      file.mimetype,
-      file.size,
-      userOrgIds,
-    );
+    
+    try {
+      const attachment = await this.ticketsService.uploadAttachment(
+        id,
+        file.originalname,
+        file.path,
+        file.mimetype,
+        file.size,
+        userOrgIds,
+        user.id,
+      );
+
+      this.logger.log({
+        action: 'attachment.uploaded',
+        ticketId: id,
+        filename: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+      });
+
+      return attachment;
+    } catch (error) {
+      this.logger.error({
+        action: 'attachment.upload.failed',
+        ticketId: id,
+        error: error.message,
+      });
+      throw error;
+    }
   }
 
   @Roles('CONTRACTOR')
@@ -279,13 +355,13 @@ export class TicketsController {
   })
   @ApiBearerAuth()
   async bulkUpdateStatus(
-    @Body() body: { ticketIds: string[]; status: string },
+    @Body() dto: BulkUpdateStatusDto,
     @CurrentUser() user: any,
   ) {
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     return this.ticketsService.bulkUpdateStatus(
-      body.ticketIds,
-      body.status,
+      dto.ticketIds,
+      dto.status,
       user.id,
       primaryRole,
     );
@@ -299,13 +375,13 @@ export class TicketsController {
   })
   @ApiBearerAuth()
   async bulkAssign(
-    @Body() body: { ticketIds: string[]; contractorId: string },
+    @Body() dto: BulkAssignDto,
     @CurrentUser() user: any,
   ) {
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     return this.ticketsService.bulkAssign(
-      body.ticketIds,
-      body.contractorId,
+      dto.ticketIds,
+      dto.contractorId,
       user.id,
       primaryRole,
     );

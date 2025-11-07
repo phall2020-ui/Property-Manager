@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -169,6 +169,11 @@ export class TicketsService {
       propertyId?: string; 
       status?: string;
       search?: string;
+      category?: string;
+      priority?: string;
+      contractorId?: string;
+      startDate?: string;
+      endDate?: string;
       page?: number;
       limit?: number;
     },
@@ -194,6 +199,29 @@ export class TicketsService {
     }
     if (filters?.status) {
       where.status = filters.status;
+    }
+    if (filters?.category) {
+      where.category = filters.category;
+    }
+    if (filters?.priority) {
+      where.priority = filters.priority;
+    }
+    if (filters?.contractorId) {
+      where.assignedToId = filters.contractorId;
+    }
+
+    // Date range filtering
+    if (filters?.startDate || filters?.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        // Include the entire end date (set to end of day)
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDate;
+      }
     }
 
     // Apply search filter
@@ -477,19 +505,59 @@ export class TicketsService {
     mimetype: string,
     size: number,
     userOrgIds: string[],
+    userId: string,
   ) {
-    // Verify access
-    await this.findOne(ticketId, userOrgIds);
+    // Verify access to the ticket
+    const ticket = await this.findOne(ticketId, userOrgIds);
 
-    return this.prisma.ticketAttachment.create({
-      data: {
-        ticketId,
-        filename,
-        filepath,
-        mimetype,
-        size,
-      },
-    });
+    if (!ticket) {
+      throw new NotFoundException(`Ticket with ID ${ticketId} not found`);
+    }
+
+    // Validate file size (additional server-side check)
+    const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+    if (size > maxSizeBytes) {
+      throw new ForbiddenException(
+        `File size ${(size / 1024 / 1024).toFixed(2)}MB exceeds maximum allowed size of 10MB`
+      );
+    }
+
+    try {
+      const attachment = await this.prisma.ticketAttachment.create({
+        data: {
+          ticketId,
+          filename,
+          filepath,
+          mimetype,
+          size,
+        },
+      });
+
+      // Create timeline event for attachment upload
+      await this.prisma.ticketTimeline.create({
+        data: {
+          ticketId,
+          eventType: 'attachment_added',
+          actorId: userId, // Use the actual user who uploaded the file
+          details: JSON.stringify({
+            filename,
+            size,
+            mimetype,
+          }),
+        },
+      });
+
+      return attachment;
+    } catch (error) {
+      // Distinguish between different error types
+      if (error.code === 'P2002') {
+        throw new ForbiddenException('Attachment with this filename already exists');
+      }
+      if (error.code === 'P2003') {
+        throw new NotFoundException('Ticket not found');
+      }
+      throw new BadRequestException(`Failed to upload attachment: ${error.message}`);
+    }
   }
 
   async findProperty(propertyId: string) {

@@ -7,6 +7,7 @@ import { JobsService } from './jobs.service';
 import { JobsController } from './jobs.controller';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { EventsModule } from '../events/events.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 /**
  * Jobs Module - Handles background job processing with BullMQ
@@ -22,7 +23,7 @@ import { EventsModule } from '../events/events.module';
 @Module({})
 export class JobsModule {
   static forRoot(): DynamicModule {
-    const imports = [ConfigModule, PrismaModule, EventsModule, JwtModule];
+    const imports = [ConfigModule, PrismaModule, EventsModule, NotificationsModule, JwtModule];
     const providers = [JobsService];
     const exports = [JobsService];
 

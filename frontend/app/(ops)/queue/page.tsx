@@ -24,7 +24,7 @@ export default function OpsQueuePage() {
     queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'),
   });
   
-  const tickets = ticketsResponse?.data || [];
+  const tickets = useMemo(() => ticketsResponse?.data || [], [ticketsResponse]);
 
   // Filter tickets based on search and status
   const filteredTickets = useMemo(() => {

@@ -28,7 +28,7 @@ export default function ContractorJobsPage() {
     queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'),
   });
   
-  const tickets = ticketsResponse?.data || [];
+  const tickets = useMemo(() => ticketsResponse?.data || [], [ticketsResponse]);
 
   // Get unique categories
   const categories = useMemo(() => {

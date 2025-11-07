@@ -3,6 +3,7 @@ import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { EventsService } from '../../events/events.service';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 /**
  * Ticket Jobs Processor - Processes background jobs for ticket lifecycle events
@@ -22,6 +23,7 @@ export class TicketJobsProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => EventsService))
     private readonly eventsService: EventsService,
+    private readonly notificationsService: NotificationsService,
   ) {
     super();
   }
@@ -54,7 +56,7 @@ export class TicketJobsProcessor extends WorkerHost {
 
   /**
    * Handle ticket.created event
-   * In production: send email/webhook to landlord and ops team
+   * Send notifications to landlord and ops team
    */
   private async handleTicketCreated(job: Job) {
     const { ticketId, propertyId, createdById, landlordId } = job.data;
@@ -62,25 +64,62 @@ export class TicketJobsProcessor extends WorkerHost {
     this.logger.log(`[ticket.created] Ticket ${ticketId} created by ${createdById}`);
     this.logger.log(`[ticket.created] Property: ${propertyId}, Landlord: ${landlordId}`);
     
-    // TODO: Send actual notifications when email service is integrated
-    // await this.emailService.send({
-    //   to: landlordEmail,
-    //   subject: 'New Maintenance Ticket',
-    //   template: 'ticket-created',
-    //   data: { ticketId, propertyId }
-    // });
+    try {
+      // Get ticket details for notification
+      const ticket = await this.prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: {
+          property: true,
+          createdBy: true,
+        },
+      });
 
-    return {
-      status: 'success',
-      event: 'ticket.created',
-      ticketId,
-      notificationsSent: ['landlord', 'ops'], // Mock for now
-    };
+      if (!ticket) {
+        this.logger.error(`[ticket.created] Ticket ${ticketId} not found`);
+        return { status: 'error', reason: 'ticket not found' };
+      }
+
+      // Find landlord users to notify
+      const landlordUsers = await this.prisma.orgMember.findMany({
+        where: {
+          orgId: landlordId,
+          role: { in: ['LANDLORD', 'OPS'] },
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      const userIds = landlordUsers.map(member => member.userId);
+
+      // Create notifications for landlord and ops users
+      if (userIds.length > 0) {
+        await this.notificationsService.createMany(userIds, {
+          type: 'TICKET_CREATED',
+          title: 'New Maintenance Ticket',
+          message: `New ticket: ${ticket.title} at ${ticket.property?.addressLine1 || 'property'}`,
+          resourceType: 'ticket',
+          resourceId: ticketId,
+        });
+
+        this.logger.log(`[ticket.created] Notifications sent to ${userIds.length} users`);
+      }
+
+      return {
+        status: 'success',
+        event: 'ticket.created',
+        ticketId,
+        notificationsSent: userIds.length,
+      };
+    } catch (error) {
+      this.logger.error(`[ticket.created] Failed to send notifications: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
    * Handle ticket.quoted event
-   * In production: notify landlord of new quote for approval
+   * Send notification to landlord for quote approval
    */
   private async handleTicketQuoted(job: Job) {
     const { ticketId, quoteId, contractorId, amount, landlordId } = job.data;
@@ -88,26 +127,67 @@ export class TicketJobsProcessor extends WorkerHost {
     this.logger.log(`[ticket.quoted] Quote ${quoteId} submitted for ticket ${ticketId}`);
     this.logger.log(`[ticket.quoted] Contractor: ${contractorId}, Amount: £${amount}`);
     
-    // TODO: Send quote notification to landlord
-    // await this.emailService.send({
-    //   to: landlordEmail,
-    //   subject: `New Quote for Ticket #${ticketId}`,
-    //   template: 'quote-submitted',
-    //   data: { ticketId, quoteId, amount }
-    // });
+    try {
+      // Get quote and ticket details
+      const quote = await this.prisma.quote.findUnique({
+        where: { id: quoteId },
+        include: {
+          ticket: {
+            include: {
+              property: true,
+            },
+          },
+          contractor: true,
+        },
+      });
 
-    return {
-      status: 'success',
-      event: 'ticket.quoted',
-      ticketId,
-      quoteId,
-      notificationsSent: ['landlord'],
-    };
+      if (!quote) {
+        this.logger.error(`[ticket.quoted] Quote ${quoteId} not found`);
+        return { status: 'error', reason: 'quote not found' };
+      }
+
+      // Find landlord users to notify
+      const landlordUsers = await this.prisma.orgMember.findMany({
+        where: {
+          orgId: landlordId,
+          role: 'LANDLORD',
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      const userIds = landlordUsers.map(member => member.userId);
+
+      // Create notifications for landlord users
+      if (userIds.length > 0) {
+        await this.notificationsService.createMany(userIds, {
+          type: 'QUOTE_SUBMITTED',
+          title: 'New Quote for Approval',
+          message: `Quote of £${amount} submitted by ${quote.contractor?.name || 'contractor'} for ticket: ${quote.ticket.title}`,
+          resourceType: 'quote',
+          resourceId: quoteId,
+        });
+
+        this.logger.log(`[ticket.quoted] Notifications sent to ${userIds.length} landlord users`);
+      }
+
+      return {
+        status: 'success',
+        event: 'ticket.quoted',
+        ticketId,
+        quoteId,
+        notificationsSent: userIds.length,
+      };
+    } catch (error) {
+      this.logger.error(`[ticket.quoted] Failed to send notifications: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
    * Handle ticket.approved event
-   * In production: notify contractor to begin work, notify tenant
+   * Send notifications to contractor and tenant
    */
   private async handleTicketApproved(job: Job) {
     const { ticketId, quoteId, approvedBy, landlordId } = job.data;
@@ -115,34 +195,76 @@ export class TicketJobsProcessor extends WorkerHost {
     this.logger.log(`[ticket.approved] Quote ${quoteId} approved for ticket ${ticketId}`);
     this.logger.log(`[ticket.approved] Approved by: ${approvedBy}`);
     
-    // TODO: Notify contractor and tenant
-    // await Promise.all([
-    //   this.emailService.send({
-    //     to: contractorEmail,
-    //     subject: 'Quote Approved - Start Work',
-    //     template: 'quote-approved',
-    //     data: { ticketId, quoteId }
-    //   }),
-    //   this.emailService.send({
-    //     to: tenantEmail,
-    //     subject: 'Maintenance Work Scheduled',
-    //     template: 'work-scheduled',
-    //     data: { ticketId }
-    //   })
-    // ]);
+    try {
+      // Get ticket and quote details
+      const ticket = await this.prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: {
+          property: true,
+          assignedTo: true,
+          createdBy: true,
+        },
+      });
 
-    return {
-      status: 'success',
-      event: 'ticket.approved',
-      ticketId,
-      quoteId,
-      notificationsSent: ['contractor', 'tenant'],
-    };
+      if (!ticket) {
+        this.logger.error(`[ticket.approved] Ticket ${ticketId} not found`);
+        return { status: 'error', reason: 'ticket not found' };
+      }
+
+      // Get the quote details
+      const quote = await this.prisma.quote.findUnique({
+        where: { id: quoteId },
+        include: {
+          contractor: true,
+        },
+      });
+
+      const userIdsToNotify: string[] = [];
+
+      // Notify contractor (quote creator)
+      if (quote?.contractorId) {
+        userIdsToNotify.push(quote.contractorId);
+        await this.notificationsService.create({
+          userId: quote.contractorId,
+          type: 'QUOTE_APPROVED',
+          title: 'Quote Approved',
+          message: `Your quote for "${ticket.title}" has been approved. You can now start work.`,
+          resourceType: 'ticket',
+          resourceId: ticketId,
+        });
+      }
+
+      // Notify ticket creator (tenant)
+      if (ticket.createdById && ticket.createdById !== quote?.contractorId) {
+        userIdsToNotify.push(ticket.createdById);
+        await this.notificationsService.create({
+          userId: ticket.createdById,
+          type: 'WORK_SCHEDULED',
+          title: 'Maintenance Work Scheduled',
+          message: `Maintenance work for "${ticket.title}" has been approved and scheduled.`,
+          resourceType: 'ticket',
+          resourceId: ticketId,
+        });
+      }
+
+      this.logger.log(`[ticket.approved] Notifications sent to ${userIdsToNotify.length} users`);
+
+      return {
+        status: 'success',
+        event: 'ticket.approved',
+        ticketId,
+        quoteId,
+        notificationsSent: userIdsToNotify.length,
+      };
+    } catch (error) {
+      this.logger.error(`[ticket.approved] Failed to send notifications: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
    * Handle ticket.assigned event
-   * In production: notify contractor of new assignment
+   * Send notification to contractor about new assignment
    */
   private async handleTicketAssigned(job: Job) {
     const { ticketId, assignedToId, assignedBy, landlordId } = job.data;
@@ -150,21 +272,46 @@ export class TicketJobsProcessor extends WorkerHost {
     this.logger.log(`[ticket.assigned] Ticket ${ticketId} assigned to ${assignedToId}`);
     this.logger.log(`[ticket.assigned] Assigned by: ${assignedBy}`);
     
-    // TODO: Notify contractor
-    // await this.emailService.send({
-    //   to: contractorEmail,
-    //   subject: 'New Job Assignment',
-    //   template: 'job-assigned',
-    //   data: { ticketId }
-    // });
+    try {
+      // Get ticket details
+      const ticket = await this.prisma.ticket.findUnique({
+        where: { id: ticketId },
+        include: {
+          property: true,
+          assignedTo: true,
+        },
+      });
 
-    return {
-      status: 'success',
-      event: 'ticket.assigned',
-      ticketId,
-      assignedToId,
-      notificationsSent: ['contractor'],
-    };
+      if (!ticket) {
+        this.logger.error(`[ticket.assigned] Ticket ${ticketId} not found`);
+        return { status: 'error', reason: 'ticket not found' };
+      }
+
+      // Notify assigned contractor
+      if (assignedToId) {
+        await this.notificationsService.create({
+          userId: assignedToId,
+          type: 'JOB_ASSIGNED',
+          title: 'New Job Assignment',
+          message: `You have been assigned to work on: ${ticket.title} at ${ticket.property?.addressLine1 || 'property'}`,
+          resourceType: 'ticket',
+          resourceId: ticketId,
+        });
+
+        this.logger.log(`[ticket.assigned] Notification sent to contractor ${assignedToId}`);
+      }
+
+      return {
+        status: 'success',
+        event: 'ticket.assigned',
+        ticketId,
+        assignedToId,
+        notificationsSent: assignedToId ? 1 : 0,
+      };
+    } catch (error) {
+      this.logger.error(`[ticket.assigned] Failed to send notification: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
@@ -256,14 +403,63 @@ export class TicketJobsProcessor extends WorkerHost {
 
       this.logger.log(`[appointment.start] Ticket ${ticketId} auto-transitioned to IN_PROGRESS`);
 
-      // TODO: Send notifications to tenant, contractor, and landlord
-      // await this.notificationService.send({
-      //   type: 'email',
-      //   to: [tenantEmail, contractorEmail, landlordEmail],
-      //   subject: 'Maintenance Work Started',
-      //   template: 'job-started',
-      //   data: { ticketId, appointmentId }
-      // });
+      // Send notifications to relevant parties
+      try {
+        const userIdsToNotify: string[] = [];
+
+        // Notify tenant (ticket creator)
+        if (ticket.createdById) {
+          userIdsToNotify.push(ticket.createdById);
+          await this.notificationsService.create({
+            userId: ticket.createdById,
+            type: 'WORK_STARTED',
+            title: 'Maintenance Work Started',
+            message: `Work has started on: ${ticket.title}`,
+            resourceType: 'ticket',
+            resourceId: ticketId,
+          });
+        }
+
+        // Notify assigned contractor
+        if (ticket.assignedToId) {
+          userIdsToNotify.push(ticket.assignedToId);
+          await this.notificationsService.create({
+            userId: ticket.assignedToId,
+            type: 'WORK_STARTED',
+            title: 'Job Started',
+            message: `Your scheduled appointment for "${ticket.title}" has begun.`,
+            resourceType: 'ticket',
+            resourceId: ticketId,
+          });
+        }
+
+        // Notify landlord users
+        const landlordUsers = await this.prisma.orgMember.findMany({
+          where: {
+            orgId: ticket.landlordId,
+            role: 'LANDLORD',
+          },
+        });
+
+        const landlordUserIds = landlordUsers.map(member => member.userId);
+        userIdsToNotify.push(...landlordUserIds);
+        
+        // Batch create notifications for landlord users
+        if (landlordUserIds.length > 0) {
+          await this.notificationsService.createMany(landlordUserIds, {
+            type: 'WORK_STARTED',
+            title: 'Maintenance Work Started',
+            message: `Work has started on ticket: ${ticket.title}`,
+            resourceType: 'ticket',
+            resourceId: ticketId,
+          });
+        }
+
+        this.logger.log(`[appointment.start] Notifications sent to ${userIdsToNotify.length} users`);
+      } catch (notificationError) {
+        this.logger.error(`[appointment.start] Failed to send notifications: ${notificationError.message}`);
+        // Don't throw - notifications are not critical for the job to succeed
+      }
 
       return {
         status: 'success',
@@ -271,7 +467,6 @@ export class TicketJobsProcessor extends WorkerHost {
         ticketId,
         appointmentId,
         transitionedAt: now,
-        notificationsSent: ['tenant', 'contractor', 'landlord'],
       };
     } catch (error) {
       this.logger.error(`[appointment.start] Error processing job: ${error.message}`, error.stack);
