@@ -39,11 +39,11 @@ export default function JobDetailPage() {
       await queryClient.cancelQueries({ queryKey: ['ticket', jobId] });
 
       // Snapshot the previous value
-      const previousTicket = queryClient.getQueryData(['ticket', jobId]);
+      const previousTicket = queryClient.getQueryData<Ticket>(['ticket', jobId]);
 
       // Optimistically update to the new value
-      queryClient.setQueryData(['ticket', jobId], (old: any) => ({
-        ...old,
+      queryClient.setQueryData<Ticket>(['ticket', jobId], (old) => ({
+        ...(old as Ticket),
         status: TicketStatus.NEEDS_APPROVAL,
         quote: {
           amount: data.amount,
@@ -58,7 +58,7 @@ export default function JobDetailPage() {
     onError: (err: any, _newData, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousTicket) {
-        queryClient.setQueryData(['ticket', jobId], context.previousTicket);
+        queryClient.setQueryData<Ticket>(['ticket', jobId], context.previousTicket);
       }
       setActionError(err.detail || 'Failed to submit quote');
     },

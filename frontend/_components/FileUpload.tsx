@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { Upload, X, FileImage, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getAccessToken } from '@/lib/apiClient';
 
 interface FileUploadProps {
   onFilesChange: (files: File[]) => void;
@@ -34,7 +35,8 @@ interface UploadedFile {
 
 /**
  * FileUpload component with drag-drop, preview, upload to server, and validation
- * Supports:
+ * 
+ * Features:
  * - Drag and drop
  * - Click to browse
  * - Image previews
@@ -46,6 +48,9 @@ interface UploadedFile {
  * - Auto-upload or manual upload
  * - Multipart/form-data upload
  * - Error handling per file
+ * 
+ * Note: Parent components should memoize onFilesChange and onUploadComplete callbacks
+ * using useCallback to prevent unnecessary re-renders.
  */
 export function FileUpload({
   onFilesChange,
@@ -147,8 +152,8 @@ export function FileUpload({
         // In a real implementation, this would upload to the server
         xhr.open('POST', uploadEndpoint);
         
-        // Get access token if available
-        const accessToken = localStorage.getItem('accessToken');
+        // Get access token from apiClient (secure token management)
+        const accessToken = getAccessToken();
         if (accessToken) {
           xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
         }

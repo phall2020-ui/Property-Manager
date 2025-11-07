@@ -52,7 +52,7 @@ export default function PropertiesPage() {
       const previousProperties = queryClient.getQueryData(['properties']);
 
       // Optimistically update to the new value
-      queryClient.setQueryData(['properties'], (old: any) => [
+      queryClient.setQueryData(['properties'], (old: Property[] | undefined) => [
         ...(old || []),
         {
           id: 'temp-' + Date.now(), // Temporary ID
@@ -61,7 +61,7 @@ export default function PropertiesPage() {
           addressLine2: newProperty.address2,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        },
+        } as Property,
       ]);
 
       // Return a context object with the snapshotted value

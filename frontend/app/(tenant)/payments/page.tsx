@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { listTenantInvoices } from '@/lib/financeClient';
 import { Search } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
+import type { Invoice } from '@/lib/financeClient';
 
 export default function TenantPaymentsPage() {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function TenantPaymentsPage() {
     if (!debouncedSearchTerm) return invoices;
     
     const query = debouncedSearchTerm.toLowerCase();
-    return invoices.filter((invoice: any) => 
+    return invoices.filter((invoice: Invoice) => 
       invoice.reference?.toLowerCase().includes(query) ||
       invoice.tenancy?.property?.addressLine1?.toLowerCase().includes(query) ||
       invoice.status?.toLowerCase().includes(query)
@@ -127,7 +128,7 @@ export default function TenantPaymentsPage() {
               {searchTerm || statusFilter ? 'No invoices match your filters' : 'No invoices found'}
             </div>
           ) : (
-            filteredInvoices.map((invoice: any) => (
+            filteredInvoices.map((invoice: Invoice) => (
               <div
                 key={invoice.id}
                 className="p-4 hover:bg-gray-50 cursor-pointer"
@@ -185,8 +186,8 @@ export default function TenantPaymentsPage() {
           <div className="text-2xl font-bold">
             £
             {filteredInvoices
-              .filter((inv: any) => ['DUE', 'PART_PAID', 'LATE'].includes(inv.status))
-              .reduce((sum: number, inv: any) => sum + (inv.balance || 0), 0)
+              .filter((inv: Invoice) => ['DUE', 'PART_PAID', 'LATE'].includes(inv.status || ''))
+              .reduce((sum: number, inv: Invoice) => sum + (inv.balance || 0), 0)
               .toFixed(2)}
           </div>
         </div>
@@ -195,8 +196,8 @@ export default function TenantPaymentsPage() {
           <div className="text-2xl font-bold text-red-600">
             £
             {filteredInvoices
-              .filter((inv: any) => inv.status === 'LATE')
-              .reduce((sum: number, inv: any) => sum + (inv.balance || 0), 0)
+              .filter((inv: Invoice) => inv.status === 'LATE')
+              .reduce((sum: number, inv: Invoice) => sum + (inv.balance || 0), 0)
               .toFixed(2)}
           </div>
         </div>
@@ -205,8 +206,8 @@ export default function TenantPaymentsPage() {
           <div className="text-2xl font-bold text-green-600">
             £
             {filteredInvoices
-              .filter((inv: any) => inv.status === 'PAID')
-              .reduce((sum: number, inv: any) => sum + (inv.amountGBP || inv.amount || 0), 0)
+              .filter((inv: Invoice) => inv.status === 'PAID')
+              .reduce((sum: number, inv: Invoice) => sum + (inv.amountGBP || inv.amount || 0), 0)
               .toFixed(2)}
           </div>
         </div>

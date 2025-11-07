@@ -11,6 +11,9 @@ import { Card } from '@/components/Card';
 import { Search } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 
+// Constants
+const PROPERTY_ID_DISPLAY_LENGTH = 8;
+
 export default function ContractorJobsPage() {
   const { searchTerm, debouncedSearchTerm, setSearchTerm } = useDebounce('', 300);
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -177,7 +180,9 @@ export default function ContractorJobsPage() {
                 header: 'Property', 
                 accessor: 'propertyId',
                 render: (ticket) => (
-                  <span className="text-sm text-gray-600">{ticket.propertyId?.substring(0, 8) || 'N/A'}...</span>
+                  <span className="text-sm text-gray-600">
+                    {ticket.propertyId?.substring(0, PROPERTY_ID_DISPLAY_LENGTH) || 'N/A'}...
+                  </span>
                 )
               },
               { header: 'Category', accessor: 'category' },
