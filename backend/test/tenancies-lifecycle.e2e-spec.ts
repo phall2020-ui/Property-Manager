@@ -118,11 +118,11 @@ describe('Tenancy Lifecycle (e2e)', () => {
         deposit: 1200,
       });
     tenancyId = tenancyResponse.body.id;
-  }, 60000);
+  }, 30000);
 
   afterAll(async () => {
     await app.close();
-  }, 30000);
+  }, 10000);
 
   describe('Workflow A: Update rent → Renew → Verify statuses', () => {
     it('should update rent and create rent revision', async () => {

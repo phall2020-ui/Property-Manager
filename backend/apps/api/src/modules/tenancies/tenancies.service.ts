@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
@@ -20,6 +21,8 @@ import { CreateGuarantorDto } from './dto/create-guarantor.dto';
 
 @Injectable()
 export class TenanciesService {
+  private readonly logger = new Logger(TenanciesService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: {
@@ -175,8 +178,10 @@ export class TenanciesService {
       if (renewedTenancy && newEnd) {
         const renewedStart = renewedTenancy.start;
         if (newEnd > renewedStart) {
+          const renewedStartDate = renewedStart.toISOString().split('T')[0];
+          const newEndDate = newEnd.toISOString().split('T')[0];
           throw new ConflictException(
-            'New end date would overlap with renewed tenancy',
+            `New end date (${newEndDate}) would overlap with renewed tenancy starting on ${renewedStartDate}`,
           );
         }
       }
@@ -284,8 +289,10 @@ export class TenanciesService {
     if (tenancy.breakClause) {
       const earliestBreak = new Date(tenancy.breakClause.earliestBreakDate);
       if (terminatedAt < earliestBreak) {
+        const earliestBreakFormatted = earliestBreak.toISOString().split('T')[0];
+        const terminatedAtFormatted = terminatedAt.toISOString().split('T')[0];
         throw new ConflictException(
-          `Cannot terminate before earliest break date (${earliestBreak.toISOString().split('T')[0]}). Break clause requires ${tenancy.breakClause.noticeMonths} months notice.`,
+          `Cannot terminate on ${terminatedAtFormatted} as it is before the earliest break date of ${earliestBreakFormatted}. The break clause requires ${tenancy.breakClause.noticeMonths} months notice.`,
         );
       }
     }
@@ -650,7 +657,7 @@ export class TenanciesService {
       });
     } catch (error) {
       // Log but don't fail the operation if audit log fails
-      console.error('Failed to create audit log:', error);
+      this.logger.error('Failed to create audit log', error);
     }
   }
 }
