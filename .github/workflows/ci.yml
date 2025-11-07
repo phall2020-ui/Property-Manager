@@ -22,7 +22,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: frontend-new
+        working-directory: frontend
     
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend-new/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
       
       - name: Install dependencies
         run: npm ci
@@ -48,7 +48,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: frontend-new
+        working-directory: frontend
     
     steps:
       - uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend-new/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
       
       - name: Install dependencies
         run: npm ci
@@ -204,7 +204,7 @@ jobs:
       actions: write  # For uploading artifacts
     defaults:
       run:
-        working-directory: frontend-new
+        working-directory: frontend
     
     steps:
       - uses: actions/checkout@v4
@@ -214,7 +214,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend-new/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
       
       - name: Install dependencies
         run: npm ci
@@ -228,7 +228,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: frontend-new/dist
+          path: frontend/dist
           retention-days: 7
 
   # Backend Build
@@ -299,7 +299,7 @@ jobs:
       actions: write  # For uploading artifacts
     defaults:
       run:
-        working-directory: frontend-new
+        working-directory: frontend
     
     steps:
       - uses: actions/checkout@v4
@@ -309,7 +309,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend-new/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
       
       - name: Install dependencies
         run: npm ci
@@ -330,7 +330,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: frontend-new/playwright-report
+          path: frontend/playwright-report
           retention-days: 7
 
   # Lighthouse CI
@@ -342,7 +342,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: frontend-new
+        working-directory: frontend
     
     steps:
       - uses: actions/checkout@v4
@@ -352,7 +352,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend-new/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
       
       - name: Install dependencies
         run: npm ci
@@ -370,7 +370,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
-          path: frontend-new/.lighthouseci
+          path: frontend/.lighthouseci
           retention-days: 7
 
   docker:

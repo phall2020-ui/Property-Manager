@@ -1,2 +1,2 @@
 #!/bin/bash
-cd frontend-new && npm run dev
+cd frontend && npm run dev

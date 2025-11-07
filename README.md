@@ -14,12 +14,6 @@ A full-stack multi-tenant property management platform with role-based access co
 
 **Project Status:** ✅ **85% Complete** | Backend: Production Ready ✅ | Frontend: 85% 🚧 | Deployment: Ready ✅
 
-> **⚠️ Important:** This repository contains two frontend implementations:
-> - `frontend-new/` (Vite + React 19) - **CANONICAL** - Used in CI/CD
-> - `frontend/` (Next.js 14) - Legacy implementation, being migrated
-> 
-> See [FRONTEND_MIGRATION_DECISION.md](./FRONTEND_MIGRATION_DECISION.md) for details.
-
 ## 🏗️ Architecture
 
 **Frontend:** Vite + React 19 + TypeScript + Tailwind CSS + TanStack Query v5  
@@ -31,7 +25,7 @@ A full-stack multi-tenant property management platform with role-based access co
 
 ```
 Property-Manager/
-├── frontend-new/          # ⭐ CANONICAL Vite/React frontend (CI/CD)
+├── frontend/               # ⭐ CANONICAL Vite/React frontend (CI/CD)
 │   ├── src/
 │   │   ├── pages/         # Page components
 │   │   ├── components/    # Reusable UI components
@@ -41,18 +35,8 @@ Property-Manager/
 │   ├── tests/            # Unit and E2E tests
 │   └── package.json      # Dependencies and scripts
 │
-├── frontend/              # Legacy Next.js frontend (being migrated)
-│   ├── app/              # App Router pages and layouts
-│   │   ├── (public)/     # Public pages (login, signup)
-│   │   ├── (landlord)/   # Landlord portal
-│   │   ├── (tenant)/     # Tenant portal
-│   │   ├── (contractor)/ # Contractor portal
-│   │   └── (ops)/        # Operations portal
-│   ├── _components/      # Reusable UI components
-│   ├── _lib/            # API client, auth helpers, schemas
-│   ├── _hooks/          # Custom React hooks
-│   ├── _types/          # TypeScript type definitions
-│   └── _styles/         # Global styles
+├── frontend-legacy/        # 🗄️ ARCHIVED - Next.js implementation (reference only)
+│   └── ...                # Not maintained - kept for feature migration reference
 │
 ├── backend/              # NestJS backend application
 │   ├── apps/api/src/    # API source code
@@ -129,7 +113,7 @@ API docs: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
 #### 2. Frontend Setup
 
 ```bash
-cd frontend-new
+cd frontend
 
 # Install dependencies
 npm install
@@ -157,7 +141,7 @@ NODE_ENV=development
 
 ### Frontend Environment Variables
 
-Located in `frontend-new/.env.local`:
+Located in `frontend/.env.local`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:4000/api
@@ -167,10 +151,10 @@ VITE_API_BASE_URL=http://localhost:4000/api
 
 ### Running Locally
 
-The canonical frontend (`frontend-new/`) includes a comprehensive CI check script that runs all quality checks:
+The canonical frontend (`frontend/`) includes a comprehensive CI check script that runs all quality checks:
 
 ```bash
-cd frontend-new
+cd frontend
 
 # Install dependencies
 npm ci
@@ -218,7 +202,7 @@ The GitHub Actions CI pipeline (`.github/workflows/ci.yml`) runs on every push a
 **Acceptance Criteria:**
 ```bash
 # All these commands must pass:
-cd frontend-new
+cd frontend
 npm ci && npm run check:ci  # ✅ Should complete successfully
 npm run test:e2e            # ✅ E2E tests pass
 npm run lhci                # ✅ Performance meets thresholds

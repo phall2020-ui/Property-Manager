@@ -1,9 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const baseURL = process.env.BASE_URL || 'http://localhost:5173';
+const baseURL = process.env.BASE_URL || 'http://localhost:3000';
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests',
   timeout: 60_000,
   use: {
     baseURL,
@@ -17,9 +17,4 @@ export default defineConfig({
     { name: 'webkit',   use: { ...devices['Desktop Safari'] } },
   ],
   reporter: [['html', { outputFolder: 'playwright-report' }], ['github']],
-  webServer: {
-    command: 'npm run preview',
-    port: 5173,
-    reuseExistingServer: !process.env.CI,
-  },
 });

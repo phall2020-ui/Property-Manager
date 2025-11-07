@@ -1,56 +1,73 @@
-# Property Management App
+# React + TypeScript + Vite
 
-This is a multi‑tenant property management platform built with **Next.js** (App Router), **TypeScript**, **Tailwind CSS**, **TanStack Query** and **React Hook Form**. The application supports landlords, tenants, contractors and ops teams with role‑based portals for onboarding and maintenance ticketing.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-## Project Structure
+Currently, two official plugins are available:
 
-The project is organized as follows:
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-```text
-property-management-app/
-├─ app/                    # App Router pages and layouts
-│  ├─ (public)/           # Public pages (login, signup)
-│  ├─ (landlord)/         # Landlord portal
-│  ├─ (tenant)/           # Tenant portal
-│  ├─ (contractor)/       # Contractor portal
-│  └─ (ops)/              # Operations portal
-├─ _components/           # Reusable UI components
-├─ _lib/                  # API client, auth helpers, zod schemas
-├─ _hooks/                # Custom hooks (e.g. authentication)
-├─ _styles/               # Global and component styles
-├─ _types/                # Shared TypeScript type definitions
-├─ package.json           # Project dependencies and scripts
-├─ tsconfig.json          # TypeScript configuration
-├─ next.config.js         # Next.js configuration
-├─ tailwind.config.js     # Tailwind CSS configuration
-├─ postcss.config.js      # PostCSS configuration
-└─ README.md
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
 
-## Getting Started
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-To run the app locally you'll need **Node.js** (>= 18) installed. Install dependencies and run the development server:
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
 
-```bash
-npm install
-npm run dev
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
 ```
-
-The app will be available at `http://localhost:3000`. Environment variables such as `NEXT_PUBLIC_API_BASE` and `MAX_UPLOAD_MB` should be configured in a `.env.local` file. See `.env.example` for defaults.
-
-## Testing
-
-This project includes unit tests (powered by **Vitest** and **Testing Library**) and end‑to‑end tests (powered by **Playwright**). To run tests:
-
-```bash
-npm test         # Run unit tests
-npm run test:e2e # Run E2E tests
-```
-
-## API Contract
-
-All client requests are proxied through `/api` and authenticated using a JWT access token in memory and a refresh token via httpOnly cookies. See `_lib/apiClient.ts` for more details.
-
-## License
-
-MIT

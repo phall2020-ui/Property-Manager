@@ -6,14 +6,12 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**', '**/*.spec.ts'],
+    include: ['**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
   },
   resolve: {
     alias: {
-      '@/components': path.resolve(__dirname, './_components'),
-      '@/lib': path.resolve(__dirname, './_lib'),
-      '@/hooks': path.resolve(__dirname, './_hooks'),
-      '@/styles': path.resolve(__dirname, './_styles'),
-      '@/types': path.resolve(__dirname, './_types'),
+      '@': path.resolve(__dirname, './src'),
     },
   },
 });

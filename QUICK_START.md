@@ -49,11 +49,11 @@ cd backend && npm run dev
 cd frontend && npm run dev
 ```
 
-✅ Frontend running at: http://localhost:3000
+✅ Frontend running at: http://localhost:5173
 
 ## 🧪 Test the Integration
 
-1. Open http://localhost:3000
+1. Open http://localhost:5173
 2. Click "Sign up"
 3. Create account:
    - Email: `landlord@test.com`
@@ -147,7 +147,7 @@ curl http://localhost:4000/api/docs
 
 # 2. Check frontend .env.local
 cat frontend/.env.local
-# Should have: NEXT_PUBLIC_API_BASE=http://localhost:4000/api
+# Should have: VITE_API_BASE_URL=http://localhost:4000/api
 
 # 3. Restart frontend
 cd frontend && npm run dev
@@ -170,8 +170,8 @@ npx prisma migrate deploy
 lsof -i :4000
 kill -9 <PID>
 
-# Find process using port 3000 (frontend)
-lsof -i :3000
+# Find process using port 5173 (frontend)
+lsof -i :5173
 kill -9 <PID>
 ```
 
@@ -196,7 +196,7 @@ cd ../frontend && npm install
 ```
 Property-Manager/
 ├── backend/          # NestJS API (port 4000)
-├── frontend/         # Next.js app (port 3000)
+├── frontend/         # Vite + React app (port 5173)
 ├── setup.sh          # One-time setup
 ├── start-backend.sh  # Start API server
 └── start-frontend.sh # Start web app
@@ -204,10 +204,103 @@ Property-Manager/
 
 ## 🔗 Important URLs
 
-- **Frontend:** http://localhost:3000
+- **Frontend:** http://localhost:5173
 - **Backend API:** http://localhost:4000/api
 - **API Docs:** http://localhost:4000/api/docs
 - **Prisma Studio:** Run `npx prisma studio` in backend/
+
+## 🚀 Run Everything (Quick Commands)
+
+### Start All Services
+```bash
+# Terminal 1: Start backend
+./start-backend.sh
+
+# Terminal 2: Start frontend
+./start-frontend.sh
+
+# Terminal 3 (optional): Open Prisma Studio
+cd backend && npx prisma studio
+```
+
+### Run Full Test Suite
+```bash
+# Backend tests
+cd backend && npm test
+
+# Frontend tests
+cd frontend && npm test
+
+# E2E tests (requires both servers running)
+cd frontend && npm run test:e2e
+```
+
+### Production Build Verification
+```bash
+# Build backend
+cd backend && npm run build
+
+# Build frontend
+cd frontend && npm run build
+
+# Test production build locally
+cd frontend && npm run preview
+```
+
+## ✅ CI Parity - Local CI Checks
+
+Run the exact same checks that CI runs to catch issues before pushing:
+
+### Frontend CI Checks
+```bash
+cd frontend
+
+# Run all checks (same as CI)
+npm run check:ci
+
+# Or run individually:
+npm run lint        # ESLint
+npm run typecheck   # TypeScript
+npm run test -- --run  # Unit tests
+npm run build       # Production build
+```
+
+### Backend CI Checks
+```bash
+cd backend
+
+# Lint
+npm run lint
+
+# Tests (requires PostgreSQL and Redis)
+npm test
+
+# Build
+npm run build
+```
+
+### Full CI Simulation
+```bash
+# 1. Frontend checks
+cd frontend && npm ci && npm run check:ci
+
+# 2. Backend lint
+cd ../backend && npm ci && npm run lint
+
+# 3. Backend tests
+npm test
+
+# 4. Backend build
+npm run build
+
+# 5. E2E tests (with servers running)
+cd ../frontend && npm run test:e2e
+
+# 6. Lighthouse audit (with server running)
+npm run lhci
+```
+
+**Expected Result**: All commands should complete successfully with exit code 0.
 
 ## 📚 Next Steps
 
@@ -235,4 +328,4 @@ Property-Manager/
 
 ---
 
-**Ready to code?** Start both servers and open http://localhost:3000 🚀
+**Ready to code?** Start both servers and open http://localhost:5173 🚀
