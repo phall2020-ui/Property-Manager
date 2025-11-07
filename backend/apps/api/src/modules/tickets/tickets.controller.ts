@@ -274,6 +274,7 @@ export class TicketsController {
         file.mimetype,
         file.size,
         userOrgIds,
+        user.id,
       );
 
       this.logger.log({

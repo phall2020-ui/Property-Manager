@@ -441,10 +441,12 @@ export class TicketJobsProcessor extends WorkerHost {
           },
         });
 
-        for (const member of landlordUsers) {
-          userIdsToNotify.push(member.userId);
-          await this.notificationsService.create({
-            userId: member.userId,
+        const landlordUserIds = landlordUsers.map(member => member.userId);
+        userIdsToNotify.push(...landlordUserIds);
+        
+        // Batch create notifications for landlord users
+        if (landlordUserIds.length > 0) {
+          await this.notificationsService.createMany(landlordUserIds, {
             type: 'WORK_STARTED',
             title: 'Maintenance Work Started',
             message: `Work has started on ticket: ${ticket.title}`,

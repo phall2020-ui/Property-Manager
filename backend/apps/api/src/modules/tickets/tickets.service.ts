@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -505,6 +505,7 @@ export class TicketsService {
     mimetype: string,
     size: number,
     userOrgIds: string[],
+    userId: string,
   ) {
     // Verify access to the ticket
     const ticket = await this.findOne(ticketId, userOrgIds);
@@ -537,7 +538,7 @@ export class TicketsService {
         data: {
           ticketId,
           eventType: 'attachment_added',
-          actorId: ticket.createdById, // Use the user who created the ticket as fallback
+          actorId: userId, // Use the actual user who uploaded the file
           details: JSON.stringify({
             filename,
             size,
@@ -548,7 +549,14 @@ export class TicketsService {
 
       return attachment;
     } catch (error) {
-      throw new ForbiddenException(`Failed to upload attachment: ${error.message}`);
+      // Distinguish between different error types
+      if (error.code === 'P2002') {
+        throw new ForbiddenException('Attachment with this filename already exists');
+      }
+      if (error.code === 'P2003') {
+        throw new NotFoundException('Ticket not found');
+      }
+      throw new BadRequestException(`Failed to upload attachment: ${error.message}`);
     }
   }
 
