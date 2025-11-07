@@ -13,14 +13,16 @@ import { WebhookService } from './services/webhook.service';
 import { LateFeeService } from './services/late-fee.service';
 import { RecurringInvoiceService } from './services/recurring-invoice.service';
 import { PaymentRemindersService } from './services/payment-reminders.service';
+import { InvoicePdfService } from './services/invoice-pdf.service';
 import { GoCardlessProvider } from './providers/gocardless.provider';
 import { StripeProvider } from './providers/stripe.provider';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { EventsModule } from '../events/events.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { StorageModule } from '../../common/storage/storage.module';
 
 @Module({
-  imports: [PrismaModule, EventsModule, NotificationsModule],
+  imports: [PrismaModule, EventsModule, NotificationsModule, StorageModule],
   controllers: [FinanceController, TenantFinanceController, WebhookController],
   providers: [
     FinanceService,
@@ -34,6 +36,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     LateFeeService,
     RecurringInvoiceService,
     PaymentRemindersService,
+    InvoicePdfService,
     GoCardlessProvider,
     StripeProvider,
   ],
