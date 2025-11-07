@@ -94,10 +94,15 @@ export class TicketsController {
   @Get()
   @ApiOperation({ 
     summary: 'List tickets',
-    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports filtering by propertyId, status, and search (by title, description, or ID). Includes pagination.'
+    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports comprehensive filtering: propertyId, status, category, priority, contractorId, date ranges, and search (by title, description, or ID). Includes pagination.'
   })
   @ApiQuery({ name: 'propertyId', required: false, description: 'Filter by property ID' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status (OPEN, TRIAGED, QUOTED, etc.)' })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by ticket category' })
+  @ApiQuery({ name: 'priority', required: false, description: 'Filter by priority (LOW, STANDARD, HIGH, URGENT)' })
+  @ApiQuery({ name: 'contractorId', required: false, description: 'Filter by assigned contractor ID' })
+  @ApiQuery({ name: 'startDate', required: false, description: 'Filter tickets created on or after this date (ISO 8601 format)' })
+  @ApiQuery({ name: 'endDate', required: false, description: 'Filter tickets created on or before this date (ISO 8601 format)' })
   @ApiQuery({ name: 'search', required: false, description: 'Search by title, description, or ticket ID' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20, max: 100)' })
@@ -105,6 +110,11 @@ export class TicketsController {
   async findMany(
     @Query('propertyId') propertyId?: string,
     @Query('status') status?: string,
+    @Query('category') category?: string,
+    @Query('priority') priority?: string,
+    @Query('contractorId') contractorId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -114,7 +124,12 @@ export class TicketsController {
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     return this.ticketsService.findMany(userOrgIds, primaryRole, { 
       propertyId, 
-      status, 
+      status,
+      category,
+      priority,
+      contractorId,
+      startDate,
+      endDate,
       search,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,

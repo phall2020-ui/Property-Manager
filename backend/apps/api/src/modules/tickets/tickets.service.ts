@@ -169,6 +169,11 @@ export class TicketsService {
       propertyId?: string; 
       status?: string;
       search?: string;
+      category?: string;
+      priority?: string;
+      contractorId?: string;
+      startDate?: string;
+      endDate?: string;
       page?: number;
       limit?: number;
     },
@@ -194,6 +199,29 @@ export class TicketsService {
     }
     if (filters?.status) {
       where.status = filters.status;
+    }
+    if (filters?.category) {
+      where.category = filters.category;
+    }
+    if (filters?.priority) {
+      where.priority = filters.priority;
+    }
+    if (filters?.contractorId) {
+      where.assignedToId = filters.contractorId;
+    }
+
+    // Date range filtering
+    if (filters?.startDate || filters?.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        // Include the entire end date (set to end of day)
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDate;
+      }
     }
 
     // Apply search filter
