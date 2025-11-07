@@ -347,7 +347,6 @@ export class TicketsController {
   }
 
   @Roles('OPS')
-  @Roles('OPS')
   @Post('bulk/status')
   @ApiOperation({ 
     summary: 'Bulk update ticket status (OPS only)',
