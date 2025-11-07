@@ -177,6 +177,7 @@ export const ticketsApi = {
     title: string;
     description: string;
     priority: string;
+    category?: string;
   }) => {
     const response = await api.post('/tickets', data);
     return response.data;
@@ -184,6 +185,25 @@ export const ticketsApi = {
 
   getById: async (id: string) => {
     const response = await api.get(`/tickets/${id}`);
+    return response.data;
+  },
+
+  updateStatus: async (id: string, to: string) => {
+    const response = await api.patch(`/tickets/${id}/status`, { to });
+    return response.data;
+  },
+
+  getTimeline: async (id: string) => {
+    const response = await api.get(`/tickets/${id}/timeline`);
+    return response.data;
+  },
+
+  approve: async (id: string, idempotencyKey?: string) => {
+    const headers: any = {};
+    if (idempotencyKey) {
+      headers['Idempotency-Key'] = idempotencyKey;
+    }
+    const response = await api.post(`/tickets/${id}/approve`, {}, { headers });
     return response.data;
   },
 
@@ -334,6 +354,42 @@ export const queueApi = {
 
   getStats: async () => {
     const response = await api.get('/queue/stats');
+    return response.data;
+  },
+};
+
+// Notifications API
+export const notificationsApi = {
+  list: async (params?: { limit?: number; unreadOnly?: boolean }) => {
+    const response = await api.get('/notifications', { params });
+    return response.data;
+  },
+
+  getUnreadCount: async () => {
+    const response = await api.get('/notifications/unread-count');
+    return response.data;
+  },
+
+  markAsRead: async (ids: string[]) => {
+    const response = await api.post('/notifications/read', { ids });
+    return response.data;
+  },
+
+  markAllAsRead: async () => {
+    const response = await api.post('/notifications/read-all');
+    return response.data;
+  },
+};
+
+// Finance API
+export const financeApi = {
+  listInvoices: async () => {
+    const response = await api.get('/finance/invoices');
+    return response.data;
+  },
+
+  getInvoice: async (id: string) => {
+    const response = await api.get(`/finance/invoices/${id}`);
     return response.data;
   },
 };
