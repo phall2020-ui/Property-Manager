@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useEventContext } from '../contexts/EventContext';
 import Sidebar from './Sidebar';
+import ToastContainer, { useToast } from './ToastContainer';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -7,6 +10,27 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { user } = useAuth();
+  const { subscribe } = useEventContext();
+  const { toasts, removeToast, info } = useToast();
+
+  useEffect(() => {
+    const unsubscribe = subscribe((event) => {
+      // Show toast notification for certain events
+      if (event.type === 'ticket.created') {
+        info('New ticket created');
+      } else if (event.type === 'ticket.status_changed') {
+        info('Ticket status updated');
+      } else if (event.type === 'ticket.approved') {
+        info('Ticket approved');
+      } else if (event.type === 'invoice.created') {
+        info('New invoice created');
+      } else if (event.type === 'invoice.paid') {
+        info('Invoice paid');
+      }
+    });
+
+    return unsubscribe;
+  }, [subscribe, info]);
 
   if (!user) return <>{children}</>;
 
@@ -16,6 +40,7 @@ export default function Layout({ children }: LayoutProps) {
         <Sidebar />
         <main className="flex-1">{children}</main>
       </div>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }
