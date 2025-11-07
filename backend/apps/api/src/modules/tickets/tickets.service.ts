@@ -23,6 +23,7 @@ export class TicketsService {
     description: string;
     priority: string;
     createdById: string;
+    createdByRole?: string;
     category?: string;
   }) {
     const ticket = await this.prisma.ticket.create({
@@ -112,7 +113,7 @@ export class TicketsService {
       entityId: ticket.id,
       entityVersion: 1,
       actorId: data.createdById,
-      actorRole: 'TENANT',
+      actorRole: data.createdByRole || 'TENANT', // Use actual role if provided
       landlordId: ticket.landlordId,
       tenantId: ticket.tenancy?.tenantOrgId,
       payload: {

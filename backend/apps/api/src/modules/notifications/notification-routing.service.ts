@@ -286,13 +286,16 @@ export class NotificationRoutingService {
       where: {
         status: { in: ['PENDING', 'FAILED'] },
         nextAttemptAt: { lte: new Date() },
-        attempts: { lt: this.prisma.notificationOutbox.fields.maxAttempts },
+        // Filter by attempts being less than maxAttempts (default 3)
       },
       take: limit,
       orderBy: { nextAttemptAt: 'asc' },
     });
 
-    for (const entry of pending) {
+    // Filter records that haven't exceeded max attempts
+    const eligibleRecords = pending.filter(entry => entry.attempts < entry.maxAttempts);
+
+    for (const entry of eligibleRecords) {
       try {
         await this.deliverNotification(entry);
       } catch (error) {

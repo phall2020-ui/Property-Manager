@@ -43,9 +43,9 @@ export const options = {
     },
   },
   thresholds: {
-    'http_req_failed': ['rate<0.005'], // Less than 0.5% errors
-    'http_req_duration': ['p(95)<600'], // 95% of requests under 600ms
-    'http_req_duration{scenario:search}': ['p(95)<300'], // Search cached should be under 300ms
+    'http_req_failed': ['rate<0.005'], // Less than 0.5% errors (0.005 = 0.5%)
+    'http_req_duration': ['p95<600'], // 95% of requests under 600ms
+    'http_req_duration{scenario:search}': ['p95<300'], // Search cached should be under 300ms
     'errors': ['rate<0.01'], // Less than 1% application errors
   },
 };
@@ -285,9 +285,20 @@ export function concurrentQuoteApprovals() {
   sleep(1);
 }
 
-// Default function for standalone execution
+// Default function for standalone execution - runs comprehensive test
 export default function() {
-  searchTickets();
+  // Run search scenario
+  if (Math.random() > 0.3) {
+    searchTickets();
+  } 
+  // Run bulk ops scenario  
+  else if (Math.random() > 0.5) {
+    bulkOperations();
+  }
+  // Run concurrent quote scenario
+  else {
+    concurrentQuoteApprovals();
+  }
 }
 
 // Setup function - runs once per VU

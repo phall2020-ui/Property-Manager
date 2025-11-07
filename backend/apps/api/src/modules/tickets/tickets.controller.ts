@@ -63,6 +63,8 @@ export class TicketsController {
       throw new BadRequestException('Either propertyId or tenancyId must be provided');
     }
 
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+
     this.logger.log({
       action: 'ticket.create',
       userId: user.sub,
@@ -76,6 +78,7 @@ export class TicketsController {
       ...dto,
       landlordId,
       createdById: user.id,
+      createdByRole: primaryRole,
     });
 
     this.logger.log({
