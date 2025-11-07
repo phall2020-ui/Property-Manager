@@ -732,25 +732,26 @@ model CreditNote {
 
 // Payments received from tenants (Step 6)
 model Payment {
-  id           String    @id @default(uuid())
-  landlordId   String
-  propertyId   String
-  tenancyId    String
-  invoiceId    String
-  tenantUserId String?   // Keep for backward compatibility
-  amountGBP    Float     // Amount in GBP (Float for SQLite, Decimal for Postgres)
-  method       String    // BANK_TRANSFER, DD, CARD, CASH, OTHER
-  provider     String    // TEST, GOCARDLESS, STRIPE, OPEN_BANKING
-  providerRef  String    @unique // Provider reference (unique for idempotency)
-  status       String    // PENDING, SETTLED, FAILED
-  feeGBP       Float?    // Optional payment processing fee
-  vatGBP       Float?    // Optional VAT on fee
-  paidAt       DateTime  // When payment was made
-  amount       Float?    // Keep for backward compatibility
-  receivedAt   DateTime? // Keep for backward compatibility
-  externalId   String?   // Keep for backward compatibility
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  landlordId    String
+  propertyId    String
+  tenancyId     String
+  invoiceId     String
+  tenantUserId  String?   // Keep for backward compatibility
+  amountGBP     Float     // Amount in GBP (Float for SQLite, Decimal for Postgres)
+  method        String    // BANK_TRANSFER, DD, CARD, CASH, OTHER
+  provider      String    // TEST, GOCARDLESS, STRIPE, OPEN_BANKING
+  providerRef   String    @unique // Provider reference (unique for idempotency)
+  status        String    // PENDING, SETTLED, FAILED
+  feeGBP        Float?    // Optional payment processing fee
+  vatGBP        Float?    // Optional VAT on fee
+  paidAt        DateTime  // When payment was made
+  receiptNumber String?   // Receipt number for payment confirmation
+  amount        Float?    // Keep for backward compatibility
+  receivedAt    DateTime? // Keep for backward compatibility
+  externalId    String?   // Keep for backward compatibility
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   invoice     Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   allocations PaymentAllocation[]

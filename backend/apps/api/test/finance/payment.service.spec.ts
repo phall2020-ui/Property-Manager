@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { PaymentService } from '../../src/modules/finance/services/payment.service';
 import { InvoiceService } from '../../src/modules/finance/services/invoice.service';
+import { ReceiptPdfService } from '../../src/modules/finance/services/receipt-pdf.service';
 import { PrismaService } from '../../src/common/prisma/prisma.service';
 import { EventsService } from '../../src/modules/events/events.service';
 import { NotificationsService } from '../../src/modules/notifications/notifications.service';
@@ -19,6 +20,7 @@ describe('PaymentService', () => {
   let service: PaymentService;
   let prisma: any;
   let invoiceService: any;
+  let receiptPdfService: any;
   let eventsService: any;
   let notificationsService: any;
 
@@ -32,6 +34,11 @@ describe('PaymentService', () => {
       updateInvoiceStatus: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Mock ReceiptPdfService
+    receiptPdfService = {
+      generateReceipt: jest.fn().mockResolvedValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentService,
@@ -42,6 +49,10 @@ describe('PaymentService', () => {
         {
           provide: InvoiceService,
           useValue: invoiceService,
+        },
+        {
+          provide: ReceiptPdfService,
+          useValue: receiptPdfService,
         },
         {
           provide: EventsService,

@@ -14,6 +14,7 @@ import { LateFeeService } from './services/late-fee.service';
 import { RecurringInvoiceService } from './services/recurring-invoice.service';
 import { PaymentRemindersService } from './services/payment-reminders.service';
 import { InvoicePdfService } from './services/invoice-pdf.service';
+import { ReceiptPdfService } from './services/receipt-pdf.service';
 import { GoCardlessProvider } from './providers/gocardless.provider';
 import { StripeProvider } from './providers/stripe.provider';
 import { PrismaModule } from '../../common/prisma/prisma.module';
@@ -37,6 +38,7 @@ import { StorageModule } from '../../common/storage/storage.module';
     RecurringInvoiceService,
     PaymentRemindersService,
     InvoicePdfService,
+    ReceiptPdfService,
     GoCardlessProvider,
     StripeProvider,
   ],
