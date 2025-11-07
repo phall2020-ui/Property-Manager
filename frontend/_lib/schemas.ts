@@ -181,9 +181,9 @@ export const UpdatePropertySchema = z.object({
 export type UpdatePropertyDTO = z.infer<typeof UpdatePropertySchema>;
 
 export const SubmitQuoteSchema = z.object({
-  amount: z.number().nonnegative(),
-  notes: z.string().optional(),
-  eta: z.string().min(1),
+  amount: z.number().positive('Quote amount must be greater than 0'),
+  notes: z.string().max(300, 'Notes must be 300 characters or less').optional(),
+  eta: z.string().min(1, 'Estimated completion date is required'),
 });
 export type SubmitQuoteDTO = z.infer<typeof SubmitQuoteSchema>;
 

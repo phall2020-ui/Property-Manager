@@ -12,7 +12,6 @@ import { Button } from '@/components/Button';
 import { CreateTicketModal } from '@/components/CreateTicketModal';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Search, Filter, Plus } from 'lucide-react';
-import { useDebounce } from '@/hooks/useDebounce';
 
 export default function LandlordTicketsPage() {
   const { searchTerm, debouncedSearchTerm, setSearchTerm } = useDebounce('', 300);
