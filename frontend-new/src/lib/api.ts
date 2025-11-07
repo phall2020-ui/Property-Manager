@@ -68,7 +68,7 @@ export const authApi = {
       } else {
         throw new Error('Invalid response from server: missing access token');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup API error:', error);
       throw error;
     }
@@ -83,7 +83,7 @@ export const authApi = {
       } else {
         throw new Error('Invalid response from server: missing access token');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login API error:', error);
       throw error;
     }
@@ -236,7 +236,7 @@ export const enhancedPropertiesApi = {
     try {
       const response = await api.get('/properties');
       return response.data;
-    } catch (error) {
+    } catch {
       // Fallback mock data for development
       console.warn('Using mock property data');
       return [
@@ -304,10 +304,10 @@ export const enhancedPropertiesApi = {
     try {
       const response = await api.get(`/properties/${id}`);
       return response.data;
-    } catch (error) {
+    } catch {
       // Fallback to mock data
       const mockProperties = await enhancedPropertiesApi.list();
-      return mockProperties.find((p: any) => p.id === id) || null;
+      return mockProperties.find((p: { id: string }) => p.id === id) || null;
     }
   },
 };

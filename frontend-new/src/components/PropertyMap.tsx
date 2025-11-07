@@ -6,6 +6,7 @@ interface PropertyMapProps {
 }
 
 export default function PropertyMap({ pins }: PropertyMapProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
 
   useEffect(() => {

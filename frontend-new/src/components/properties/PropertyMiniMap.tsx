@@ -6,6 +6,7 @@ interface PropertyMiniMapProps {
 }
 
 export default function PropertyMiniMap({ lat, lng }: PropertyMiniMapProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [MapComponent, setMapComponent] = useState<React.ComponentType<any> | null>(null);
 
   useEffect(() => {
