@@ -309,4 +309,27 @@ export class TicketsController {
       primaryRole,
     );
   }
+
+  @Roles('LANDLORD', 'OPS')
+  @Patch(':id/assign')
+  @ApiOperation({ 
+    summary: 'Assign ticket to contractor',
+    description: 'Assign a specific ticket to a contractor. Landlords can assign tickets for their properties, OPS can assign any ticket.'
+  })
+  @ApiBearerAuth()
+  async assignTicket(
+    @Param('id') id: string,
+    @Body() body: { contractorId: string },
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.assignTicket(
+      id,
+      body.contractorId,
+      user.id,
+      userOrgIds,
+      primaryRole,
+    );
+  }
 }

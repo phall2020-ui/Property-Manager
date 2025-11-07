@@ -1091,8 +1091,8 @@ export class TicketsService {
           continue;
         }
 
-        // Update ticket
-        const updated = await this.prisma.ticket.update({
+        // Update ticket (we don't need the result, just the mutation)
+        await this.prisma.ticket.update({
           where: { id: ticketId },
           data: { status: newStatus },
         });
@@ -1221,5 +1221,102 @@ export class TicketsService {
       results,
       errors,
     };
+  }
+
+  /**
+   * Assign a single ticket to a contractor (LANDLORD or OPS role)
+   */
+  async assignTicket(
+    ticketId: string,
+    contractorId: string,
+    actorId: string,
+    userOrgIds: string[],
+    userRole: string,
+  ) {
+    // Verify ticket exists
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: { 
+        property: true,
+        tenancy: true,
+      },
+    });
+
+    if (!ticket) {
+      throw new NotFoundException('Ticket not found');
+    }
+
+    // Check permissions: OPS can assign any ticket, LANDLORD only their properties
+    if (userRole !== 'OPS') {
+      const hasAccess = userOrgIds.includes(ticket.landlordId) ||
+        (ticket.property && userOrgIds.includes(ticket.property.ownerOrgId));
+      
+      if (!hasAccess) {
+        throw new ForbiddenException('You can only assign tickets for your properties');
+      }
+    }
+
+    // Verify contractor exists
+    const contractor = await this.prisma.user.findUnique({
+      where: { id: contractorId },
+      include: {
+        orgMemberships: true,
+      },
+    });
+
+    if (!contractor) {
+      throw new NotFoundException('Contractor not found');
+    }
+
+    // Verify contractor has CONTRACTOR role
+    const isContractor = contractor.orgMemberships.some(
+      (m) => m.role === 'CONTRACTOR'
+    );
+
+    if (!isContractor) {
+      throw new ForbiddenException('User must have CONTRACTOR role');
+    }
+
+    // Update ticket
+    const updated = await this.prisma.ticket.update({
+      where: { id: ticketId },
+      data: { assignedToId: contractorId },
+      include: {
+        property: true,
+        tenancy: true,
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId,
+        eventType: 'assigned',
+        actorId,
+        details: JSON.stringify({
+          contractorId,
+          contractorName: contractor.name,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'ticket.assigned',
+      actorRole: userRole,
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      resources: [{ type: 'ticket', id: ticketId }],
+      payload: { contractorId, contractorName: contractor.name },
+    });
+
+    return updated;
   }
 }
