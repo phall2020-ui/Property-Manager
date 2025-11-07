@@ -478,18 +478,50 @@ export class TicketsService {
     size: number,
     userOrgIds: string[],
   ) {
-    // Verify access
-    await this.findOne(ticketId, userOrgIds);
+    // Verify access to the ticket
+    const ticket = await this.findOne(ticketId, userOrgIds);
 
-    return this.prisma.ticketAttachment.create({
-      data: {
-        ticketId,
-        filename,
-        filepath,
-        mimetype,
-        size,
-      },
-    });
+    if (!ticket) {
+      throw new NotFoundException(`Ticket with ID ${ticketId} not found`);
+    }
+
+    // Validate file size (additional server-side check)
+    const maxSizeBytes = 10 * 1024 * 1024; // 10MB
+    if (size > maxSizeBytes) {
+      throw new ForbiddenException(
+        `File size ${(size / 1024 / 1024).toFixed(2)}MB exceeds maximum allowed size of 10MB`
+      );
+    }
+
+    try {
+      const attachment = await this.prisma.ticketAttachment.create({
+        data: {
+          ticketId,
+          filename,
+          filepath,
+          mimetype,
+          size,
+        },
+      });
+
+      // Create timeline event for attachment upload
+      await this.prisma.ticketTimeline.create({
+        data: {
+          ticketId,
+          eventType: 'attachment_added',
+          actorId: ticket.createdById, // Use the user who created the ticket as fallback
+          details: JSON.stringify({
+            filename,
+            size,
+            mimetype,
+          }),
+        },
+      });
+
+      return attachment;
+    } catch (error) {
+      throw new ForbiddenException(`Failed to upload attachment: ${error.message}`);
+    }
   }
 
   async findProperty(propertyId: string) {

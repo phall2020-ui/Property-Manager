@@ -189,7 +189,10 @@ export class TicketsController {
   }
 
   @Post(':id/attachments')
-  @ApiOperation({ summary: 'Upload ticket attachment' })
+  @ApiOperation({ 
+    summary: 'Upload ticket attachment',
+    description: 'Upload a file attachment to a ticket. Maximum file size: 10MB. Allowed types: images (jpg, jpeg, png, gif, webp), documents (pdf, doc, docx, txt), and spreadsheets (xls, xlsx, csv).'
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBearerAuth()
   @UseInterceptors(
@@ -202,6 +205,37 @@ export class TicketsController {
         },
       }),
       limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+      fileFilter: (req, file, cb) => {
+        // Allowed MIME types
+        const allowedMimeTypes = [
+          // Images
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+          // Documents
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'text/plain',
+          // Spreadsheets
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'text/csv',
+        ];
+
+        if (allowedMimeTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              `Invalid file type: ${file.mimetype}. Allowed types: images (jpg, jpeg, png, gif, webp), documents (pdf, doc, docx, txt), spreadsheets (xls, xlsx, csv)`
+            ),
+            false,
+          );
+        }
+      },
     }),
   )
   async uploadAttachment(
@@ -209,15 +243,39 @@ export class TicketsController {
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: any,
   ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
-    return this.ticketsService.uploadAttachment(
-      id,
-      file.originalname,
-      file.path,
-      file.mimetype,
-      file.size,
-      userOrgIds,
-    );
+    
+    try {
+      const attachment = await this.ticketsService.uploadAttachment(
+        id,
+        file.originalname,
+        file.path,
+        file.mimetype,
+        file.size,
+        userOrgIds,
+      );
+
+      this.logger.log({
+        action: 'attachment.uploaded',
+        ticketId: id,
+        filename: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+      });
+
+      return attachment;
+    } catch (error) {
+      this.logger.error({
+        action: 'attachment.upload.failed',
+        ticketId: id,
+        error: error.message,
+      });
+      throw error;
+    }
   }
 
   @Roles('CONTRACTOR')
