@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 export interface SystemEvent {
@@ -32,7 +32,8 @@ export function useEventStream({
   const eventSourceRef = useRef<EventSource | null>(null);
   const retryCountRef = useRef(0);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isConnectedRef = useRef(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const connectFnRef = useRef<(() => Promise<void>) | null>(null);
 
   const getApiUrl = useCallback(() => {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
@@ -46,7 +47,7 @@ export function useEventStream({
         
         // Skip connection messages
         if (data.type === 'connected') {
-          isConnectedRef.current = true;
+          setIsConnected(true);
           retryCountRef.current = 0; // Reset retry count on successful connection
           return;
         }
@@ -94,7 +95,7 @@ export function useEventStream({
   const handleError = useCallback(
     (event: Event) => {
       console.error('EventSource error:', event);
-      isConnectedRef.current = false;
+      setIsConnected(false);
 
       if (onError) {
         onError(event);
@@ -117,8 +118,8 @@ export function useEventStream({
       console.log(`Retrying in ${retryDelay}ms (attempt ${retryCountRef.current})`);
       
       retryTimeoutRef.current = setTimeout(() => {
-        if (enabled && token) {
-          connect();
+        if (enabled && token && connectFnRef.current) {
+          connectFnRef.current();
         }
       }, retryDelay);
     },
@@ -173,7 +174,7 @@ export function useEventStream({
         },
         readLoop: async () => {
           try {
-            isConnectedRef.current = true;
+            setIsConnected(true);
             retryCountRef.current = 0;
             
             let buffer = '';
@@ -216,6 +217,11 @@ export function useEventStream({
     }
   }, [enabled, token, getApiUrl, handleEvent, handleError]);
 
+  // Store connect function in ref for handleError to use
+  useEffect(() => {
+    connectFnRef.current = connect;
+  }, [connect]);
+
   useEffect(() => {
     connect();
 
@@ -233,7 +239,7 @@ export function useEventStream({
   }, [connect]);
 
   return {
-    isConnected: isConnectedRef.current,
+    isConnected,
     disconnect: () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -243,7 +249,7 @@ export function useEventStream({
         clearTimeout(retryTimeoutRef.current);
         retryTimeoutRef.current = null;
       }
-      isConnectedRef.current = false;
+      setIsConnected(false);
     },
   };
 }

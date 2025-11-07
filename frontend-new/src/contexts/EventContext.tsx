@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useEventStream } from '../hooks/useEventStream';
 import type { SystemEvent } from '../hooks/useEventStream';
@@ -15,21 +15,21 @@ const EventContext = createContext<EventContextType | undefined>(undefined);
 export function EventProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [lastEvent, setLastEvent] = useState<SystemEvent | null>(null);
-  const [listeners, setListeners] = useState<Array<(event: SystemEvent) => void>>([]);
+  const listenersRef = useRef<Array<(event: SystemEvent) => void>>([]);
   
   const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
 
   const handleEvent = useCallback((event: SystemEvent) => {
     setLastEvent(event);
     // Notify all subscribers
-    listeners.forEach(listener => {
+    listenersRef.current.forEach(listener => {
       try {
         listener(event);
       } catch (error) {
         console.error('Error in event listener:', error);
       }
     });
-  }, [listeners]);
+  }, []);
 
   const { isConnected } = useEventStream({
     token: token || '',
@@ -41,11 +41,11 @@ export function EventProvider({ children }: { children: ReactNode }) {
   });
 
   const subscribe = useCallback((listener: (event: SystemEvent) => void) => {
-    setListeners(prev => [...prev, listener]);
+    listenersRef.current.push(listener);
     
     // Return unsubscribe function
     return () => {
-      setListeners(prev => prev.filter(l => l !== listener));
+      listenersRef.current = listenersRef.current.filter(l => l !== listener);
     };
   }, []);
 
