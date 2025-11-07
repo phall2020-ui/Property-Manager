@@ -27,6 +27,9 @@ export default function OpsLayout({ children }: { children: React.ReactNode }) {
               <Link href="/queue" className="hover:underline">
                 Queue
               </Link>
+              <Link href="/job-queues" className="hover:underline">
+                Job Queues
+              </Link>
               <div className="flex items-center space-x-3 ml-4 pl-4 border-l border-blue-400">
                 <NotificationBell />
                 {user && (

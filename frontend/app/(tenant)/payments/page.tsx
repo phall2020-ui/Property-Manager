@@ -141,13 +141,13 @@ export default function TenantPaymentsPage() {
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <div className="font-semibold">{invoice.reference}</div>
+                    <div className="font-semibold">{invoice.number}</div>
                     <div className="text-sm text-gray-600">
-                      {new Date(invoice.periodStart).toLocaleDateString('en-GB')} -{' '}
-                      {new Date(invoice.periodEnd).toLocaleDateString('en-GB')}
+                      Issued: {new Date(invoice.issueDate).toLocaleDateString('en-GB')}
+                      {invoice.dueDate && ` • Due: ${new Date(invoice.dueDate).toLocaleDateString('en-GB')}`}
                     </div>
                     <div className="text-sm text-gray-600">
-                      Property: {invoice.tenancy?.property?.addressLine1}
+                      Invoice #{invoice.number}
                     </div>
                   </div>
                   <div className="text-right">
@@ -155,7 +155,7 @@ export default function TenantPaymentsPage() {
                       £{invoice.balance?.toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-600">
-                      Due: {new Date(invoice.dueAt).toLocaleDateString('en-GB')}
+                      Due: {new Date(invoice.dueDate).toLocaleDateString('en-GB')}
                     </div>
                     <span
                       className={`inline-block px-2 py-1 rounded text-xs mt-1 ${
@@ -172,10 +172,10 @@ export default function TenantPaymentsPage() {
                     </span>
                   </div>
                 </div>
-                {invoice.paidAmount > 0 && (
+                {(invoice.paidAmount || 0) > 0 && (
                   <div className="text-sm text-gray-600">
-                    Paid: £{invoice.paidAmount?.toFixed(2)} of £
-                    {(invoice.amountGBP || invoice.amount)?.toFixed(2)}
+                    Paid: £{(invoice.paidAmount || 0).toFixed(2)} of £
+                    {(invoice.lineTotal || 0).toFixed(2)}
                   </div>
                 )}
               </div>
@@ -212,7 +212,7 @@ export default function TenantPaymentsPage() {
             £
             {filteredInvoices
               .filter((inv: Invoice) => inv.status === 'PAID')
-              .reduce((sum: number, inv: Invoice) => sum + (inv.amountGBP || inv.amount || 0), 0)
+              .reduce((sum: number, inv: Invoice) => sum + (inv.lineTotal || 0), 0)
               .toFixed(2)}
           </div>
         </div>

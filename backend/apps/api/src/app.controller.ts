@@ -1,10 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
 import { Public } from './common/decorators/public.decorator';
 import { PrismaService } from './common/prisma/prisma.service';
+import { JobsService } from './modules/jobs/jobs.service';
 
 @Controller()
 export class AppController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jobsService: JobsService,
+  ) {}
 
   @Public()
   @Get()
@@ -42,8 +46,15 @@ export class AppController {
       health.status = 'degraded';
     }
 
-    // Note: Redis check would go here if Redis is configured
-    health.redis = process.env.REDIS_URL ? 'not_implemented' : 'not_configured';
+    // Check Redis/Jobs connectivity
+    if (process.env.REDIS_URL) {
+      health.redis = this.jobsService.isRedisAvailable() ? 'connected' : 'disconnected';
+      if (!this.jobsService.isRedisAvailable()) {
+        health.status = 'degraded';
+      }
+    } else {
+      health.redis = 'not_configured';
+    }
 
     return health;
   }
