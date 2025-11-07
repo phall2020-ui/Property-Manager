@@ -26,7 +26,7 @@ export default function JobDetailPage() {
     enabled: typeof jobId === 'string',
   });
   const [actionError, setActionError] = useState<string | null>(null);
-  const submitQuote = useMutation<unknown, any, SubmitQuoteDTO, { previousTicket?: Ticket }>({
+  const submitQuote = useMutation({
     mutationFn: async (data: SubmitQuoteDTO) => {
       return apiRequest(`/tickets/${jobId}/quote`, {
         method: 'POST',
@@ -68,7 +68,7 @@ export default function JobDetailPage() {
       setActionError(null);
     },
   });
-  const updateStatus = useMutation<unknown, any, TicketStatus>({
+  const updateStatus = useMutation({
     mutationFn: async (status: TicketStatus) => {
       return apiRequest(`/tickets/${jobId}/status`, {
         method: 'PATCH',
