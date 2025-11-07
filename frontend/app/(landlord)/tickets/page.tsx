@@ -10,10 +10,11 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Card } from '@/components/Card';
 import { Button } from '@/components/Button';
 import { CreateTicketModal } from '@/components/CreateTicketModal';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Search, Filter, Plus } from 'lucide-react';
 
 export default function LandlordTicketsPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const { searchTerm, debouncedSearchTerm, setSearchTerm } = useDebounce('', 300);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -41,9 +42,9 @@ export default function LandlordTicketsPage() {
     if (!tickets) return [];
     
     return tickets.filter(ticket => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+      // Search filter with debounced term
+      if (debouncedSearchTerm) {
+        const query = debouncedSearchTerm.toLowerCase();
         const matchesSearch = 
           ticket.title?.toLowerCase().includes(query) ||
           ticket.description?.toLowerCase().includes(query) ||
@@ -64,7 +65,7 @@ export default function LandlordTicketsPage() {
 
       return true;
     });
-  }, [tickets, searchQuery, statusFilter, categoryFilter]);
+  }, [tickets, debouncedSearchTerm, statusFilter, categoryFilter]);
 
   // Count by status
   const statusCounts = useMemo(() => {
@@ -147,8 +148,8 @@ export default function LandlordTicketsPage() {
             <input
               type="text"
               placeholder="Search tickets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -168,10 +169,10 @@ export default function LandlordTicketsPage() {
           </div>
 
           {/* Clear Filters */}
-          {(searchQuery || statusFilter !== 'all' || categoryFilter !== 'all') && (
+          {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all') && (
             <button
               onClick={() => {
-                setSearchQuery('');
+                setSearchTerm('');
                 setStatusFilter('all');
                 setCategoryFilter('all');
               }}
@@ -226,7 +227,7 @@ export default function LandlordTicketsPage() {
             <p className="text-gray-500">No tickets match your filters</p>
             <button
               onClick={() => {
-                setSearchQuery('');
+                setSearchTerm('');
                 setStatusFilter('all');
                 setCategoryFilter('all');
               }}

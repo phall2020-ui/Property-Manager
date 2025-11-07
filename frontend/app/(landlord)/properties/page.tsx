@@ -100,7 +100,7 @@ export default function PropertiesPage() {
             Welcome to Your Property Portfolio
           </h2>
           <p className="text-gray-600 mb-6">
-            You haven't added any properties yet. Let's get started by adding your first property.
+            You haven&apos;t added any properties yet. Let&apos;s get started by adding your first property.
           </p>
           <Button
             variant="primary"
@@ -196,7 +196,7 @@ export default function PropertiesPage() {
       {filteredProperties?.length === 0 && searchTerm && (
         <div className="text-center py-12">
           <p className="text-gray-500">
-            No properties match your search "{searchTerm}"
+            No properties match your search &quot;{searchTerm}&quot;
           </p>
         </div>
       )}

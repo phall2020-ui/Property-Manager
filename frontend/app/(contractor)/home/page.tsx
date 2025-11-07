@@ -173,7 +173,7 @@ export default function ContractorDashboardPage() {
             No Jobs Yet
           </h3>
           <p className="text-gray-600 mb-6">
-            You haven't been assigned any jobs yet. Check back later.
+            You haven&apos;t been assigned any jobs yet. Check back later.
           </p>
         </Card>
       )}

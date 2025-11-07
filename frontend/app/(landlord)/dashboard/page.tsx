@@ -56,7 +56,7 @@ export default function LandlordDashboardPage() {
           Welcome back{user ? `, ${user.name}` : ''}!
         </h1>
         <p className="text-gray-600 mt-2">
-          Here's what's happening with your properties today.
+          Here&apos;s what&apos;s happening with your properties today.
         </p>
       </div>
 
