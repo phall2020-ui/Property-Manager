@@ -534,10 +534,10 @@ export class TicketsService {
     ticketId: string,
     userId: string,
     userOrgIds: string[],
-    idempotencyKey?: string,
+    _idempotencyKey?: string,
   ) {
     // Verify access
-    const ticket = await this.findOne(ticketId, userOrgIds);
+    const _ticket = await this.findOne(ticketId, userOrgIds);
 
     // Find an approved or pending quote
     const quote = await this.prisma.quote.findFirst({

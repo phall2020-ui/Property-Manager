@@ -1,7 +1,7 @@
 import { Controller, Get, Sse, MessageEvent } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { Observable, interval } from 'rxjs';
-import { map, switchMap, startWith } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { map, startWith } from 'rxjs/operators';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { EventsService, SystemEvent } from './events.service';
 
@@ -37,14 +37,6 @@ export class EventsController {
       tenantId,
       role,
     });
-
-    // Send keepalive every 30 seconds to prevent connection timeout
-    const keepalive$ = interval(30000).pipe(
-      map(() => ({
-        type: 'keepalive',
-        data: { timestamp: new Date().toISOString() },
-      }))
-    );
 
     // Merge events with keepalive and format
     return events$.pipe(

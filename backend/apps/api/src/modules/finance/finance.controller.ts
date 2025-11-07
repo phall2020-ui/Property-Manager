@@ -99,7 +99,7 @@ export class FinanceController {
   async createInvoice(
     @Body() dto: CreateInvoiceDto, 
     @CurrentUser() user: any,
-    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('idempotency-key') _idempotencyKey?: string,
   ) {
     const landlordId = this.getLandlordId(user);
     return this.invoiceService.createInvoice(landlordId, dto);
@@ -159,7 +159,7 @@ export class FinanceController {
   async recordPayment(
     @Body() dto: RecordPaymentDto, 
     @CurrentUser() user: any,
-    @Headers('idempotency-key') idempotencyKey?: string,
+    @Headers('idempotency-key') _idempotencyKey?: string,
   ) {
     const landlordId = this.getLandlordId(user);
     return this.paymentService.recordPayment(landlordId, dto);
