@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRoutingService } from '../notifications/notification-routing.service';
 import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class TicketsService {
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
     private readonly notificationsService: NotificationsService,
+    private readonly notificationRoutingService: NotificationRoutingService,
     private readonly jobsService: JobsService,
   ) {}
 
@@ -103,6 +105,24 @@ export class TicketsService {
         resourceId: ticket.id,
       });
     }
+    
+    // Route notifications through the new routing service
+    await this.notificationRoutingService.routeEvent({
+      type: 'ticket.created',
+      entityId: ticket.id,
+      entityVersion: 1,
+      actorId: data.createdById,
+      actorRole: 'TENANT',
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      payload: {
+        ticketId: ticket.id,
+        title: ticket.title,
+        priority: ticket.priority,
+        category: ticket.category,
+        propertyId: ticket.propertyId,
+      },
+    });
     
     return ticket;
   }

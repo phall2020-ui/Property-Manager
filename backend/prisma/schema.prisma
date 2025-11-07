@@ -1032,6 +1032,54 @@ model Notification {
   @@index([resourceType, resourceId])
 }
 
+// Notification outbox for reliable delivery
+model NotificationOutbox {
+  id              String    @id @default(uuid())
+  eventType       String    // ticket.created, quote.submitted, etc.
+  entityId        String    // ID of the entity (ticket, quote, etc.)
+  entityVersion   Int       @default(1) // Version for idempotency
+  idempotencyKey  String    @unique // {eventType}:{entityId}:{version}
+  channel         String    // email, webhook, in-app
+  recipientId     String    // User ID or webhook URL
+  payload         String    // JSON payload
+  status          String    @default("PENDING") // PENDING, PROCESSING, DELIVERED, FAILED
+  attempts        Int       @default(0)
+  maxAttempts     Int       @default(3)
+  lastAttemptAt   DateTime?
+  nextAttemptAt   DateTime? // For retry with backoff
+  deliveredAt     DateTime?
+  error           String?   // Last error message
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([eventType, entityId])
+  @@index([createdAt])
+}
+
+// User notification preferences
+model NotificationPreference {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  emailEnabled         Boolean  @default(true)
+  webhookEnabled       Boolean  @default(false)
+  inAppEnabled         Boolean  @default(true)
+  webhookUrl           String?
+  webhookSecret        String?
+  ticketCreated        String   @default("email,in-app") // Comma-separated channels
+  ticketAssigned       String   @default("email,in-app")
+  quoteSubmitted       String   @default("email,in-app")
+  quoteApproved        String   @default("in-app")
+  appointmentProposed  String   @default("email,in-app")
+  appointmentConfirmed String   @default("email,in-app")
+  ticketCompleted      String   @default("email,in-app")
+  ticketClosed         String   @default("in-app")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([userId])
+}
+
 // Timeline events for tickets
 model TicketTimeline {
   id        String   @id @default(uuid())
