@@ -195,9 +195,26 @@ npm test
 ### Frontend Tests
 ```bash
 cd frontend
-npm test         # Unit tests (Vitest)
-npm run test:e2e # E2E tests (Playwright)
+npm test             # Unit tests (Vitest)
+npm run test:e2e     # E2E tests (Playwright)
+npm run test:e2e:ui  # Interactive E2E test UI
+npm run lhci         # Lighthouse CI audit
 ```
+
+### Automated UI Operability Testing
+
+On every pull request, the CI/CD pipeline automatically:
+- Deploys a Vercel preview build
+- Runs Playwright E2E tests across Chrome, Firefox, and Safari
+- Performs accessibility audits using axe-core (WCAG 2.0 AA)
+- Runs Lighthouse CI for performance, SEO, and best practices
+
+**Required GitHub Secrets** (Repository → Settings → Secrets and variables → Actions):
+- `VERCEL_TOKEN` - Your Vercel API token
+- `VERCEL_ORG_ID` - Your Vercel organization ID
+- `VERCEL_PROJECT_ID` - Your Vercel project ID
+
+Test artifacts (reports, screenshots, videos) are uploaded for debugging failed runs.
 
 ## 📚 API Documentation
 
