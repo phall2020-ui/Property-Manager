@@ -23,6 +23,8 @@ import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import { ProposeAppointmentDto } from './dto/propose-appointment.dto';
 import { ConfirmAppointmentDto } from './dto/confirm-appointment.dto';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
+import { BulkUpdateStatusDto } from './dto/bulk-update-status.dto';
+import { BulkAssignDto } from './dto/bulk-assign.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -330,6 +332,7 @@ export class TicketsController {
   }
 
   @Roles('OPS')
+  @Roles('OPS')
   @Post('bulk/status')
   @ApiOperation({ 
     summary: 'Bulk update ticket status (OPS only)',
@@ -337,13 +340,13 @@ export class TicketsController {
   })
   @ApiBearerAuth()
   async bulkUpdateStatus(
-    @Body() body: { ticketIds: string[]; status: string },
+    @Body() dto: BulkUpdateStatusDto,
     @CurrentUser() user: any,
   ) {
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     return this.ticketsService.bulkUpdateStatus(
-      body.ticketIds,
-      body.status,
+      dto.ticketIds,
+      dto.status,
       user.id,
       primaryRole,
     );
@@ -357,13 +360,13 @@ export class TicketsController {
   })
   @ApiBearerAuth()
   async bulkAssign(
-    @Body() body: { ticketIds: string[]; contractorId: string },
+    @Body() dto: BulkAssignDto,
     @CurrentUser() user: any,
   ) {
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     return this.ticketsService.bulkAssign(
-      body.ticketIds,
-      body.contractorId,
+      dto.ticketIds,
+      dto.contractorId,
       user.id,
       primaryRole,
     );
