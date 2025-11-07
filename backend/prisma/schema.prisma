@@ -149,12 +149,12 @@ model Property {
 }
 
 // Tenancies linking properties to tenant organisations
-// Tenancies linking properties to tenant organisations
 model Tenancy {
   id           String    @id @default(uuid())
   propertyId   String
   landlordId   String?   // New: Direct landlord reference (Step 2)
   tenantOrgId  String    // Keep for backward compatibility
+  primaryTenant String?  // userId of the main tenant
   start        DateTime  // Renamed from startDate (Step 2 spec)
   startDate    DateTime? // Keep for backward compatibility  
   end          DateTime? // Renamed from endDate (Step 2 spec)
@@ -167,7 +167,12 @@ model Tenancy {
   rentDueDay   Int?      // 1-28
   deposit      Float     // Decimal(14,2) equivalent
   externalRef  String?   @unique // New: for idempotency (Step 2)
-  status       String    @default("PENDING") // PENDING, ACTIVE, ENDED
+  status       String    @default("PENDING") // PENDING, ACTIVE, ENDED, SCHEDULED, EXPIRING, TERMINATED
+  
+  // Lifecycle fields
+  terminatedAt      DateTime?
+  terminationReason String?
+  renewalOfId       String?  // reference to prior tenancy when renewed
   
   // Legal & Deposit
   depositScheme          String? // DPS, TDS, MyDeposits, None
@@ -196,19 +201,26 @@ model Tenancy {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  property  Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  tenantOrg Org               @relation("TenantOrg", fields: [tenantOrgId], references: [id], onDelete: Cascade)
-  tickets   Ticket[]
-  documents TenancyDocument[]
-  tenants   TenancyTenant[]
-  auditLogs AuditLog[]
+  property      Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  tenantOrg     Org               @relation("TenantOrg", fields: [tenantOrgId], references: [id], onDelete: Cascade)
+  renewalOf     Tenancy?          @relation("TenancyRenewal", fields: [renewalOfId], references: [id], onDelete: SetNull)
+  renewedBy     Tenancy[]         @relation("TenancyRenewal")
+  tickets       Ticket[]
+  documents     TenancyDocument[]
+  tenants       TenancyTenant[]
+  auditLogs     AuditLog[]
   rentSchedules RentSchedule[]
   invoices      Invoice[]
+  breakClause   BreakClause?
+  guarantors    Guarantor[]
+  rentRevisions RentRevision[]
 
   @@index([propertyId])
   @@index([tenantOrgId])
   @@index([landlordId])
   @@index([externalRef])
+  @@index([status])
+  @@index([status, end])
 }
 
 // Documents attached to tenancies (stored on disk)
@@ -224,6 +236,50 @@ model TenancyDocument {
   tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
 
   @@index([tenancyId])
+}
+
+// Break clause for early termination
+model BreakClause {
+  id                String   @id @default(uuid())
+  tenancyId         String   @unique
+  earliestBreakDate DateTime
+  noticeMonths      Int      // required notice period
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+}
+
+// Guarantor support
+model Guarantor {
+  id        String   @id @default(uuid())
+  tenancyId String
+  name      String
+  email     String
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  @@index([tenancyId])
+}
+
+// Rent revision history
+model RentRevision {
+  id            String   @id @default(uuid())
+  tenancyId     String
+  effectiveFrom DateTime
+  rentPcm       Float    // Using Float for SQLite compatibility
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+
+  @@index([tenancyId])
+  @@index([effectiveFrom])
 }
 
 // ============================================================================

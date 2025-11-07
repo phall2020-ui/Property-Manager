@@ -2,6 +2,8 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
+  Delete,
   Param,
   Body,
   UseInterceptors,
@@ -11,6 +13,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
 import { TenanciesService } from './tenancies.service';
 import { CreateTenancyDto } from './dto/create-tenancy.dto';
+import { UpdateTenancyDto } from './dto/update-tenancy.dto';
+import { TerminateTenancyDto } from './dto/terminate-tenancy.dto';
+import { RenewTenancyDto } from './dto/renew-tenancy.dto';
+import { RentIncreaseDto } from './dto/rent-increase.dto';
+import { CreateGuarantorDto } from './dto/create-guarantor.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -54,6 +61,88 @@ export class TenanciesController {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     return this.tenanciesService.findMany(userOrgIds, primaryRole);
+  }
+
+  @Roles('LANDLORD', 'OPS')
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update tenancy details' })
+  @ApiBearerAuth()
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateTenancyDto,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.tenanciesService.update(id, dto, userOrgIds, user.id);
+  }
+
+  @Roles('LANDLORD', 'OPS')
+  @Post(':id/terminate')
+  @ApiOperation({ summary: 'Terminate tenancy' })
+  @ApiBearerAuth()
+  async terminate(
+    @Param('id') id: string,
+    @Body() dto: TerminateTenancyDto,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.tenanciesService.terminate(id, dto, userOrgIds, user.id);
+  }
+
+  @Roles('LANDLORD', 'OPS')
+  @Post(':id/renew')
+  @ApiOperation({ summary: 'Renew tenancy' })
+  @ApiBearerAuth()
+  async renew(
+    @Param('id') id: string,
+    @Body() dto: RenewTenancyDto,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.tenanciesService.renew(id, dto, userOrgIds, user.id);
+  }
+
+  @Roles('LANDLORD', 'OPS')
+  @Post(':id/rent-increase')
+  @ApiOperation({ summary: 'Apply rent increase' })
+  @ApiBearerAuth()
+  async rentIncrease(
+    @Param('id') id: string,
+    @Body() dto: RentIncreaseDto,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.tenanciesService.applyRentIncrease(id, dto, userOrgIds, user.id);
+  }
+
+  @Roles('LANDLORD', 'OPS')
+  @Post(':id/guarantors')
+  @ApiOperation({ summary: 'Add guarantor to tenancy' })
+  @ApiBearerAuth()
+  async addGuarantor(
+    @Param('id') id: string,
+    @Body() dto: CreateGuarantorDto,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.tenanciesService.addGuarantor(id, dto, userOrgIds, user.id);
+  }
+
+  @Roles('LANDLORD', 'OPS')
+  @Delete('guarantors/:id')
+  @ApiOperation({ summary: 'Remove guarantor' })
+  @ApiBearerAuth()
+  async removeGuarantor(@Param('id') id: string, @CurrentUser() user: any) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.tenanciesService.removeGuarantor(id, userOrgIds, user.id);
+  }
+
+  @Get(':id/payments')
+  @ApiOperation({ summary: 'Get tenancy payments (read-only)' })
+  @ApiBearerAuth()
+  async getPayments(@Param('id') id: string, @CurrentUser() user: any) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.tenanciesService.getPayments(id, userOrgIds);
   }
 
   @Post(':id/documents')
