@@ -658,27 +658,32 @@ model RentSchedule {
 
 // Invoices for rent and other charges (Step 5)
 model Invoice {
-  id            String   @id @default(uuid())
-  landlordId    String
-  propertyId    String
-  tenancyId     String
-  tenantUserId  String?  // Primary tenant for this invoice
-  number        String   @unique // Invoice number (backward compat)
-  reference     String   // Human-readable reference e.g. "2025-03 Rent"
-  periodStart   DateTime // Billing period start
-  periodEnd     DateTime // Billing period end
-  issueDate     DateTime? // Keep for backward compatibility
-  dueAt         DateTime // When payment is due
-  dueDate       DateTime? // Keep for backward compatibility
-  amountGBP     Float    // Total amount in GBP (Float for SQLite, Decimal for Postgres)
-  amount        Float?   // Keep for backward compatibility
-  lineTotal     Float?   // Keep for backward compatibility
-  taxTotal      Float?   // Keep for backward compatibility  
-  grandTotal    Float?   // Keep for backward compatibility
-  status        String   // DRAFT, DUE, PART_PAID, PAID, LATE, VOID
-  notes         String?  // Optional notes
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(uuid())
+  landlordId      String
+  propertyId      String
+  tenancyId       String
+  tenantUserId    String?  // Primary tenant for this invoice
+  number          String   @unique // Invoice number (backward compat)
+  reference       String   // Human-readable reference e.g. "2025-03 Rent"
+  periodStart     DateTime // Billing period start
+  periodEnd       DateTime // Billing period end
+  issueDate       DateTime? // Keep for backward compatibility
+  dueAt           DateTime // When payment is due
+  dueDate         DateTime? // Keep for backward compatibility
+  amountGBP       Float    // Total amount in GBP (Float for SQLite, Decimal for Postgres)
+  amount          Float?   // Keep for backward compatibility
+  lineTotal       Float?   // Keep for backward compatibility
+  taxTotal        Float?   // Keep for backward compatibility  
+  grandTotal      Float?   // Keep for backward compatibility
+  status          String   // DRAFT, DUE, PART_PAID, PAID, LATE, VOID
+  notes           String?  // Optional notes
+  // New fields for finance hardening
+  pdfUrl          String?  // PDF invoice download URL
+  lateFeeTotal    Float    @default(0.0) // Total late fees applied
+  reminderCount   Int      @default(0) // Number of reminders sent
+  lastReminderAt  DateTime? // Last reminder timestamp
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   tenancy     Tenancy             @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
   lines       InvoiceLine[]
@@ -925,19 +930,28 @@ model BalanceSnapshot {
 
 // Finance settings per landlord
 model FinanceSettings {
-  id               String   @id @default(uuid())
-  landlordId       String   @unique
-  invoicePrefix    String   @default("INV")
-  defaultDueDays   Int      @default(7)
-  lateFeeEnabled   Boolean  @default(false)
-  lateFeePercent   Float? // Daily percentage
-  lateFeeFixed     Float? // Or fixed amount per day
-  lateFeeGraceDays Int      @default(0)
-  lateFeeCap       Float? // Max late fee per invoice
-  vatOnFeesEnabled Boolean  @default(false)
-  vatRate          Float    @default(20.0)
-  currency         String   @default("GBP")
-  createdAt        DateTime @default(now())
+  id                   String   @id @default(uuid())
+  landlordId           String   @unique
+  invoicePrefix        String   @default("INV")
+  defaultDueDays       Int      @default(7)
+  lateFeeEnabled       Boolean  @default(false)
+  lateFeePercent       Float? // Daily percentage
+  lateFeeFixed         Float? // Or fixed amount per day
+  lateFeeGraceDays     Int      @default(0)
+  lateFeeCap           Float? // Max late fee per invoice
+  vatOnFeesEnabled     Boolean  @default(false)
+  vatRate              Float    @default(20.0)
+  currency             String   @default("GBP")
+  // Reminder policy
+  remindersEnabled     Boolean  @default(true)
+  reminderGraceDays    Int      @default(3) // Days after due before first reminder
+  reminderCadenceDays  String   @default("1,3,7,14") // Comma-separated: day 1, 3, 7, 14
+  maxReminders         Int      @default(4)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([landlordId])
+}
   updatedAt        DateTime @updatedAt
 
   @@index([landlordId])
