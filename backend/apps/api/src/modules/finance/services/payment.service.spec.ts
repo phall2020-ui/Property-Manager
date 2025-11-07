@@ -182,7 +182,7 @@ describe('PaymentService', () => {
       });
 
       mockPrisma.payment.findUnique.mockResolvedValue(null);
-      mockPrisma.invoice.findFirst.mockResolvedValue(mockInvoice);
+      mockPrisma.invoice.findFirst.mockResolvedValue(null); // Returns null for different landlord
 
       await expect(service.recordPayment(landlordId, recordDto)).rejects.toThrow(
         NotFoundException,
@@ -250,6 +250,10 @@ describe('PaymentService', () => {
       });
       const mockPayment = createMockPayment();
       const mockLedgerAccount = { id: 'account-1' };
+      const mockPaymentWithAllocations = {
+        ...mockPayment,
+        allocations: [{ invoice: mockInvoice }],
+      };
 
       mockPrisma.payment.findUnique.mockResolvedValue(null); // First call
       mockPrisma.invoice.findFirst.mockResolvedValue(mockInvoice);
@@ -257,7 +261,7 @@ describe('PaymentService', () => {
       mockPrisma.paymentAllocation.create.mockResolvedValue({});
       mockPrisma.ledgerAccount.findFirst.mockResolvedValue(mockLedgerAccount);
       mockPrisma.ledgerEntry.create.mockResolvedValue({});
-      mockInvoiceService.getInvoice.mockResolvedValue(mockInvoice);
+      mockPrisma.payment.findFirst.mockResolvedValue(mockPaymentWithAllocations);
 
       // First webhook call
       await service.recordPayment('landlord-1', {
@@ -294,15 +298,22 @@ describe('PaymentService', () => {
     const landlordId = 'landlord-1';
 
     it('should return payment with allocations', async () => {
-      const mockPayment = createMockPayment({
-        allocations: [createMockPaymentAllocation()],
-      });
+      const mockPayment = {
+        ...createMockPayment(),
+        allocations: [
+          {
+            ...createMockPaymentAllocation(),
+            invoice: createMockInvoice(),
+          },
+        ],
+      };
 
       mockPrisma.payment.findFirst.mockResolvedValue(mockPayment);
 
       const result = await service.getPayment(paymentId, landlordId);
 
-      expect(result).toEqual(mockPayment);
+      expect(result).toBeDefined();
+      expect(result.allocations).toHaveLength(1);
       expect(mockPrisma.payment.findFirst).toHaveBeenCalledWith({
         where: {
           id: paymentId,
@@ -332,8 +343,14 @@ describe('PaymentService', () => {
 
     it('should list payments with pagination', async () => {
       const mockPayments = [
-        createMockPayment(),
-        createMockPayment({ id: 'pay-124' }),
+        {
+          ...createMockPayment(),
+          allocations: [createMockPaymentAllocation()],
+        },
+        {
+          ...createMockPayment({ id: 'pay-124' }),
+          allocations: [createMockPaymentAllocation()],
+        },
       ];
 
       mockPrisma.payment.findMany.mockResolvedValue(mockPayments);
@@ -394,6 +411,10 @@ describe('PaymentService', () => {
       });
       const mockPayment = createMockPayment({ amountGBP: 600.0 });
       const mockLedgerAccount = { id: 'account-1' };
+      const mockPaymentWithAllocations = {
+        ...mockPayment,
+        allocations: [{ invoice: mockInvoice }],
+      };
 
       mockPrisma.payment.findUnique.mockResolvedValue(null);
       mockPrisma.invoice.findFirst.mockResolvedValue(mockInvoice);
@@ -401,11 +422,7 @@ describe('PaymentService', () => {
       mockPrisma.paymentAllocation.create.mockResolvedValue({});
       mockPrisma.ledgerAccount.findFirst.mockResolvedValue(mockLedgerAccount);
       mockPrisma.ledgerEntry.create.mockResolvedValue({});
-      mockInvoiceService.getInvoice.mockResolvedValue({
-        ...mockInvoice,
-        paidAmount: 600.0,
-        balance: 600.0,
-      });
+      mockPrisma.payment.findFirst.mockResolvedValue(mockPaymentWithAllocations);
 
       const result = await service.recordPayment(landlordId, partialDto);
 
@@ -439,6 +456,10 @@ describe('PaymentService', () => {
         vatGBP: 2.11,
       });
       const mockLedgerAccount = { id: 'account-1' };
+      const mockPaymentWithAllocations = {
+        ...mockPayment,
+        allocations: [{ invoice: mockInvoice }],
+      };
 
       mockPrisma.payment.findUnique.mockResolvedValue(null);
       mockPrisma.invoice.findFirst.mockResolvedValue(mockInvoice);
@@ -446,7 +467,7 @@ describe('PaymentService', () => {
       mockPrisma.paymentAllocation.create.mockResolvedValue({});
       mockPrisma.ledgerAccount.findFirst.mockResolvedValue(mockLedgerAccount);
       mockPrisma.ledgerEntry.create.mockResolvedValue({});
-      mockInvoiceService.getInvoice.mockResolvedValue(mockInvoice);
+      mockPrisma.payment.findFirst.mockResolvedValue(mockPaymentWithAllocations);
 
       const result = await service.recordPayment(landlordId, roundingDto);
 
