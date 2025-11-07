@@ -25,8 +25,9 @@ export default function RentRollPage() {
           <p className="text-gray-600 mt-1">Expected vs received rent by property</p>
         </div>
         <div>
-          <label className="text-sm text-gray-600 mr-2">Month:</label>
+          <label htmlFor="month-filter" className="text-sm text-gray-600 mr-2">Month:</label>
           <input
+            id="month-filter"
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}

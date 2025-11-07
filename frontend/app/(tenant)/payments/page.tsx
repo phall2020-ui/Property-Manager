@@ -138,6 +138,14 @@ export default function TenantPaymentsPage() {
                 key={invoice.id}
                 className="p-4 hover:bg-gray-50 cursor-pointer"
                 onClick={() => router.push(`/payments/${invoice.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    router.push(`/payments/${invoice.id}`);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
