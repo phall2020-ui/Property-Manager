@@ -222,12 +222,45 @@ export const ticketsApi = {
     return response.data;
   },
 
-  uploadAttachment: async (id: string, file: File) => {
+  uploadAttachment: async (id: string, file: File, category?: 'before' | 'after' | 'other') => {
     const formData = new FormData();
     formData.append('file', file);
+    if (category) {
+      formData.append('category', category);
+    }
     const response = await api.post(`/tickets/${id}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return response.data;
+  },
+
+  getAttachments: async (id: string) => {
+    const response = await api.get(`/tickets/${id}/attachments`);
+    return response.data;
+  },
+
+  deleteAttachment: async (ticketId: string, attachmentId: string) => {
+    const response = await api.delete(`/tickets/${ticketId}/attachments/${attachmentId}`);
+    return response.data;
+  },
+
+  proposeAppointment: async (id: string, data: { startAt: string; endAt?: string; notes?: string }) => {
+    const response = await api.post(`/tickets/${id}/appointments`, data);
+    return response.data;
+  },
+
+  getAppointments: async (id: string) => {
+    const response = await api.get(`/tickets/${id}/appointments`);
+    return response.data;
+  },
+
+  confirmAppointment: async (appointmentId: string) => {
+    const response = await api.post(`/appointments/${appointmentId}/confirm`, {});
+    return response.data;
+  },
+
+  getAppointment: async (appointmentId: string) => {
+    const response = await api.get(`/appointments/${appointmentId}`);
     return response.data;
   },
 };

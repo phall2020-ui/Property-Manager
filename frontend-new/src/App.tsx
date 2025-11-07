@@ -10,6 +10,7 @@ import PropertyCreatePage from './pages/properties/PropertyCreatePage';
 import PropertyDetailPage from './pages/properties/PropertyDetailPage';
 import TicketsListPage from './pages/tickets/TicketsListPage';
 import TicketCreatePage from './pages/tickets/TicketCreatePage';
+import TicketDetailPage from './pages/tickets/TicketDetailPage';
 import ComplianceCentrePage from './pages/compliance/ComplianceCentrePage';
 import JobsListPage from './pages/jobs/JobsListPage';
 import QueueListPage from './pages/queue/QueueListPage';
@@ -102,6 +103,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <TicketCreatePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tickets/:id"
+                element={
+                  <ProtectedRoute>
+                    <TicketDetailPage />
                   </ProtectedRoute>
                 }
               />
