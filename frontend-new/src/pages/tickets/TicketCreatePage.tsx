@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ticketsApi, propertiesApi } from '../../lib/api';
+import { extractErrorMessage } from '../../lib/validation';
 
 export default function TicketCreatePage() {
   const navigate = useNavigate();
@@ -57,10 +58,7 @@ export default function TicketCreatePage() {
     onError: (err: unknown, _newTicket, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       queryClient.setQueryData(['tickets'], context?.previousTickets);
-      const errorMessage = err && typeof err === 'object' && 'response' in err
-        ? (err.response as { data?: { message?: string } })?.data?.message || 'Failed to create ticket'
-        : 'Failed to create ticket';
-      setError(errorMessage);
+      setError(extractErrorMessage(err) || 'Failed to create ticket');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });

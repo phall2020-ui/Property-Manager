@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { propertiesApi } from '../../lib/api';
+import { extractErrorMessage } from '../../lib/validation';
 
 export default function PropertyCreatePage() {
   const navigate = useNavigate();
@@ -61,10 +62,7 @@ export default function PropertyCreatePage() {
       if (context?.previousEnhanced) {
         queryClient.setQueryData(['enhanced-properties'], context.previousEnhanced);
       }
-      const errorMessage = err && typeof err === 'object' && 'response' in err
-        ? (err.response as { data?: { message?: string } })?.data?.message || 'Failed to create property'
-        : 'Failed to create property';
-      setError(errorMessage);
+      setError(extractErrorMessage(err) || 'Failed to create property');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['properties'] });
