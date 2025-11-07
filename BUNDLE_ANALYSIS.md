@@ -13,12 +13,14 @@ Generated on: 2025-11-07
 
 ### Top 3 Heavy Modules
 
-1. **Leaflet Map Library (marker-shadow-DGUHmFkH.js)**: 159.63 kB (49.89 kB gzipped)
+1. **Leaflet Map Library**: ~160 kB (~50 kB gzipped)
+   - **File pattern**: `marker-shadow-*.js` (hash changes per build)
    - **Usage**: Used in PropertyMap and PropertyMiniMap components
    - **Impact**: Loaded on dashboard and property detail pages
    - **Recommendation**: ✅ Already lazy-loaded via dynamic imports
 
-2. **Main Application Bundle (index-eYEI2QOO.js)**: 376.74 kB (114.79 kB gzipped)
+2. **Main Application Bundle**: ~377 kB (~115 kB gzipped)
+   - **File pattern**: `index-*.js` (hash changes per build)
    - **Contains**: React, React Router, TanStack Query, Axios, and all application code
    - **Impact**: Loaded on all pages
    - **Recommendations**:
@@ -26,7 +28,8 @@ Generated on: 2025-11-07
      - Review if all of TanStack Query features are needed
      - Consider using route-based code splitting
 
-3. **CSS Bundle (index-BjkENSrs.css)**: 30.10 kB (6.33 kB gzipped)
+3. **CSS Bundle**: ~30 kB (~6 kB gzipped)
+   - **File pattern**: `index-*.css` (hash changes per build)
    - **Contains**: Tailwind CSS utilities and custom styles
    - **Impact**: Acceptable size for a full utility CSS framework
    - **Recommendation**: ✅ Already optimized with PurgeCSS

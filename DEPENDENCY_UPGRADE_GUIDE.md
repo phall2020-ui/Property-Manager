@@ -131,6 +131,11 @@ Before merging any dependency update PR:
 
 When `npm audit` reports vulnerabilities:
 
+**Note**: Security audits are currently set to warning-only to allow the team to establish a baseline. They will be made blocking after:
+1. All existing high-severity vulnerabilities are addressed
+2. The team has gone through one complete update cycle
+3. Target date: 2 weeks from merge
+
 1. **Assess Severity**
    - Critical/High: Address immediately
    - Moderate: Address within 1 week

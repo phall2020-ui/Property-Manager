@@ -7,11 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     // Bundle analyzer - only runs when ANALYZE=true
-    process.env.ANALYZE === 'true' && visualizer({
+    ...(process.env.ANALYZE === 'true' ? [visualizer({
       open: true,
       filename: 'dist/stats.html',
       gzipSize: true,
       brotliSize: true,
-    }),
-  ].filter(Boolean),
+    })] : []),
+  ],
 })

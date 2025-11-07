@@ -64,8 +64,12 @@ jobs:
         run: npm ci
       
       - name: Run npm audit
-        run: npm audit --audit-level=high || echo "::warning::Security vulnerabilities found. Please review and address."
-        continue-on-error: true
+        run: |
+          npm audit --audit-level=high || {
+            echo "::warning::High-severity security vulnerabilities found in frontend. Please review and address before merging."
+            echo "This is currently set to warning-only. Will be made blocking in future iterations."
+            exit 0
+          }
 
   # Backend Lint
   backend-lint:
@@ -117,8 +121,12 @@ jobs:
         run: npm ci
       
       - name: Run npm audit
-        run: npm audit --audit-level=high || echo "::warning::Security vulnerabilities found. Please review and address."
-        continue-on-error: true
+        run: |
+          npm audit --audit-level=high || {
+            echo "::warning::High-severity security vulnerabilities found in backend. Please review and address before merging."
+            echo "This is currently set to warning-only. Will be made blocking in future iterations."
+            exit 0
+          }
 
   # Backend Tests
   backend-test:
