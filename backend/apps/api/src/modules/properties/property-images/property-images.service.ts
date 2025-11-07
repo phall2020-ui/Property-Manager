@@ -51,12 +51,12 @@ export class PropertyImagesService {
     // Upload to storage service
     const uploadResult = await this.storage.uploadFile(file);
 
-    // Create database record
+    // Create database record with consistent field access
     const image = await this.prisma.propertyImage.create({
       data: {
         propertyId,
         ownerOrgId,
-        fileId: uploadResult.fileId || uploadResult.key,
+        fileId: uploadResult.fileId, // Storage service now consistently returns fileId
         url: uploadResult.url,
         name: data?.name || file.originalname,
         sortOrder: data?.sortOrder || property.images.length,
@@ -155,7 +155,13 @@ export class PropertyImagesService {
       where: { id: imageId },
     });
 
-    // Optionally delete from storage (commented out as it depends on storage service implementation)
+    // TODO: Implement storage cleanup strategy
+    // Currently, files are kept in storage for audit/recovery purposes
+    // Consider implementing:
+    // 1. Scheduled cleanup job for orphaned files
+    // 2. Soft delete with grace period before permanent deletion
+    // 3. Lifecycle policies on the storage bucket
+    // Uncomment the following to enable immediate deletion:
     // try {
     //   await this.storage.deleteFile(image.fileId);
     // } catch (error) {

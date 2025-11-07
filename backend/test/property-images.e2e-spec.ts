@@ -2,8 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import cookieParser from 'cookie-parser';
-import * as fs from 'fs';
-import * as path from 'path';
 import { AppModule } from '../apps/api/src/app.module';
 import { PrismaService } from '../apps/api/src/common/prisma/prisma.service';
 
@@ -15,8 +13,7 @@ describe('Property Images (e2e)', () => {
   let propertyId: string;
   let imageId: string;
 
-  // Create a test image buffer
-  const testImagePath = path.join(__dirname, 'fixtures', 'test-image.png');
+  // Create a test image buffer (1x1 transparent PNG)
   const testImageBuffer = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
     'base64',

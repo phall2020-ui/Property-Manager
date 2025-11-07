@@ -50,7 +50,7 @@ export class ListPropertiesQueryDto {
   @ApiProperty({ 
     required: false, 
     description: 'Sort field',
-    enum: ['updatedAt', 'addressLine1', 'address1', 'createdAt'],
+    enum: ['updatedAt', 'addressLine1', 'createdAt'],
   })
   @IsOptional()
   @IsString()

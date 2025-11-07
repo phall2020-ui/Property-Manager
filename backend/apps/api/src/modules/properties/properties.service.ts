@@ -77,10 +77,18 @@ export class PropertiesService {
     const sortField = options?.sort || 'updatedAt';
     const sortOrder = options?.order || 'desc';
     
-    if (sortField === 'address1' || sortField === 'addressLine1') {
-      orderBy.addressLine1 = sortOrder;
+    // Whitelist of allowed sort fields
+    const allowedSortFields = ['updatedAt', 'createdAt', 'addressLine1', 'address1'];
+    
+    if (allowedSortFields.includes(sortField)) {
+      if (sortField === 'address1' || sortField === 'addressLine1') {
+        orderBy.addressLine1 = sortOrder;
+      } else {
+        orderBy[sortField] = sortOrder;
+      }
     } else {
-      orderBy[sortField] = sortOrder;
+      // Default to updatedAt if invalid field provided
+      orderBy.updatedAt = sortOrder;
     }
 
     // Execute query with count
