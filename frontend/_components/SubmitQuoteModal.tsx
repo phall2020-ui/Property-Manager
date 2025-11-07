@@ -36,10 +36,13 @@ export function SubmitQuoteModal({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<SubmitQuoteDTO>({
     resolver: zodResolver(SubmitQuoteSchema),
   });
+
+  const notesValue = watch('notes') || '';
 
   const handleFormSubmit = (data: SubmitQuoteDTO) => {
     onSubmit(data);
@@ -83,12 +86,21 @@ export function SubmitQuoteModal({
 
         <div>
           <Textarea
-            label="Notes"
+            label="Notes (Optional)"
             rows={4}
+            maxLength={300}
             placeholder="Additional details about the work to be done, materials needed, etc."
             error={errors.notes?.message}
             {...register('notes')}
           />
+          <div className="flex justify-between mt-1">
+            <p className="text-xs text-gray-500">
+              Maximum 300 characters
+            </p>
+            <p className="text-xs text-gray-500">
+              {notesValue.length}/300
+            </p>
+          </div>
         </div>
 
         <div className="flex justify-end space-x-3 pt-4 border-t">
