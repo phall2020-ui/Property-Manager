@@ -169,13 +169,21 @@ export class TicketsService {
       propertyId?: string; 
       status?: string;
       search?: string;
+      q?: string;
+      id?: string;
       category?: string;
       priority?: string;
       contractorId?: string;
+      contractor_id?: string;
       startDate?: string;
       endDate?: string;
+      date_from?: string;
+      date_to?: string;
       page?: number;
       limit?: number;
+      page_size?: number;
+      sort_by?: string;
+      sort_dir?: 'asc' | 'desc';
     },
   ) {
     const where: any = {};
@@ -206,37 +214,66 @@ export class TicketsService {
     if (filters?.priority) {
       where.priority = filters.priority;
     }
-    if (filters?.contractorId) {
-      where.assignedToId = filters.contractorId;
+    
+    // Support both naming conventions
+    const contractorId = filters?.contractorId || filters?.contractor_id;
+    if (contractorId) {
+      where.assignedToId = contractorId;
     }
 
-    // Date range filtering
-    if (filters?.startDate || filters?.endDate) {
+    // Date range filtering - support both naming conventions
+    const startDate = filters?.startDate || filters?.date_from;
+    const endDate = filters?.endDate || filters?.date_to;
+    
+    if (startDate || endDate) {
       where.createdAt = {};
-      if (filters.startDate) {
-        where.createdAt.gte = new Date(filters.startDate);
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate);
       }
-      if (filters.endDate) {
+      if (endDate) {
         // Include the entire end date (set to end of day)
-        const endDate = new Date(filters.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        where.createdAt.lte = endDate;
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDateObj;
       }
     }
 
-    // Apply search filter
-    if (filters?.search) {
+    // Apply search filter - support both 'search' and 'q'
+    const searchQuery = filters?.search || filters?.q;
+    if (searchQuery) {
       where.OR = [
-        { title: { contains: filters.search, mode: 'insensitive' } },
-        { description: { contains: filters.search, mode: 'insensitive' } },
-        { id: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: searchQuery, mode: 'insensitive' } },
+        { description: { contains: searchQuery, mode: 'insensitive' } },
+        { id: { contains: searchQuery, mode: 'insensitive' } },
       ];
     }
 
-    // Pagination defaults
+    // Filter by specific ID if provided
+    if (filters?.id) {
+      where.id = filters.id;
+    }
+
+    // Pagination defaults - support both naming conventions
     const page = filters?.page || 1;
-    const limit = Math.min(filters?.limit || 20, 100); // Max 100 per page
+    const pageSize = filters?.page_size || filters?.limit || 25;
+    const limit = Math.min(pageSize, 100); // Max 100 per page
     const skip = (page - 1) * limit;
+
+    // Sorting - support sort_by and sort_dir
+    const sortBy = filters?.sort_by || 'created_at';
+    const sortDir = filters?.sort_dir || 'desc';
+    
+    // Map sort_by field to actual model field
+    const sortFieldMap: Record<string, string> = {
+      'created_at': 'createdAt',
+      'updated_at': 'updatedAt',
+      'priority': 'priority',
+      'status': 'status',
+      'title': 'title',
+    };
+    
+    const orderByField = sortFieldMap[sortBy] || 'createdAt';
+    const orderBy = { [orderByField]: sortDir };
 
     const [tickets, total] = await Promise.all([
       this.prisma.ticket.findMany({
@@ -251,22 +288,38 @@ export class TicketsService {
               email: true,
             },
           },
+          assignedTo: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
           quotes: true,
         },
-        orderBy: { updatedAt: 'desc' },
+        orderBy,
         skip,
         take: limit,
       }),
       this.prisma.ticket.count({ where }),
     ]);
 
+    const totalPages = Math.ceil(total / limit);
+    const hasNext = page < totalPages;
+
     return {
+      items: tickets,
+      page,
+      page_size: limit,
+      total,
+      has_next: hasNext,
+      // Keep old format for backward compatibility
       data: tickets,
       pagination: {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages,
       },
     };
   }
@@ -1386,5 +1439,356 @@ export class TicketsService {
     });
 
     return updated;
+  }
+
+  /**
+   * Bulk close tickets (OPS role only)
+   */
+  async bulkClose(
+    ticketIds: string[],
+    resolutionNote: string | undefined,
+    actorId: string,
+    userRole: string,
+  ) {
+    if (userRole !== 'OPS') {
+      throw new ForbiddenException('Only OPS role can perform bulk operations');
+    }
+
+    if (ticketIds.length === 0) {
+      throw new ForbiddenException('No ticket IDs provided');
+    }
+
+    if (ticketIds.length > 50) {
+      throw new ForbiddenException('Cannot close more than 50 tickets at once');
+    }
+
+    const ok: string[] = [];
+    const failed: Array<{ id: string; error: string }> = [];
+
+    for (const ticketId of ticketIds) {
+      try {
+        const ticket = await this.prisma.ticket.findUnique({
+          where: { id: ticketId },
+          include: { tenancy: true },
+        });
+
+        if (!ticket) {
+          failed.push({ id: ticketId, error: 'Ticket not found' });
+          continue;
+        }
+
+        // Check if already closed
+        if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') {
+          failed.push({ id: ticketId, error: 'Already closed' });
+          continue;
+        }
+
+        // Update ticket to COMPLETED
+        await this.prisma.ticket.update({
+          where: { id: ticketId },
+          data: { status: 'COMPLETED' },
+        });
+
+        // Create timeline event
+        await this.prisma.ticketTimeline.create({
+          data: {
+            ticketId,
+            eventType: 'closed',
+            actorId,
+            details: JSON.stringify({
+              resolutionNote,
+              bulkOperation: true,
+            }),
+          },
+        });
+
+        // Emit SSE event
+        this.eventsService.emit({
+          type: 'ticket.closed',
+          actorRole: userRole,
+          landlordId: ticket.landlordId,
+          tenantId: ticket.tenancy?.tenantOrgId,
+          resources: [{ type: 'ticket', id: ticketId }],
+        });
+
+        ok.push(ticketId);
+      } catch (error) {
+        failed.push({ id: ticketId, error: error.message });
+      }
+    }
+
+    return { ok, failed };
+  }
+
+  /**
+   * Bulk reassign tickets to contractor (OPS role only)
+   */
+  async bulkReassign(
+    ticketIds: string[],
+    contractorId: string,
+    actorId: string,
+    userRole: string,
+  ) {
+    if (userRole !== 'OPS') {
+      throw new ForbiddenException('Only OPS role can perform bulk operations');
+    }
+
+    if (ticketIds.length === 0) {
+      throw new ForbiddenException('No ticket IDs provided');
+    }
+
+    if (ticketIds.length > 50) {
+      throw new ForbiddenException('Cannot reassign more than 50 tickets at once');
+    }
+
+    // Verify contractor exists
+    const contractor = await this.prisma.user.findUnique({
+      where: { id: contractorId },
+    });
+
+    if (!contractor) {
+      throw new NotFoundException('Contractor not found');
+    }
+
+    const ok: string[] = [];
+    const failed: Array<{ id: string; error: string }> = [];
+
+    for (const ticketId of ticketIds) {
+      try {
+        const ticket = await this.prisma.ticket.findUnique({
+          where: { id: ticketId },
+          include: { tenancy: true },
+        });
+
+        if (!ticket) {
+          failed.push({ id: ticketId, error: 'Ticket not found' });
+          continue;
+        }
+
+        // Update ticket
+        await this.prisma.ticket.update({
+          where: { id: ticketId },
+          data: { assignedToId: contractorId },
+        });
+
+        // Create timeline event
+        await this.prisma.ticketTimeline.create({
+          data: {
+            ticketId,
+            eventType: 'reassigned',
+            actorId,
+            details: JSON.stringify({
+              contractorId,
+              previousContractorId: ticket.assignedToId,
+              bulkOperation: true,
+            }),
+          },
+        });
+
+        // Emit SSE event
+        this.eventsService.emit({
+          type: 'ticket.reassigned',
+          actorRole: userRole,
+          landlordId: ticket.landlordId,
+          tenantId: ticket.tenancy?.tenantOrgId,
+          resources: [{ type: 'ticket', id: ticketId }],
+          payload: { contractorId },
+        });
+
+        ok.push(ticketId);
+      } catch (error) {
+        failed.push({ id: ticketId, error: error.message });
+      }
+    }
+
+    return { ok, failed };
+  }
+
+  /**
+   * Bulk update ticket tags (OPS role only)
+   */
+  async bulkTag(
+    ticketIds: string[],
+    add: string[] | undefined,
+    remove: string[] | undefined,
+    actorId: string,
+    userRole: string,
+  ) {
+    if (userRole !== 'OPS') {
+      throw new ForbiddenException('Only OPS role can perform bulk operations');
+    }
+
+    if (ticketIds.length === 0) {
+      throw new ForbiddenException('No ticket IDs provided');
+    }
+
+    if (ticketIds.length > 50) {
+      throw new ForbiddenException('Cannot update more than 50 tickets at once');
+    }
+
+    if (!add?.length && !remove?.length) {
+      throw new ForbiddenException('Must specify tags to add or remove');
+    }
+
+    const ok: string[] = [];
+    const failed: Array<{ id: string; error: string }> = [];
+
+    for (const ticketId of ticketIds) {
+      try {
+        const ticket = await this.prisma.ticket.findUnique({
+          where: { id: ticketId },
+          select: { 
+            id: true, 
+            attachments: true, 
+            landlordId: true,
+            tenancy: { select: { tenantOrgId: true } },
+          },
+        });
+
+        if (!ticket) {
+          failed.push({ id: ticketId, error: 'Ticket not found' });
+          continue;
+        }
+
+        // Parse existing tags from attachments JSON field
+        let tags: string[] = [];
+        if (ticket.attachments) {
+          try {
+            const parsed = JSON.parse(ticket.attachments);
+            tags = parsed.tags || [];
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        // Add new tags
+        if (add?.length) {
+          tags = [...new Set([...tags, ...add])];
+        }
+
+        // Remove tags
+        if (remove?.length) {
+          tags = tags.filter(tag => !remove.includes(tag));
+        }
+
+        // Update attachments field with new tags
+        const attachmentsData = ticket.attachments 
+          ? JSON.parse(ticket.attachments) 
+          : {};
+        attachmentsData.tags = tags;
+
+        await this.prisma.ticket.update({
+          where: { id: ticketId },
+          data: { 
+            attachments: JSON.stringify(attachmentsData),
+          },
+        });
+
+        // Create timeline event
+        await this.prisma.ticketTimeline.create({
+          data: {
+            ticketId,
+            eventType: 'tags_updated',
+            actorId,
+            details: JSON.stringify({
+              addedTags: add,
+              removedTags: remove,
+              bulkOperation: true,
+            }),
+          },
+        });
+
+        // Emit SSE event
+        this.eventsService.emit({
+          type: 'ticket.tags_updated',
+          actorRole: userRole,
+          landlordId: ticket.landlordId,
+          tenantId: ticket.tenancy?.tenantOrgId,
+          resources: [{ type: 'ticket', id: ticketId }],
+          payload: { tags },
+        });
+
+        ok.push(ticketId);
+      } catch (error) {
+        failed.push({ id: ticketId, error: error.message });
+      }
+    }
+
+    return { ok, failed };
+  }
+
+  /**
+   * Bulk update ticket category (OPS role only)
+   */
+  async bulkCategory(
+    ticketIds: string[],
+    category: string,
+    actorId: string,
+    userRole: string,
+  ) {
+    if (userRole !== 'OPS') {
+      throw new ForbiddenException('Only OPS role can perform bulk operations');
+    }
+
+    if (ticketIds.length === 0) {
+      throw new ForbiddenException('No ticket IDs provided');
+    }
+
+    if (ticketIds.length > 50) {
+      throw new ForbiddenException('Cannot update more than 50 tickets at once');
+    }
+
+    const ok: string[] = [];
+    const failed: Array<{ id: string; error: string }> = [];
+
+    for (const ticketId of ticketIds) {
+      try {
+        const ticket = await this.prisma.ticket.findUnique({
+          where: { id: ticketId },
+          include: { tenancy: true },
+        });
+
+        if (!ticket) {
+          failed.push({ id: ticketId, error: 'Ticket not found' });
+          continue;
+        }
+
+        // Update category
+        await this.prisma.ticket.update({
+          where: { id: ticketId },
+          data: { category },
+        });
+
+        // Create timeline event
+        await this.prisma.ticketTimeline.create({
+          data: {
+            ticketId,
+            eventType: 'category_updated',
+            actorId,
+            details: JSON.stringify({
+              previousCategory: ticket.category,
+              newCategory: category,
+              bulkOperation: true,
+            }),
+          },
+        });
+
+        // Emit SSE event
+        this.eventsService.emit({
+          type: 'ticket.category_updated',
+          actorRole: userRole,
+          landlordId: ticket.landlordId,
+          tenantId: ticket.tenancy?.tenantOrgId,
+          resources: [{ type: 'ticket', id: ticketId }],
+          payload: { category },
+        });
+
+        ok.push(ticketId);
+      } catch (error) {
+        failed.push({ id: ticketId, error: error.message });
+      }
+    }
+
+    return { ok, failed };
   }
 }

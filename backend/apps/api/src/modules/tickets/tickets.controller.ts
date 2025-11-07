@@ -13,7 +13,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
@@ -25,6 +25,11 @@ import { ConfirmAppointmentDto } from './dto/confirm-appointment.dto';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { BulkUpdateStatusDto } from './dto/bulk-update-status.dto';
 import { BulkAssignDto } from './dto/bulk-assign.dto';
+import { BulkCloseDto } from './dto/bulk-close.dto';
+import { BulkReassignDto } from './dto/bulk-reassign.dto';
+import { BulkTagDto } from './dto/bulk-tag.dto';
+import { BulkCategoryDto } from './dto/bulk-category.dto';
+import { SearchTicketsDto } from './dto/search-tickets.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -93,47 +98,46 @@ export class TicketsController {
 
   @Get()
   @ApiOperation({ 
-    summary: 'List tickets',
-    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports comprehensive filtering: propertyId, status, category, priority, contractorId, date ranges, and search (by title, description, or ID). Includes pagination.'
+    summary: 'Search and filter tickets',
+    description: 'List tickets filtered by role with comprehensive search and filtering options. Supports pagination, sorting, date ranges, and full-text search. Returns paginated results with total count.'
   })
+  @ApiQuery({ name: 'q', required: false, description: 'Search query for title and description (min 2 chars)' })
+  @ApiQuery({ name: 'id', required: false, description: 'Filter by ticket ID' })
+  @ApiQuery({ name: 'date_from', required: false, description: 'Filter tickets created on or after this date (ISO 8601)' })
+  @ApiQuery({ name: 'date_to', required: false, description: 'Filter tickets created on or before this date (ISO 8601)' })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by ticket category' })
+  @ApiQuery({ name: 'contractor_id', required: false, description: 'Filter by assigned contractor ID' })
   @ApiQuery({ name: 'propertyId', required: false, description: 'Filter by property ID' })
   @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status (OPEN, TRIAGED, QUOTED, etc.)' })
-  @ApiQuery({ name: 'category', required: false, description: 'Filter by ticket category' })
   @ApiQuery({ name: 'priority', required: false, description: 'Filter by priority (LOW, STANDARD, HIGH, URGENT)' })
-  @ApiQuery({ name: 'contractorId', required: false, description: 'Filter by assigned contractor ID' })
-  @ApiQuery({ name: 'startDate', required: false, description: 'Filter tickets created on or after this date (ISO 8601 format)' })
-  @ApiQuery({ name: 'endDate', required: false, description: 'Filter tickets created on or before this date (ISO 8601 format)' })
-  @ApiQuery({ name: 'search', required: false, description: 'Search by title, description, or ticket ID' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20, max: 100)' })
+  @ApiQuery({ name: 'page_size', required: false, description: 'Items per page (default: 25, max: 100)' })
+  @ApiQuery({ name: 'sort_by', required: false, description: 'Sort field (created_at, updated_at, priority, status, title)', enum: ['created_at', 'updated_at', 'priority', 'status', 'title'] })
+  @ApiQuery({ name: 'sort_dir', required: false, description: 'Sort direction', enum: ['asc', 'desc'] })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Success',
+    schema: {
+      properties: {
+        items: { type: 'array', items: { type: 'object' } },
+        page: { type: 'number', example: 1 },
+        page_size: { type: 'number', example: 25 },
+        total: { type: 'number', example: 1234 },
+        has_next: { type: 'boolean', example: true },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - Invalid query parameters' })
+  @ApiResponse({ status: 413, description: 'Payload too large - page_size exceeds maximum' })
+  @ApiResponse({ status: 422, description: 'Unprocessable entity - Invalid filter values' })
   @ApiBearerAuth()
   async findMany(
-    @Query('propertyId') propertyId?: string,
-    @Query('status') status?: string,
-    @Query('category') category?: string,
-    @Query('priority') priority?: string,
-    @Query('contractorId') contractorId?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('search') search?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query() query: SearchTicketsDto,
     @CurrentUser() user?: any,
   ) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
-    return this.ticketsService.findMany(userOrgIds, primaryRole, { 
-      propertyId, 
-      status,
-      category,
-      priority,
-      contractorId,
-      startDate,
-      endDate,
-      search,
-      page: page ? parseInt(page, 10) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
-    });
+    return this.ticketsService.findMany(userOrgIds, primaryRole, query);
   }
 
   @Roles('CONTRACTOR')
@@ -406,6 +410,123 @@ export class TicketsController {
       dto.contractorId,
       user.id,
       userOrgIds,
+      primaryRole,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/close')
+  @ApiOperation({ 
+    summary: 'Bulk close tickets (OPS only)',
+    description: 'Close multiple tickets at once with optional resolution note. Limited to 50 tickets per request. Returns partial-failure reporting with 207 Multi-Status.'
+  })
+  @ApiResponse({ 
+    status: 207, 
+    description: 'Multi-Status - Partial success',
+    schema: {
+      properties: {
+        ok: { type: 'array', items: { type: 'string' }, example: ['t1', 't2'] },
+        failed: { 
+          type: 'array', 
+          items: { 
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              error: { type: 'string' },
+            },
+          }, 
+          example: [{ id: 't3', error: 'Already closed' }] 
+        },
+      },
+    },
+  })
+  @ApiBearerAuth()
+  async bulkClose(
+    @Body() dto: BulkCloseDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.bulkClose(
+      dto.ticket_ids,
+      dto.resolution_note,
+      user.id,
+      primaryRole,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/reassign')
+  @ApiOperation({ 
+    summary: 'Bulk reassign tickets to contractor (OPS only)',
+    description: 'Reassign multiple tickets to a different contractor. Limited to 50 tickets per request. Returns partial-failure reporting with 207 Multi-Status.'
+  })
+  @ApiResponse({ 
+    status: 207, 
+    description: 'Multi-Status - Partial success',
+  })
+  @ApiBearerAuth()
+  async bulkReassign(
+    @Body() dto: BulkReassignDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.bulkReassign(
+      dto.ticket_ids,
+      dto.contractor_id,
+      user.id,
+      primaryRole,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/tag')
+  @ApiOperation({ 
+    summary: 'Bulk update ticket tags (OPS only)',
+    description: 'Add or remove tags from multiple tickets. Limited to 50 tickets per request. Returns partial-failure reporting with 207 Multi-Status.'
+  })
+  @ApiResponse({ 
+    status: 207, 
+    description: 'Multi-Status - Partial success',
+  })
+  @ApiBearerAuth()
+  async bulkTag(
+    @Body() dto: BulkTagDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.bulkTag(
+      dto.ticket_ids,
+      dto.add,
+      dto.remove,
+      user.id,
+      primaryRole,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/category')
+  @ApiOperation({ 
+    summary: 'Bulk update ticket category (OPS only)',
+    description: 'Update category for multiple tickets. Limited to 50 tickets per request. Returns partial-failure reporting with 207 Multi-Status.'
+  })
+  @ApiResponse({ 
+    status: 207, 
+    description: 'Multi-Status - Partial success',
+  })
+  @ApiBearerAuth()
+  async bulkCategory(
+    @Body() dto: BulkCategoryDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.bulkCategory(
+      dto.ticket_ids,
+      dto.category,
+      user.id,
       primaryRole,
     );
   }

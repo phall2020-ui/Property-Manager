@@ -403,6 +403,13 @@ model Ticket {
   @@index([status])
   @@index([status, propertyId])
   @@index([scheduledWindowStart])
+  @@index([createdAt])
+  @@index([category])
+  @@index([assignedToId])
+  @@index([landlordId, createdAt])
+  @@index([landlordId, category])
+  @@index([landlordId, status])
+  @@index([landlordId, assignedToId])
 }
 
 // Appointments for scheduling maintenance visits
