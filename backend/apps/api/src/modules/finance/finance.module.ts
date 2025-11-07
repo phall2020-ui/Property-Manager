@@ -12,6 +12,7 @@ import { FinanceMetricsService } from './services/finance-metrics.service';
 import { WebhookService } from './services/webhook.service';
 import { LateFeeService } from './services/late-fee.service';
 import { RecurringInvoiceService } from './services/recurring-invoice.service';
+import { PaymentRemindersService } from './services/payment-reminders.service';
 import { GoCardlessProvider } from './providers/gocardless.provider';
 import { StripeProvider } from './providers/stripe.provider';
 import { PrismaModule } from '../../common/prisma/prisma.module';
@@ -32,6 +33,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     WebhookService,
     LateFeeService,
     RecurringInvoiceService,
+    PaymentRemindersService,
     GoCardlessProvider,
     StripeProvider,
   ],
