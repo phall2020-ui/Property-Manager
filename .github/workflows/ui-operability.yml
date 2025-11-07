@@ -1,0 +1,106 @@
+name: UI Operability (Preview, E2E, a11y, Lighthouse)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+# Set minimal default permissions
+permissions:
+  contents: read
+
+jobs:
+  vercel-preview:
+    name: Deploy Vercel Preview
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # For posting PR comments
+    outputs:
+      preview_url: ${{ steps.vercel.outputs.preview-url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build once to fail fast on compile errors
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          # Use production API URL if set, otherwise fallback to /api for relative paths
+          NEXT_PUBLIC_API_BASE: ${{ secrets.NEXT_PUBLIC_API_BASE || '/api' }}
+
+      # Deploy preview (requires repo secrets below)
+      - name: Deploy to Vercel
+        id: vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: frontend
+          github-comment: true
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+
+  playwright:
+    name: Playwright E2E + a11y
+    needs: vercel-preview
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # For uploading artifacts
+    env:
+      BASE_URL: ${{ needs.vercel-preview.outputs.preview_url }}
+      # If your backend needs a token/URL, set them as secrets and map here.
+      # API_BASE_URL: ${{ secrets.API_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps
+        working-directory: frontend
+      - run: npx playwright test --reporter=github
+        working-directory: frontend
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          if-no-files-found: ignore
+
+  lighthouse:
+    name: Lighthouse CI (Core pages)
+    needs: vercel-preview
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write  # For uploading artifacts
+    env:
+      LHCI_GITHUB_APP_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PREVIEW_URL: ${{ needs.vercel-preview.outputs.preview_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+        working-directory: frontend
+      - name: Run Lighthouse CI
+        working-directory: frontend
+        run: |
+          npx @lhci/cli autorun \
+            --collect.url="$PREVIEW_URL/" \
+            --collect.url="$PREVIEW_URL/login" \
+            --collect.url="$PREVIEW_URL/dashboard" \
+            --collect.url="$PREVIEW_URL/report-issue" \
+            --upload.target=temporary-public-storage
+      - name: Save LHCI results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-results
+          path: frontend/.lighthouseci/
+          if-no-files-found: ignore
