@@ -71,6 +71,21 @@ async function main() {
     },
   });
 
+  // Create OPS User
+  const _opsUser = await prisma.user.create({
+    data: {
+      email: 'ops@example.com',
+      name: 'Diana Operations',
+      passwordHash: await argon2.hash('password123'),
+      orgMemberships: {
+        create: {
+          orgId: landlordOrg.id, // OPS users work with landlord org
+          role: 'OPS',
+        },
+      },
+    },
+  });
+
   // Create Property
   const property = await prisma.property.create({
     data: {
@@ -494,6 +509,9 @@ async function main() {
   console.log(`   Org:      ${tenantOrg.name} (${tenantOrg.id})\n`);
   console.log('🔧 CONTRACTOR:');
   console.log('   Email:    contractor@example.com');
+  console.log('   Password: password123\n');
+  console.log('⚙️  OPS:');
+  console.log('   Email:    ops@example.com');
   console.log('   Password: password123\n');
   console.log('═══════════════════════════════════════════════════════════');
   console.log('📊 SAMPLE DATA');

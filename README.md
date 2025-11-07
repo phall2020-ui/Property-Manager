@@ -14,9 +14,15 @@ A full-stack multi-tenant property management platform with role-based access co
 
 **Project Status:** ✅ **85% Complete** | Backend: Production Ready ✅ | Frontend: 85% 🚧 | Deployment: Ready ✅
 
+> **⚠️ Important:** This repository contains two frontend implementations:
+> - `frontend-new/` (Vite + React 19) - **CANONICAL** - Used in CI/CD
+> - `frontend/` (Next.js 14) - Legacy implementation, being migrated
+> 
+> See [FRONTEND_MIGRATION_DECISION.md](./FRONTEND_MIGRATION_DECISION.md) for details.
+
 ## 🏗️ Architecture
 
-**Frontend:** Next.js 14 (App Router) + Vite/React 19 + TypeScript + Tailwind CSS + TanStack Query  
+**Frontend:** Vite + React 19 + TypeScript + Tailwind CSS + TanStack Query v5  
 **Backend:** NestJS + Prisma + SQLite (dev) / PostgreSQL (prod)  
 **Authentication:** JWT (access tokens 15min + httpOnly refresh cookies 7 days)  
 **Security:** Helmet, rate limiting, CORS with credentials, org-based isolation (with optional strict tenant scoping)
@@ -25,7 +31,17 @@ A full-stack multi-tenant property management platform with role-based access co
 
 ```
 Property-Manager/
-├── frontend/              # Next.js frontend application
+├── frontend-new/          # ⭐ CANONICAL Vite/React frontend (CI/CD)
+│   ├── src/
+│   │   ├── pages/         # Page components
+│   │   ├── components/    # Reusable UI components
+│   │   ├── lib/          # API client, utilities
+│   │   ├── contexts/     # React contexts (Auth, etc.)
+│   │   └── main.tsx      # Application entry point
+│   ├── tests/            # Unit and E2E tests
+│   └── package.json      # Dependencies and scripts
+│
+├── frontend/              # Legacy Next.js frontend (being migrated)
 │   ├── app/              # App Router pages and layouts
 │   │   ├── (public)/     # Public pages (login, signup)
 │   │   ├── (landlord)/   # Landlord portal
@@ -132,7 +148,7 @@ API docs: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
 #### 2. Frontend Setup
 
 ```bash
-cd frontend
+cd frontend-new
 
 # Install dependencies
 npm install
@@ -141,7 +157,7 @@ npm install
 npm run dev
 ```
 
-Frontend runs on: [http://localhost:3000](http://localhost:3000)
+Frontend runs on: [http://localhost:5173](http://localhost:5173)
 
 ## 🔧 Configuration
 
@@ -160,11 +176,71 @@ NODE_ENV=development
 
 ### Frontend Environment Variables
 
-Located in `frontend/.env.local`:
+Located in `frontend-new/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_BASE=http://localhost:4000/api
-MAX_UPLOAD_MB=10
+VITE_API_BASE_URL=http://localhost:4000/api
+```
+
+## ✅ How to Run Locally and in CI
+
+### Running Locally
+
+The canonical frontend (`frontend-new/`) includes a comprehensive CI check script that runs all quality checks:
+
+```bash
+cd frontend-new
+
+# Install dependencies
+npm ci
+
+# Run all CI checks (lint, typecheck, test, build)
+npm run check:ci
+```
+
+Or run individual checks:
+
+```bash
+npm run lint        # ESLint checks
+npm run typecheck   # TypeScript type checking
+npm run test        # Unit tests with Vitest
+npm run build       # Production build
+npm run dev         # Development server
+```
+
+E2E and performance testing:
+
+```bash
+npm run test:e2e    # Playwright E2E tests
+npm run test:e2e:ui # Interactive Playwright UI
+npm run lhci        # Lighthouse CI performance audit
+```
+
+### CI Pipeline
+
+The GitHub Actions CI pipeline (`.github/workflows/ci.yml`) runs on every push and PR:
+
+1. **Frontend Check** - Runs `check:ci` script (lint, typecheck, test, build)
+2. **Backend Lint** - ESLint on backend code
+3. **Backend Tests** - Jest tests with PostgreSQL and Redis
+4. **Backend Build** - NestJS production build
+5. **E2E Tests** - Playwright tests across Chrome, Firefox, Safari
+6. **Lighthouse** - Performance and accessibility audits
+
+**Key features:**
+- Fail-fast on lint or type errors
+- Caches `node_modules` for speed
+- Deterministic builds with `npm ci`
+- Parallel job execution
+- Artifact uploads for debugging
+
+**Acceptance Criteria:**
+```bash
+# All these commands must pass:
+cd frontend-new
+npm ci && npm run check:ci  # ✅ Should complete successfully
+npm run test:e2e            # ✅ E2E tests pass
+npm run lhci                # ✅ Performance meets thresholds
 ```
 
 ## 🎯 Key Features
@@ -214,9 +290,26 @@ npm test
 ### Frontend Tests
 ```bash
 cd frontend
-npm test         # Unit tests (Vitest)
-npm run test:e2e # E2E tests (Playwright)
+npm test             # Unit tests (Vitest)
+npm run test:e2e     # E2E tests (Playwright)
+npm run test:e2e:ui  # Interactive E2E test UI
+npm run lhci         # Lighthouse CI audit
 ```
+
+### Automated UI Operability Testing
+
+On every pull request, the CI/CD pipeline automatically:
+- Deploys a Vercel preview build
+- Runs Playwright E2E tests across Chrome, Firefox, and Safari
+- Performs accessibility audits using axe-core (WCAG 2.0 AA)
+- Runs Lighthouse CI for performance, SEO, and best practices
+
+**Required GitHub Secrets** (Repository → Settings → Secrets and variables → Actions):
+- `VERCEL_TOKEN` - Your Vercel API token
+- `VERCEL_ORG_ID` - Your Vercel organization ID
+- `VERCEL_PROJECT_ID` - Your Vercel project ID
+
+Test artifacts (reports, screenshots, videos) are uploaded for debugging failed runs.
 
 ## 📚 API Documentation
 

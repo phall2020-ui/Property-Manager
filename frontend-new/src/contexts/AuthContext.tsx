@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const userData = await authApi.getMe();
           setUser(userData);
-        } catch (error) {
+        } catch {
           localStorage.removeItem('accessToken');
         }
       }
@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

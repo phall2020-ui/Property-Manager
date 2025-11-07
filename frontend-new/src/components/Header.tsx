@@ -1,6 +1,8 @@
-import { Bell, Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import NotificationDropdown from './NotificationDropdown';
+import LiveIndicator from './LiveIndicator';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -28,10 +30,9 @@ export default function Header() {
         </h2>
         <p className="text-sm text-brand-subtle mt-1">{today}</p>
       </div>
-      <div className="flex items-center space-x-2">
-        <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-          <Bell className="h-5 w-5 text-brand-subtle" />
-        </button>
+      <div className="flex items-center gap-3">
+        <LiveIndicator />
+        <NotificationDropdown />
         <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
           <Settings className="h-5 w-5 text-brand-subtle" />
         </button>

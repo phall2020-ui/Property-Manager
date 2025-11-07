@@ -316,8 +316,9 @@ function CreateInvoiceModal({
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Tenancy ID</label>
+              <label htmlFor="tenancy-id" className="block text-sm font-medium mb-1">Tenancy ID</label>
               <input
+                id="tenancy-id"
                 type="text"
                 value={formData.tenancyId}
                 onChange={(e) => setFormData({ ...formData, tenancyId: e.target.value })}
@@ -326,8 +327,9 @@ function CreateInvoiceModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Period Start</label>
+              <label htmlFor="period-start" className="block text-sm font-medium mb-1">Period Start</label>
               <input
+                id="period-start"
                 type="date"
                 value={formData.periodStart}
                 onChange={(e) => setFormData({ ...formData, periodStart: e.target.value })}
@@ -336,8 +338,9 @@ function CreateInvoiceModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Period End</label>
+              <label htmlFor="period-end" className="block text-sm font-medium mb-1">Period End</label>
               <input
+                id="period-end"
                 type="date"
                 value={formData.periodEnd}
                 onChange={(e) => setFormData({ ...formData, periodEnd: e.target.value })}
@@ -346,8 +349,9 @@ function CreateInvoiceModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Due Date</label>
+              <label htmlFor="due-date" className="block text-sm font-medium mb-1">Due Date</label>
               <input
+                id="due-date"
                 type="date"
                 value={formData.dueAt}
                 onChange={(e) => setFormData({ ...formData, dueAt: e.target.value })}
@@ -356,8 +360,9 @@ function CreateInvoiceModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Amount (£)</label>
+              <label htmlFor="amount-gbp" className="block text-sm font-medium mb-1">Amount (£)</label>
               <input
+                id="amount-gbp"
                 type="number"
                 step="0.01"
                 value={formData.amountGBP}
@@ -367,8 +372,9 @@ function CreateInvoiceModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Reference (optional)</label>
+              <label htmlFor="reference" className="block text-sm font-medium mb-1">Reference (optional)</label>
               <input
+                id="reference"
                 type="text"
                 value={formData.reference}
                 onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
@@ -377,8 +383,9 @@ function CreateInvoiceModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Notes (optional)</label>
+              <label htmlFor="notes" className="block text-sm font-medium mb-1">Notes (optional)</label>
               <textarea
+                id="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full border rounded px-3 py-2"
@@ -446,8 +453,9 @@ function RecordPaymentModal({
         >
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Amount (£)</label>
+              <label htmlFor="payment-amount" className="block text-sm font-medium mb-1">Amount (£)</label>
               <input
+                id="payment-amount"
                 type="number"
                 step="0.01"
                 value={formData.amountGBP}
@@ -457,8 +465,9 @@ function RecordPaymentModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Payment Date</label>
+              <label htmlFor="payment-date" className="block text-sm font-medium mb-1">Payment Date</label>
               <input
+                id="payment-date"
                 type="date"
                 value={formData.paidAt}
                 onChange={(e) => setFormData({ ...formData, paidAt: e.target.value })}
@@ -467,8 +476,9 @@ function RecordPaymentModal({
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Method</label>
+              <label htmlFor="payment-method" className="block text-sm font-medium mb-1">Method</label>
               <select
+                id="payment-method"
                 value={formData.method}
                 onChange={(e) => setFormData({ ...formData, method: e.target.value })}
                 className="w-full border rounded px-3 py-2"

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { propertiesApi } from '../../lib/api';
+import { extractErrorMessage } from '../../lib/validation';
 
 export default function PropertyCreatePage() {
   const navigate = useNavigate();
@@ -41,17 +42,19 @@ export default function PropertyCreatePage() {
         createdAt: new Date().toISOString(),
       };
       
-      queryClient.setQueryData(['properties'], (old: any[]) => 
-        old ? [...old, optimisticProperty] : [optimisticProperty]
-      );
-      queryClient.setQueryData(['enhanced-properties'], (old: any[]) => 
-        old ? [...old, optimisticProperty] : [optimisticProperty]
-      );
+      queryClient.setQueryData(['properties'], (old: unknown) => {
+        const properties = Array.isArray(old) ? old : [];
+        return [...properties, optimisticProperty];
+      });
+      queryClient.setQueryData(['enhanced-properties'], (old: unknown) => {
+        const properties = Array.isArray(old) ? old : [];
+        return [...properties, optimisticProperty];
+      });
       
       // Return a context with the snapshotted values
       return { previousProperties, previousEnhanced };
     },
-    onError: (err: any, _newProperty, context) => {
+    onError: (err: unknown, _newProperty, context) => {
       // Roll back on error
       if (context?.previousProperties) {
         queryClient.setQueryData(['properties'], context.previousProperties);
@@ -59,7 +62,7 @@ export default function PropertyCreatePage() {
       if (context?.previousEnhanced) {
         queryClient.setQueryData(['enhanced-properties'], context.previousEnhanced);
       }
-      setError(err.response?.data?.message || 'Failed to create property');
+      setError(extractErrorMessage(err) || 'Failed to create property');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['properties'] });

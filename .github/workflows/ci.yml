@@ -14,6 +14,63 @@ env:
   NODE_VERSION: '20'
 
 jobs:
+  # Frontend Lint, Typecheck, Test
+  frontend-check:
+    name: Frontend Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend-new
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-new/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run CI checks
+        run: npm run check:ci
+
+  # Frontend Security Audit
+  frontend-security:
+    name: Frontend Security Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend-new
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-new/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=high || {
+            echo "::warning::High-severity security vulnerabilities found in frontend. Please review and address before merging."
+            echo "This is currently set to warning-only. Will be made blocking in future iterations."
+            exit 0
+          }
+
   # Backend Lint
   backend-lint:
     name: Backend Lint
@@ -40,15 +97,15 @@ jobs:
       - name: Run linter
         run: npm run lint
 
-  # Frontend Lint
-  frontend-lint:
-    name: Frontend Lint
+  # Backend Security Audit
+  backend-security:
+    name: Backend Security Audit
     runs-on: ubuntu-latest
     permissions:
       contents: read
     defaults:
       run:
-        working-directory: frontend
+        working-directory: backend
     
     steps:
       - uses: actions/checkout@v4
@@ -58,65 +115,18 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: backend/package-lock.json
       
       - name: Install dependencies
         run: npm ci
       
-      - name: Run linter
-        run: npm run lint
-
-  # Frontend Typecheck
-  frontend-typecheck:
-    name: Frontend Typecheck
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: frontend
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run typecheck
-        run: npm run typecheck
-
-  # Frontend Unit Tests
-  frontend-test:
-    name: Frontend Unit Tests
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    defaults:
-      run:
-        working-directory: frontend
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run unit tests
-        run: npm test -- --run
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=high || {
+            echo "::warning::High-severity security vulnerabilities found in backend. Please review and address before merging."
+            echo "This is currently set to warning-only. Will be made blocking in future iterations."
+            exit 0
+          }
 
   # Backend Tests
   backend-test:
@@ -188,13 +198,13 @@ jobs:
   frontend-build:
     name: Frontend Build
     runs-on: ubuntu-latest
-    needs: [frontend-lint, frontend-typecheck, frontend-test]
+    needs: [frontend-check]
     permissions:
       contents: read
       actions: write  # For uploading artifacts
     defaults:
       run:
-        working-directory: frontend
+        working-directory: frontend-new
     
     steps:
       - uses: actions/checkout@v4
@@ -204,7 +214,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: frontend-new/package-lock.json
       
       - name: Install dependencies
         run: npm ci
@@ -212,13 +222,13 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          NEXT_PUBLIC_API_BASE: http://localhost:4000/api
+          VITE_API_BASE_URL: http://localhost:4000/api
       
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
-          path: frontend/.next
+          path: frontend-new/dist
           retention-days: 7
 
   # Backend Build
@@ -277,6 +287,90 @@ jobs:
         with:
           name: build
           path: backend/dist
+          retention-days: 7
+
+  # E2E Tests with Playwright
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [frontend-build, backend-build]
+    permissions:
+      contents: read
+      actions: write  # For uploading artifacts
+    defaults:
+      run:
+        working-directory: frontend-new
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-new/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+      
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:4000/api
+      
+      - name: Run Playwright tests
+        run: npm run test:e2e
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend-new/playwright-report
+          retention-days: 7
+
+  # Lighthouse CI
+  lighthouse:
+    name: Lighthouse CI
+    runs-on: ubuntu-latest
+    needs: [frontend-build]
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: frontend-new
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-new/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: http://localhost:4000/api
+      
+      - name: Run Lighthouse CI
+        run: npm run lhci
+      
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: frontend-new/.lighthouseci
           retention-days: 7
 
   docker:

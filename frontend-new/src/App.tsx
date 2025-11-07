@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { EventProvider } from './contexts/EventContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -13,7 +14,15 @@ import ComplianceCentrePage from './pages/compliance/ComplianceCentrePage';
 import JobsListPage from './pages/jobs/JobsListPage';
 import QueueListPage from './pages/queue/QueueListPage';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5000, // 5 seconds
+    },
+  },
+});
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -44,84 +53,86 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/properties"
-              element={
-                <ProtectedRoute>
-                  <PropertiesListPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/properties/new"
-              element={
-                <ProtectedRoute>
-                  <PropertyCreatePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/properties/:id"
-              element={
-                <ProtectedRoute>
-                  <PropertyDetailPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tickets"
-              element={
-                <ProtectedRoute>
-                  <TicketsListPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tickets/new"
-              element={
-                <ProtectedRoute>
-                  <TicketCreatePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/compliance"
-              element={
-                <ProtectedRoute>
-                  <ComplianceCentrePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/jobs"
-              element={
-                <ProtectedRoute>
-                  <JobsListPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/queue"
-              element={
-                <ProtectedRoute>
-                  <QueueListPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </BrowserRouter>
+        <EventProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties"
+                element={
+                  <ProtectedRoute>
+                    <PropertiesListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties/new"
+                element={
+                  <ProtectedRoute>
+                    <PropertyCreatePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties/:id"
+                element={
+                  <ProtectedRoute>
+                    <PropertyDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tickets"
+                element={
+                  <ProtectedRoute>
+                    <TicketsListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/tickets/new"
+                element={
+                  <ProtectedRoute>
+                    <TicketCreatePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/compliance"
+                element={
+                  <ProtectedRoute>
+                    <ComplianceCentrePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/jobs"
+                element={
+                  <ProtectedRoute>
+                    <JobsListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/queue"
+                element={
+                  <ProtectedRoute>
+                    <QueueListPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </EventProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
