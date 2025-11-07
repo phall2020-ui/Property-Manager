@@ -20,11 +20,13 @@ export default function TenantDashboardPage() {
   const { user } = useAuth();
 
   // Fetch tickets
-  const { data: tickets = [] } = useQuery<Ticket[]>({
+  const { data: ticketsResponse } = useQuery<{ data: Ticket[] }>({
     queryKey: ['tickets'],
-    queryFn: () => apiRequest<Ticket[]>('/tickets'),
+    queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'),
     refetchInterval: 10000, // Refetch every 10 seconds
   });
+  
+  const tickets = ticketsResponse?.data || [];
 
   // Calculate stats
   const stats: TenantDashboardStats = {

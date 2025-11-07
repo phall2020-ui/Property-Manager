@@ -16,13 +16,15 @@ export default function OpsQueuePage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const {
-    data: tickets,
+    data: ticketsResponse,
     isLoading,
     error,
-  } = useQuery<Ticket[]>({
+  } = useQuery<{ data: Ticket[] }>({
     queryKey: ['tickets'],
-    queryFn: () => apiRequest<Ticket[]>('/tickets'),
+    queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'),
   });
+  
+  const tickets = ticketsResponse?.data || [];
 
   // Filter tickets based on search and status
   const filteredTickets = useMemo(() => {

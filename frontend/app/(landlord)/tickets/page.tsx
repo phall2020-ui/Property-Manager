@@ -20,15 +20,17 @@ export default function LandlordTicketsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const {
-    data: tickets,
+    data: ticketsResponse,
     isLoading,
     error,
-  } = useQuery<Ticket[]>({
+  } = useQuery<{ data: Ticket[] }>({
     queryKey: ['tickets'],
-    queryFn: () => apiRequest<Ticket[]>('/tickets'),
+    queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'),
     refetchInterval: 10000, // Refetch every 10 seconds
     refetchIntervalInBackground: false,
   });
+  
+  const tickets = ticketsResponse?.data || [];
 
   // Get unique categories
   const categories = useMemo(() => {

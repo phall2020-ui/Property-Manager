@@ -21,17 +21,21 @@ export default function LandlordDashboardPage() {
   const { user } = useAuth();
 
   // Fetch properties
-  const { data: properties = [] } = useQuery<Property[]>({
+  const { data: propertiesResponse } = useQuery<{ data: Property[] }>({
     queryKey: ['properties'],
-    queryFn: () => apiRequest<Property[]>('/properties'),
+    queryFn: () => apiRequest<{ data: Property[] }>('/properties'),
   });
+  
+  const properties = propertiesResponse?.data || [];
 
   // Fetch tickets
-  const { data: tickets = [] } = useQuery<Ticket[]>({
+  const { data: ticketsResponse } = useQuery<{ data: Ticket[] }>({
     queryKey: ['tickets'],
-    queryFn: () => apiRequest<Ticket[]>('/tickets'),
+    queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'),
     refetchInterval: 10000, // Refetch every 10 seconds
   });
+  
+  const tickets = ticketsResponse?.data || [];
 
   // Calculate stats
   const stats: DashboardStats = {

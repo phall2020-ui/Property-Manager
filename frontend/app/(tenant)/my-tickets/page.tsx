@@ -10,13 +10,15 @@ import { StatusBadge } from '@/components/StatusBadge';
 
 export default function TenantTicketsPage() {
   const {
-    data: tickets,
+    data: ticketsResponse,
     isLoading,
     error,
-  } = useQuery<Ticket[]>({
+  } = useQuery<{ data: Ticket[] }>({
     queryKey: ['tickets'],
-    queryFn: () => apiRequest<Ticket[]>('/tickets'),
+    queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'),
   });
+  
+  const tickets = ticketsResponse?.data || [];
   if (isLoading) return <p>Loading…</p>;
   if (error) return <p className="text-red-600">Unable to load tickets</p>;
   return (

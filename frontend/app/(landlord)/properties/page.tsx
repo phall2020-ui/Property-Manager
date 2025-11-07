@@ -27,13 +27,15 @@ export default function PropertiesPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const {
-    data: properties,
+    data: propertiesResponse,
     isLoading,
     error,
-  } = useQuery<Property[]>({
+  } = useQuery<{ data: Property[] }>({
     queryKey: ['properties'],
-    queryFn: () => apiRequest<Property[]>('/properties'),
+    queryFn: () => apiRequest<{ data: Property[] }>('/properties'),
   });
+  
+  const properties = propertiesResponse?.data || [];
 
   // Add property mutation with optimistic updates
   const addPropertyMutation = useMutation({

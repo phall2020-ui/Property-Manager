@@ -20,13 +20,15 @@ export default function ContractorJobsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   const {
-    data: tickets,
+    data: ticketsResponse,
     isLoading,
     error,
-  } = useQuery<Ticket[]>({
+  } = useQuery<{ data: Ticket[] }>({
     queryKey: ['tickets'],
-    queryFn: () => apiRequest<Ticket[]>('/tickets'),
+    queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'),
   });
+  
+  const tickets = ticketsResponse?.data || [];
 
   // Get unique categories
   const categories = useMemo(() => {

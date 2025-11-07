@@ -1,6 +1,7 @@
 import { Module, DynamicModule, Global } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { TicketJobsProcessor } from './processors/ticket-jobs.processor';
 import { JobsService } from './jobs.service';
 import { JobsController } from './jobs.controller';
@@ -21,7 +22,7 @@ import { EventsModule } from '../events/events.module';
 @Module({})
 export class JobsModule {
   static forRoot(): DynamicModule {
-    const imports = [ConfigModule, PrismaModule, EventsModule];
+    const imports = [ConfigModule, PrismaModule, EventsModule, JwtModule];
     const providers = [JobsService];
     const exports = [JobsService];
 

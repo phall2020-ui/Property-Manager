@@ -21,11 +21,13 @@ export default function ContractorDashboardPage() {
   const { user } = useAuth();
 
   // Fetch assigned jobs (tickets assigned to this contractor)
-  const { data: jobs = [] } = useQuery<Ticket[]>({
+  const { data: jobsResponse } = useQuery<{ data: Ticket[] }>({
     queryKey: ['contractor-jobs'],
-    queryFn: () => apiRequest<Ticket[]>('/tickets'), // TODO: Filter by contractor
+    queryFn: () => apiRequest<{ data: Ticket[] }>('/tickets'), // TODO: Filter by contractor
     refetchInterval: 10000,
   });
+  
+  const jobs = jobsResponse?.data || [];
 
   // Calculate stats
   const stats: ContractorDashboardStats = {

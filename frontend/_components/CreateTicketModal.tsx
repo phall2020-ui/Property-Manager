@@ -44,18 +44,20 @@ export function CreateTicketModal({ isOpen, onClose }: CreateTicketModalProps) {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Fetch properties
-  const { data: properties } = useQuery<Property[]>({
+  const { data: propertiesResponse } = useQuery<{ data: Property[] }>({
     queryKey: ['properties'],
-    queryFn: () => apiRequest<Property[]>('/properties'),
+    queryFn: () => apiRequest<{ data: Property[] }>('/properties'),
     enabled: isOpen,
   });
+  const properties = propertiesResponse?.data || [];
 
   // Fetch tenancies for selected property
-  const { data: tenancies } = useQuery<Tenancy[]>({
+  const { data: tenanciesResponse } = useQuery<{ data: Tenancy[] }>({
     queryKey: ['tenancies', formData.propertyId],
-    queryFn: () => apiRequest<Tenancy[]>(`/tenancies?propertyId=${formData.propertyId}`),
+    queryFn: () => apiRequest<{ data: Tenancy[] }>(`/tenancies?propertyId=${formData.propertyId}`),
     enabled: !!formData.propertyId && isOpen,
   });
+  const tenancies = tenanciesResponse?.data || [];
 
   // Create ticket mutation
   const createTicketMutation = useMutation({
