@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "lhci": "lhci autorun"
+    "lhci": "lhci autorun",
+    "prepare": "husky"
   },
   "dependencies": {
     "@headlessui/react": "^1.7.15",
@@ -38,12 +39,21 @@
     "axe-playwright": "^2.0.1",
     "eslint": "^8.52.0",
     "eslint-config-next": "^14.2.33",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "husky": "^9.1.7",
     "jsdom": "^27.1.0",
+    "lint-staged": "^16.2.6",
     "msw": "^1.2.1",
     "playwright": "^1.48.0",
     "postcss": "^8.4.22",
     "react-test-renderer": "^18.3.1",
     "typescript": "^5.4.0",
     "vitest": "^0.34.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "bash -c 'tsc --noEmit'"
+    ]
   }
 }
