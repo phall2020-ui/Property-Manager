@@ -76,7 +76,33 @@ export class TicketsService {
     });
 
     // Create notifications for landlord users
-    // TODO: Get landlord users from orgMembers
+    const landlordUsers = await this.prisma.orgMember.findMany({
+      where: {
+        orgId: ticket.landlordId,
+        role: { in: ['LANDLORD', 'ADMIN'] },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Create notification for each landlord user
+    for (const member of landlordUsers) {
+      await this.notificationsService.create({
+        userId: member.userId,
+        type: 'ticket.created',
+        title: 'New Maintenance Ticket',
+        message: `New ticket created: ${ticket.title}`,
+        resourceType: 'ticket',
+        resourceId: ticket.id,
+      });
+    }
     
     return ticket;
   }
@@ -139,7 +165,13 @@ export class TicketsService {
   async findMany(
     userOrgIds: string[],
     role: string,
-    filters?: { propertyId?: string; status?: string },
+    filters?: { 
+      propertyId?: string; 
+      status?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    },
   ) {
     const where: any = {};
 
@@ -164,22 +196,51 @@ export class TicketsService {
       where.status = filters.status;
     }
 
-    return this.prisma.ticket.findMany({
-      where,
-      include: {
-        property: true,
-        tenancy: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    // Apply search filter
+    if (filters?.search) {
+      where.OR = [
+        { title: { contains: filters.search, mode: 'insensitive' } },
+        { description: { contains: filters.search, mode: 'insensitive' } },
+        { id: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    // Pagination defaults
+    const page = filters?.page || 1;
+    const limit = Math.min(filters?.limit || 20, 100); // Max 100 per page
+    const skip = (page - 1) * limit;
+
+    const [tickets, total] = await Promise.all([
+      this.prisma.ticket.findMany({
+        where,
+        include: {
+          property: true,
+          tenancy: true,
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
+          quotes: true,
         },
-        quotes: true,
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.ticket.count({ where }),
+    ]);
+
+    return {
+      data: tickets,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { updatedAt: 'desc' },
-    });
+    };
   }
 
   async createQuote(
@@ -188,6 +249,17 @@ export class TicketsService {
     amount: number,
     notes?: string,
   ) {
+    // Validate quote amount (min/max thresholds)
+    const MIN_QUOTE_AMOUNT = 10; // $10 minimum
+    const MAX_QUOTE_AMOUNT = 50000; // $50,000 maximum
+
+    if (amount < MIN_QUOTE_AMOUNT) {
+      throw new ForbiddenException(`Quote amount must be at least $${MIN_QUOTE_AMOUNT}`);
+    }
+    if (amount > MAX_QUOTE_AMOUNT) {
+      throw new ForbiddenException(`Quote amount cannot exceed $${MAX_QUOTE_AMOUNT}`);
+    }
+
     // Verify ticket exists
     const ticket = await this.prisma.ticket.findUnique({
       where: { id: ticketId },
@@ -458,6 +530,7 @@ export class TicketsService {
     newStatus: string,
     actorId: string,
     userOrgIds: string[],
+    userRole?: string,
   ) {
     // Verify access
     const ticket = await this.findOne(ticketId, userOrgIds);
@@ -482,6 +555,46 @@ export class TicketsService {
       );
     }
 
+    // Role-based status transition restrictions
+    const roleTransitionRules: Record<string, Record<string, string[]>> = {
+      TENANT: {
+        OPEN: ['CANCELLED'], // Tenants can only cancel their own open tickets
+      },
+      LANDLORD: {
+        OPEN: ['TRIAGED', 'CANCELLED'],
+        TRIAGED: ['CANCELLED'],
+        QUOTED: ['APPROVED', 'CANCELLED'],
+        APPROVED: ['CANCELLED'],
+        SCHEDULED: ['CANCELLED'],
+        COMPLETED: ['AUDITED'],
+      },
+      OPS: {
+        // OPS can perform all transitions
+        OPEN: ['TRIAGED', 'CANCELLED'],
+        TRIAGED: ['QUOTED', 'CANCELLED'],
+        QUOTED: ['APPROVED', 'CANCELLED'],
+        APPROVED: ['SCHEDULED', 'IN_PROGRESS', 'CANCELLED'],
+        SCHEDULED: ['IN_PROGRESS', 'CANCELLED'],
+        IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+        COMPLETED: ['AUDITED'],
+      },
+      CONTRACTOR: {
+        TRIAGED: ['QUOTED'], // Contractors can submit quotes
+        APPROVED: ['SCHEDULED', 'IN_PROGRESS'],
+        SCHEDULED: ['IN_PROGRESS'],
+        IN_PROGRESS: ['COMPLETED'],
+      },
+    };
+
+    if (userRole && roleTransitionRules[userRole]) {
+      const allowedForRole = roleTransitionRules[userRole][ticket.status] || [];
+      if (!allowedForRole.includes(newStatus)) {
+        throw new ForbiddenException(
+          `Role ${userRole} cannot transition ticket from ${ticket.status} to ${newStatus}`,
+        );
+      }
+    }
+
     // Update ticket
     const updated = await this.prisma.ticket.update({
       where: { id: ticketId },
@@ -504,7 +617,7 @@ export class TicketsService {
     // Emit SSE event
     this.eventsService.emit({
       type: 'ticket.status_changed',
-      actorRole: 'LANDLORD', // TODO: Determine from user
+      actorRole: userRole || 'LANDLORD',
       landlordId: ticket.landlordId,
       tenantId: ticket.tenancy?.tenantOrgId,
       resources: [{ type: 'ticket', id: ticketId }],
@@ -917,5 +1030,196 @@ export class TicketsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Bulk update ticket status (OPS role only)
+   */
+  async bulkUpdateStatus(
+    ticketIds: string[],
+    newStatus: string,
+    actorId: string,
+    userRole: string,
+  ) {
+    if (userRole !== 'OPS') {
+      throw new ForbiddenException('Only OPS role can perform bulk operations');
+    }
+
+    if (ticketIds.length === 0) {
+      throw new ForbiddenException('No ticket IDs provided');
+    }
+
+    if (ticketIds.length > 50) {
+      throw new ForbiddenException('Cannot update more than 50 tickets at once');
+    }
+
+    const results = [];
+    const errors = [];
+
+    for (const ticketId of ticketIds) {
+      try {
+        // Get ticket to check current status
+        const ticket = await this.prisma.ticket.findUnique({
+          where: { id: ticketId },
+          include: { tenancy: true },
+        });
+
+        if (!ticket) {
+          errors.push({ ticketId, error: 'Ticket not found' });
+          continue;
+        }
+
+        // Validate state transition
+        const validTransitions: Record<string, string[]> = {
+          OPEN: ['TRIAGED', 'CANCELLED'],
+          TRIAGED: ['QUOTED', 'CANCELLED'],
+          QUOTED: ['APPROVED', 'CANCELLED'],
+          APPROVED: ['SCHEDULED', 'IN_PROGRESS', 'CANCELLED'],
+          SCHEDULED: ['IN_PROGRESS', 'CANCELLED'],
+          IN_PROGRESS: ['COMPLETED', 'CANCELLED'],
+          COMPLETED: ['AUDITED'],
+          AUDITED: [],
+          CANCELLED: [],
+        };
+
+        const allowedNext = validTransitions[ticket.status] || [];
+        if (!allowedNext.includes(newStatus)) {
+          errors.push({
+            ticketId,
+            error: `Invalid transition from ${ticket.status} to ${newStatus}`,
+          });
+          continue;
+        }
+
+        // Update ticket
+        const updated = await this.prisma.ticket.update({
+          where: { id: ticketId },
+          data: { status: newStatus },
+        });
+
+        // Create timeline event
+        await this.prisma.ticketTimeline.create({
+          data: {
+            ticketId,
+            eventType: 'status_changed',
+            actorId,
+            details: JSON.stringify({
+              from: ticket.status,
+              to: newStatus,
+              bulkOperation: true,
+            }),
+          },
+        });
+
+        // Emit SSE event
+        this.eventsService.emit({
+          type: 'ticket.status_changed',
+          actorRole: userRole,
+          landlordId: ticket.landlordId,
+          tenantId: ticket.tenancy?.tenantOrgId,
+          resources: [{ type: 'ticket', id: ticketId }],
+          payload: { status: newStatus },
+        });
+
+        results.push({ ticketId, status: 'success' });
+      } catch (error) {
+        errors.push({ ticketId, error: error.message });
+      }
+    }
+
+    return {
+      success: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    };
+  }
+
+  /**
+   * Bulk assign tickets to contractor (OPS role only)
+   */
+  async bulkAssign(
+    ticketIds: string[],
+    contractorId: string,
+    actorId: string,
+    userRole: string,
+  ) {
+    if (userRole !== 'OPS') {
+      throw new ForbiddenException('Only OPS role can perform bulk operations');
+    }
+
+    if (ticketIds.length === 0) {
+      throw new ForbiddenException('No ticket IDs provided');
+    }
+
+    if (ticketIds.length > 50) {
+      throw new ForbiddenException('Cannot assign more than 50 tickets at once');
+    }
+
+    // Verify contractor exists
+    const contractor = await this.prisma.user.findUnique({
+      where: { id: contractorId },
+    });
+
+    if (!contractor) {
+      throw new NotFoundException('Contractor not found');
+    }
+
+    const results = [];
+    const errors = [];
+
+    for (const ticketId of ticketIds) {
+      try {
+        const ticket = await this.prisma.ticket.findUnique({
+          where: { id: ticketId },
+          include: { tenancy: true },
+        });
+
+        if (!ticket) {
+          errors.push({ ticketId, error: 'Ticket not found' });
+          continue;
+        }
+
+        // Update ticket
+        await this.prisma.ticket.update({
+          where: { id: ticketId },
+          data: { assignedToId: contractorId },
+        });
+
+        // Create timeline event
+        await this.prisma.ticketTimeline.create({
+          data: {
+            ticketId,
+            eventType: 'assigned',
+            actorId,
+            details: JSON.stringify({
+              contractorId,
+              bulkOperation: true,
+            }),
+          },
+        });
+
+        // Emit SSE event
+        this.eventsService.emit({
+          type: 'ticket.assigned',
+          actorRole: userRole,
+          landlordId: ticket.landlordId,
+          tenantId: ticket.tenancy?.tenantOrgId,
+          resources: [{ type: 'ticket', id: ticketId }],
+          payload: { contractorId },
+        });
+
+        results.push({ ticketId, status: 'success' });
+      } catch (error) {
+        errors.push({ ticketId, error: error.message });
+      }
+    }
+
+    return {
+      success: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    };
   }
 }

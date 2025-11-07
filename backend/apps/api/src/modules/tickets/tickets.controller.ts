@@ -13,7 +13,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiQuery } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { CreateQuoteDto } from './dto/create-quote.dto';
@@ -33,11 +34,12 @@ export class TicketsController {
 
   constructor(private readonly ticketsService: TicketsService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute
   @Roles('TENANT')
   @Post()
   @ApiOperation({ 
     summary: 'Create a maintenance ticket',
-    description: 'Create a new maintenance ticket. Tenant must provide either propertyId or tenancyId. Ticket will be visible to the landlord immediately and appears in their list within 5 seconds via polling.'
+    description: 'Create a new maintenance ticket. Tenant must provide either propertyId or tenancyId. Ticket will be visible to the landlord immediately and appears in their list within 5 seconds via polling. Rate limited to 5 requests per minute.'
   })
   @ApiBearerAuth()
   async create(@Body() dto: CreateTicketDto, @CurrentUser() user: any) {
@@ -89,17 +91,31 @@ export class TicketsController {
   @Get()
   @ApiOperation({ 
     summary: 'List tickets',
-    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports filtering by propertyId and status.'
+    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports filtering by propertyId, status, and search (by title, description, or ID). Includes pagination.'
   })
+  @ApiQuery({ name: 'propertyId', required: false, description: 'Filter by property ID' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status' })
+  @ApiQuery({ name: 'search', required: false, description: 'Search by title, description, or ticket ID' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20, max: 100)' })
   @ApiBearerAuth()
   async findMany(
     @Query('propertyId') propertyId?: string,
     @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @CurrentUser() user?: any,
   ) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
-    return this.ticketsService.findMany(userOrgIds, primaryRole, { propertyId, status });
+    return this.ticketsService.findMany(userOrgIds, primaryRole, { 
+      propertyId, 
+      status, 
+      search,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 
   @Roles('CONTRACTOR')
@@ -115,7 +131,7 @@ export class TicketsController {
   }
 
   @Patch(':id/status')
-  @ApiOperation({ summary: 'Update ticket status' })
+  @ApiOperation({ summary: 'Update ticket status with role-based restrictions' })
   @ApiBearerAuth()
   async updateStatus(
     @Param('id') id: string,
@@ -123,7 +139,8 @@ export class TicketsController {
     @CurrentUser() user: any,
   ) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
-    return this.ticketsService.updateStatus(id, dto.to, user.sub, userOrgIds);
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.updateStatus(id, dto.to, user.sub, userOrgIds, primaryRole);
   }
 
   @Get(':id/timeline')
@@ -251,5 +268,45 @@ export class TicketsController {
   @ApiBearerAuth()
   async getAppointment(@Param('appointmentId') appointmentId: string) {
     return this.ticketsService.findAppointment(appointmentId);
+  }
+
+  @Roles('OPS')
+  @Post('bulk/status')
+  @ApiOperation({ 
+    summary: 'Bulk update ticket status (OPS only)',
+    description: 'Update status for multiple tickets at once. Limited to 50 tickets per request.'
+  })
+  @ApiBearerAuth()
+  async bulkUpdateStatus(
+    @Body() body: { ticketIds: string[]; status: string },
+    @CurrentUser() user: any,
+  ) {
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.bulkUpdateStatus(
+      body.ticketIds,
+      body.status,
+      user.id,
+      primaryRole,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/assign')
+  @ApiOperation({ 
+    summary: 'Bulk assign tickets to contractor (OPS only)',
+    description: 'Assign multiple tickets to a contractor at once. Limited to 50 tickets per request.'
+  })
+  @ApiBearerAuth()
+  async bulkAssign(
+    @Body() body: { ticketIds: string[]; contractorId: string },
+    @CurrentUser() user: any,
+  ) {
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.bulkAssign(
+      body.ticketIds,
+      body.contractorId,
+      user.id,
+      primaryRole,
+    );
   }
 }
