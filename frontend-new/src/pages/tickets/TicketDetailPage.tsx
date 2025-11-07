@@ -3,6 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { ticketsApi } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import TableSkeleton from '../../components/skeletons/TableSkeleton';
+import AppointmentProposeForm from '../../components/appointments/AppointmentProposeForm';
+import AppointmentConfirmBanner from '../../components/appointments/AppointmentConfirmBanner';
+import AppointmentCard from '../../components/appointments/AppointmentCard';
+import MiniCalendar from '../../components/appointments/MiniCalendar';
+import AttachmentUploader from '../../components/attachments/AttachmentUploader';
+import AttachmentList from '../../components/attachments/AttachmentList';
+import { Appointment } from '../../types/appointments';
+import { Attachment } from '../../types/attachments';
 
 interface Ticket {
   id: string;
@@ -33,8 +41,22 @@ export default function TicketDetailPage() {
     enabled: !!id,
   });
 
+  const { data: appointments = [] } = useQuery<Appointment[]>({
+    queryKey: ['appointments', id],
+    queryFn: () => ticketsApi.getAppointments(id!),
+    enabled: !!id,
+  });
+
+  const { data: attachments = [] } = useQuery<Attachment[]>({
+    queryKey: ['attachments', id],
+    queryFn: () => ticketsApi.getAttachments(id!),
+    enabled: !!id,
+  });
+
   const primaryOrg = user?.organisations?.[0];
   const userRole = primaryOrg?.role || 'TENANT';
+  const isContractor = userRole === 'CONTRACTOR';
+  const isLandlordOrTenant = userRole === 'LANDLORD' || userRole === 'TENANT';
 
   if (isLoading) {
     return (
@@ -174,18 +196,93 @@ export default function TicketDetailPage() {
         </dl>
       </div>
 
-      {/* Appointments Section - Placeholder for now */}
+      {/* Appointments Section */}
       <div className="bg-white shadow rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Appointments</h3>
-        <p className="text-sm text-gray-500">Appointment scheduling will be available here.</p>
-        {/* TODO: Add AppointmentProposeForm, AppointmentConfirmBanner, AppointmentCard */}
+        
+        {/* Show confirmation banner if there's a proposed appointment */}
+        {isLandlordOrTenant && appointments.length > 0 && (
+          <div className="mb-4">
+            {appointments
+              .filter(apt => apt.status === 'PROPOSED')
+              .map(apt => (
+                <AppointmentConfirmBanner
+                  key={apt.id}
+                  appointment={apt}
+                  ticketId={id!}
+                />
+              ))}
+          </div>
+        )}
+
+        {/* Show all appointments */}
+        {appointments.length > 0 && (
+          <div className="space-y-4 mb-6">
+            {appointments.map(apt => (
+              <AppointmentCard
+                key={apt.id}
+                appointment={apt}
+                ticketTitle={ticket?.title || ''}
+                ticketDescription={ticket?.description || ''}
+                propertyAddress={ticket?.property?.address1}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Show calendar for confirmed appointments */}
+        {appointments.some(apt => apt.status === 'CONFIRMED') && (
+          <div className="mb-6">
+            <MiniCalendar appointments={appointments} />
+          </div>
+        )}
+
+        {/* Contractor can propose appointments */}
+        {isContractor && ticket?.status === 'APPROVED' && (
+          <div>
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">Propose New Appointment</h4>
+            <AppointmentProposeForm ticketId={id!} />
+          </div>
+        )}
+
+        {/* Empty state */}
+        {appointments.length === 0 && (
+          <div className="text-center py-6">
+            {isContractor && ticket?.status === 'APPROVED' ? (
+              <p className="text-sm text-gray-600 mb-4">
+                No appointments scheduled yet. Propose a time to visit the property.
+              </p>
+            ) : (
+              <p className="text-sm text-gray-600">
+                No appointments scheduled yet.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Attachments Section - Placeholder for now */}
+      {/* Attachments Section */}
       <div className="bg-white shadow rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Attachments</h3>
-        <p className="text-sm text-gray-500">File attachments will be available here.</p>
-        {/* TODO: Add AttachmentUploader, AttachmentList */}
+        
+        {/* Upload section */}
+        <div className="mb-6">
+          <h4 className="text-sm font-semibold text-gray-700 mb-3">Upload Files</h4>
+          <AttachmentUploader ticketId={id!} />
+        </div>
+
+        {/* Attachments list */}
+        {attachments.length > 0 ? (
+          <AttachmentList 
+            ticketId={id!} 
+            attachments={attachments}
+            canDelete={true}
+          />
+        ) : (
+          <div className="text-center py-6 text-sm text-gray-600">
+            No attachments yet. Upload images or documents to share with the team.
+          </div>
+        )}
       </div>
     </div>
   );
