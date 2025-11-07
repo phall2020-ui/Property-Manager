@@ -199,7 +199,7 @@ export const ticketsApi = {
   },
 
   approve: async (id: string, idempotencyKey?: string) => {
-    const headers: any = {};
+    const headers: Record<string, string> = {};
     if (idempotencyKey) {
       headers['Idempotency-Key'] = idempotencyKey;
     }
