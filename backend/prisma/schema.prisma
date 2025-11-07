@@ -1034,3 +1034,18 @@ model WebhookLog {
   @@index([processed])
   @@index([createdAt])
 }
+
+// Job audit log for tracking manual job actions
+model JobAudit {
+  id            String   @id @default(uuid())
+  queue         String   // Queue name (tickets, notifications, dead-letter)
+  jobId         String   // BullMQ job ID
+  action        String   // retry, remove, cancel
+  actorUserId   String   // User who performed the action
+  reason        String?  // Optional reason for the action
+  createdAt     DateTime @default(now())
+
+  @@index([queue, jobId])
+  @@index([actorUserId])
+  @@index([createdAt])
+}
