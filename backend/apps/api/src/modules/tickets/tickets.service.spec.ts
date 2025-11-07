@@ -690,8 +690,8 @@ describe('TicketsService - Landlord & Scheduling', () => {
 
       const result = await service.findMany(['landlord-org-456'], 'LANDLORD');
 
-      expect(result.data).toHaveLength(1);
-      expect(result.pagination.total).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -710,8 +710,8 @@ describe('TicketsService - Landlord & Scheduling', () => {
 
       const result = await service.findMany(['tenant-org-999'], 'TENANT');
 
-      expect(result.data).toHaveLength(1);
-      expect(result.pagination.total).toBe(1);
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -729,7 +729,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
 
       const result = await service.findMany(['landlord-org-456'], 'LANDLORD', { status: 'OPEN' });
 
-      expect(result.data).toHaveLength(0);
+      expect(result.items).toHaveLength(0);
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
@@ -772,14 +772,14 @@ describe('TicketsService - Landlord & Scheduling', () => {
 
       const result = await service.findMany(['landlord-org-456'], 'LANDLORD', {});
 
-      expect(result.pagination.page).toBe(1);
-      expect(result.pagination.limit).toBe(20);
-      expect(result.pagination.total).toBe(1);
-      expect(result.pagination.totalPages).toBe(1);
+      expect(result.page).toBe(1);
+      expect(result.page_size).toBe(25);
+      expect(result.total).toBe(1);
+      expect(result.has_next).toBe(false);
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           skip: 0,
-          take: 20,
+          take: 25,
         }),
       );
     });
@@ -790,13 +790,13 @@ describe('TicketsService - Landlord & Scheduling', () => {
 
       const result = await service.findMany(['landlord-org-456'], 'LANDLORD', {
         page: 2,
-        limit: 10,
+        pageSize: 10,
       });
 
-      expect(result.pagination.page).toBe(2);
-      expect(result.pagination.limit).toBe(10);
-      expect(result.pagination.total).toBe(50);
-      expect(result.pagination.totalPages).toBe(5);
+      expect(result.page).toBe(2);
+      expect(result.page_size).toBe(10);
+      expect(result.total).toBe(50);
+      expect(result.has_next).toBe(true);
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           skip: 10,
@@ -810,7 +810,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
       jest.spyOn(prisma.ticket, 'count').mockResolvedValue(0);
 
       await service.findMany(['landlord-org-456'], 'LANDLORD', {
-        search: 'boiler',
+        q: 'boiler',
       });
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(
@@ -819,7 +819,6 @@ describe('TicketsService - Landlord & Scheduling', () => {
             OR: expect.arrayContaining([
               { title: { contains: 'boiler', mode: 'insensitive' } },
               { description: { contains: 'boiler', mode: 'insensitive' } },
-              { id: { contains: 'boiler', mode: 'insensitive' } },
             ]),
           }),
         }),
@@ -831,7 +830,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
       jest.spyOn(prisma.ticket, 'count').mockResolvedValue(0);
 
       await service.findMany(['landlord-org-456'], 'LANDLORD', {
-        limit: 200, // Request more than max
+        pageSize: 200, // Request more than max
       });
 
       expect(prisma.ticket.findMany).toHaveBeenCalledWith(

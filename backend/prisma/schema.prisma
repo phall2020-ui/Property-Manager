@@ -380,6 +380,7 @@ model Ticket {
   priority              String // LOW, STANDARD, HIGH, URGENT
   status                String    @default("OPEN") // OPEN, TRIAGED, QUOTED, APPROVED, SCHEDULED, IN_PROGRESS, COMPLETED, AUDITED, CANCELLED
   attachments           String? // JSON array as string
+  tags                  String? // JSON array as string (e.g., ["urgent", "high-priority"])
   inProgressAt          DateTime? // When status flipped to IN_PROGRESS
   noShowAt              DateTime? // If the job didn't start within grace period
   scheduledWindowStart  DateTime? // Denormalized from Appointment for faster queries
@@ -403,6 +404,12 @@ model Ticket {
   @@index([status])
   @@index([status, propertyId])
   @@index([scheduledWindowStart])
+  @@index([createdAt])
+  @@index([category])
+  @@index([assignedToId])
+  @@index([landlordId, createdAt])
+  @@index([landlordId, category])
+  @@index([landlordId, assignedToId])
 }
 
 // Appointments for scheduling maintenance visits
@@ -1025,6 +1032,13 @@ model Notification {
   message      String
   resourceType String?   // ticket, invoice, payment, document
   resourceId   String?
+  channel      String    @default("in-app") // in-app, email, webhook
+  status       String    @default("pending") // pending, sent, failed, delivered
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  failureReason String?
+  retryCount   Int       @default(0)
+  idempotencyKey String? @unique
   isRead       Boolean   @default(false)
   readAt       DateTime?
   createdAt    DateTime  @default(now())
@@ -1032,6 +1046,28 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
   @@index([resourceType, resourceId])
+  @@index([status, createdAt])
+  @@index([idempotencyKey])
+}
+
+// User notification preferences
+model NotificationPreference {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  emailEnabled     Boolean  @default(true)
+  webhookEnabled   Boolean  @default(false)
+  inAppEnabled     Boolean  @default(true)
+  webhookUrl       String?
+  webhookSecret    String?
+  notifyTicketCreated     Boolean @default(true)
+  notifyTicketAssigned    Boolean @default(true)
+  notifyQuoteSubmitted    Boolean @default(true)
+  notifyQuoteApproved     Boolean @default(true)
+  notifyTicketCompleted   Boolean @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // Timeline events for tickets

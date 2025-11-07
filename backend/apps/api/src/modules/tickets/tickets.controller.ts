@@ -25,6 +25,10 @@ import { ConfirmAppointmentDto } from './dto/confirm-appointment.dto';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { BulkUpdateStatusDto } from './dto/bulk-update-status.dto';
 import { BulkAssignDto } from './dto/bulk-assign.dto';
+import { BulkCloseDto } from './dto/bulk-close.dto';
+import { BulkReassignDto } from './dto/bulk-reassign.dto';
+import { BulkTagDto } from './dto/bulk-tag.dto';
+import { BulkCategoryDto } from './dto/bulk-category.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -93,46 +97,72 @@ export class TicketsController {
 
   @Get()
   @ApiOperation({ 
-    summary: 'List tickets',
-    description: 'List tickets filtered by role. Landlords see tickets for their properties, tenants see their own tickets. Supports comprehensive filtering: propertyId, status, category, priority, contractorId, date ranges, and search (by title, description, or ID). Includes pagination.'
+    summary: 'List tickets with comprehensive filtering',
+    description: 'List tickets filtered by role. Supports filters: q (title+description), id, date_from, date_to, category, contractor_id. Includes pagination (page, page_size) and sorting (sort_by, sort_dir).'
   })
-  @ApiQuery({ name: 'propertyId', required: false, description: 'Filter by property ID' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status (OPEN, TRIAGED, QUOTED, etc.)' })
+  @ApiQuery({ name: 'q', required: false, description: 'Search query for title and description (min 2 chars)' })
+  @ApiQuery({ name: 'id', required: false, description: 'Filter by ticket ID' })
+  @ApiQuery({ name: 'date_from', required: false, description: 'Filter tickets created on or after this date (ISO 8601)' })
+  @ApiQuery({ name: 'date_to', required: false, description: 'Filter tickets created on or before this date (ISO 8601)' })
   @ApiQuery({ name: 'category', required: false, description: 'Filter by ticket category' })
-  @ApiQuery({ name: 'priority', required: false, description: 'Filter by priority (LOW, STANDARD, HIGH, URGENT)' })
-  @ApiQuery({ name: 'contractorId', required: false, description: 'Filter by assigned contractor ID' })
-  @ApiQuery({ name: 'startDate', required: false, description: 'Filter tickets created on or after this date (ISO 8601 format)' })
-  @ApiQuery({ name: 'endDate', required: false, description: 'Filter tickets created on or before this date (ISO 8601 format)' })
-  @ApiQuery({ name: 'search', required: false, description: 'Search by title, description, or ticket ID' })
+  @ApiQuery({ name: 'contractor_id', required: false, description: 'Filter by assigned contractor ID' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status' })
+  @ApiQuery({ name: 'priority', required: false, description: 'Filter by priority' })
   @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20, max: 100)' })
+  @ApiQuery({ name: 'page_size', required: false, description: 'Items per page (default: 25, max: 100)' })
+  @ApiQuery({ name: 'sort_by', required: false, description: 'Sort field (default: created_at)' })
+  @ApiQuery({ name: 'sort_dir', required: false, description: 'Sort direction: asc or desc (default: desc)' })
   @ApiBearerAuth()
   async findMany(
-    @Query('propertyId') propertyId?: string,
-    @Query('status') status?: string,
+    @Query('q') q?: string,
+    @Query('id') id?: string,
+    @Query('date_from') dateFrom?: string,
+    @Query('date_to') dateTo?: string,
     @Query('category') category?: string,
+    @Query('contractor_id') contractorId?: string,
+    @Query('status') status?: string,
     @Query('priority') priority?: string,
-    @Query('contractorId') contractorId?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('search') search?: string,
     @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query('page_size') pageSize?: string,
+    @Query('sort_by') sortBy?: string,
+    @Query('sort_dir') sortDir?: string,
     @CurrentUser() user?: any,
   ) {
+    // Ensure query parameters are strings, not arrays
+    const qStr = Array.isArray(q) ? q[0] : q;
+    const idStr = Array.isArray(id) ? id[0] : id;
+    const dateFromStr = Array.isArray(dateFrom) ? dateFrom[0] : dateFrom;
+    const dateToStr = Array.isArray(dateTo) ? dateTo[0] : dateTo;
+    const categoryStr = Array.isArray(category) ? category[0] : category;
+    const contractorIdStr = Array.isArray(contractorId) ? contractorId[0] : contractorId;
+    const statusStr = Array.isArray(status) ? status[0] : status;
+    const priorityStr = Array.isArray(priority) ? priority[0] : priority;
+    const pageStr = Array.isArray(page) ? page[0] : page;
+    const pageSizeStr = Array.isArray(pageSize) ? pageSize[0] : pageSize;
+    const sortByStr = Array.isArray(sortBy) ? sortBy[0] : sortBy;
+    const sortDirStr = Array.isArray(sortDir) ? sortDir[0] : sortDir;
+
+    // Validate search query length
+    if (qStr && qStr.length < 2) {
+      throw new BadRequestException('Search query (q) must be at least 2 characters');
+    }
+
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    
     return this.ticketsService.findMany(userOrgIds, primaryRole, { 
-      propertyId, 
-      status,
-      category,
-      priority,
-      contractorId,
-      startDate,
-      endDate,
-      search,
-      page: page ? parseInt(page, 10) : undefined,
-      limit: limit ? parseInt(limit, 10) : undefined,
+      q: qStr,
+      id: idStr,
+      dateFrom: dateFromStr,
+      dateTo: dateToStr,
+      category: categoryStr,
+      contractorId: contractorIdStr,
+      status: statusStr,
+      priority: priorityStr,
+      page: pageStr ? parseInt(pageStr, 10) : undefined,
+      pageSize: pageSizeStr ? parseInt(pageSizeStr, 10) : undefined,
+      sortBy: sortByStr || 'created_at',
+      sortDir: (sortDirStr === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc',
     });
   }
 
@@ -384,6 +414,91 @@ export class TicketsController {
       dto.contractorId,
       user.id,
       primaryRole,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/close')
+  @ApiOperation({ 
+    summary: 'Bulk close tickets (OPS only)',
+    description: 'Close multiple tickets at once with optional resolution note. Returns 207 Multi-Status with partial failure reporting.'
+  })
+  @ApiBearerAuth()
+  async bulkClose(
+    @Body() dto: BulkCloseDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.ticketsService.bulkClose(
+      dto.ticket_ids,
+      user.id,
+      user.orgs?.[0]?.role || 'TENANT',
+      dto.resolution_note,
+      idempotencyKey,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/reassign')
+  @ApiOperation({ 
+    summary: 'Bulk reassign tickets (OPS only)',
+    description: 'Reassign multiple tickets to a new contractor. Returns 207 Multi-Status with partial failure reporting.'
+  })
+  @ApiBearerAuth()
+  async bulkReassign(
+    @Body() dto: BulkReassignDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.ticketsService.bulkReassign(
+      dto.ticket_ids,
+      dto.contractor_id,
+      user.id,
+      user.orgs?.[0]?.role || 'TENANT',
+      idempotencyKey,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/tag')
+  @ApiOperation({ 
+    summary: 'Bulk add/remove tags (OPS only)',
+    description: 'Add or remove tags from multiple tickets. Returns 207 Multi-Status with partial failure reporting.'
+  })
+  @ApiBearerAuth()
+  async bulkTag(
+    @Body() dto: BulkTagDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.ticketsService.bulkTag(
+      dto.ticket_ids,
+      user.id,
+      user.orgs?.[0]?.role || 'TENANT',
+      dto.add,
+      dto.remove,
+      idempotencyKey,
+    );
+  }
+
+  @Roles('OPS')
+  @Post('bulk/category')
+  @ApiOperation({ 
+    summary: 'Bulk update category (OPS only)',
+    description: 'Update category for multiple tickets. Returns 207 Multi-Status with partial failure reporting.'
+  })
+  @ApiBearerAuth()
+  async bulkCategory(
+    @Body() dto: BulkCategoryDto,
+    @CurrentUser() user: any,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.ticketsService.bulkCategory(
+      dto.ticket_ids,
+      dto.category,
+      user.id,
+      user.orgs?.[0]?.role || 'TENANT',
+      idempotencyKey,
     );
   }
 

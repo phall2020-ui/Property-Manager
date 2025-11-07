@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Query, ParseIntPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { NotificationsService } from './notifications.service';
@@ -47,5 +47,19 @@ export class NotificationsController {
   async markAllAsRead(@CurrentUser() user: any) {
     await this.notificationsService.markAllAsRead(user.sub);
     return { success: true };
+  }
+
+  @Get('preferences')
+  @ApiOperation({ summary: 'Get notification preferences' })
+  @ApiBearerAuth()
+  async getPreferences(@CurrentUser() user: any) {
+    return this.notificationsService.getPreferences(user.sub);
+  }
+
+  @Put('preferences')
+  @ApiOperation({ summary: 'Update notification preferences' })
+  @ApiBearerAuth()
+  async updatePreferences(@CurrentUser() user: any, @Body() data: any) {
+    return this.notificationsService.updatePreferences(user.sub, data);
   }
 }
