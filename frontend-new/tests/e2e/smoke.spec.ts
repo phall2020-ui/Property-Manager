@@ -133,10 +133,6 @@ test.describe('E2E Smoke Tests with Accessibility', () => {
       // May fail if backend is not available, which is ok
     });
     
-    // Verify we're on the tickets list page or see a success message
-    const isOnTicketsList = page.url().includes('/tickets') && !page.url().includes('/tickets/new');
-    const hasSuccessMessage = await page.getByText(/success|created|submitted/i).isVisible().catch(() => false);
-    
     // At minimum, we should have navigated away from /tickets/new
     expect(page.url()).not.toContain('/tickets/new');
   });
