@@ -10,7 +10,7 @@ interface Notification {
   message: string;
   read: boolean;
   createdAt: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export default function NotificationDropdown() {

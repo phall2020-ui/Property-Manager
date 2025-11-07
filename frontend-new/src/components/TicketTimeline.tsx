@@ -46,10 +46,6 @@ export default function TicketTimeline({ ticketId }: TicketTimelineProps) {
     );
   }
 
-  const getEventIcon = (_eventType: string) => {
-    return <User className="w-5 h-5" />;
-  };
-
   const getEventColor = (eventType: string) => {
     switch (eventType) {
       case 'created':
@@ -82,7 +78,7 @@ export default function TicketTimeline({ ticketId }: TicketTimelineProps) {
     }
   };
 
-  const formatDetails = (eventType: string, details: any) => {
+  const formatDetails = (eventType: string, details: Record<string, unknown>) => {
     switch (eventType) {
       case 'created':
         return `Created with priority: ${details.priority}`;
@@ -140,7 +136,7 @@ export default function TicketTimeline({ ticketId }: TicketTimelineProps) {
                         event.eventType
                       )}`}
                     >
-                      {getEventIcon(event.eventType)}
+                      <User className="w-5 h-5" />
                     </span>
                   </div>
                   <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">

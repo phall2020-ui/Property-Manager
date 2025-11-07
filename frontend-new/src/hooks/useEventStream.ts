@@ -9,7 +9,7 @@ export interface SystemEvent {
   resources: Array<{ type: string; id: string }>;
   version: number;
   at: string;
-  payload?: any;
+  payload?: Record<string, unknown>;
 }
 
 interface UseEventStreamOptions {
@@ -207,7 +207,7 @@ export function useEventStream({
         }
       };
 
-      eventSourceRef.current = fakeEventSource as any;
+      eventSourceRef.current = fakeEventSource as unknown as EventSource;
       fakeEventSource.readLoop();
       
     } catch (error) {

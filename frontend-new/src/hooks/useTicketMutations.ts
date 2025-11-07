@@ -4,6 +4,7 @@ import { ticketsApi } from '../lib/api';
 interface Ticket {
   id: string;
   status: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
