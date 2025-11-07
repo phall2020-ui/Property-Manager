@@ -22,6 +22,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { ApproveQuoteDto } from './dto/approve-quote.dto';
 import { ProposeAppointmentDto } from './dto/propose-appointment.dto';
 import { ConfirmAppointmentDto } from './dto/confirm-appointment.dto';
+import { AssignTicketDto } from './dto/assign-ticket.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { diskStorage } from 'multer';
@@ -319,14 +320,14 @@ export class TicketsController {
   @ApiBearerAuth()
   async assignTicket(
     @Param('id') id: string,
-    @Body() body: { contractorId: string },
+    @Body() dto: AssignTicketDto,
     @CurrentUser() user: any,
   ) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     return this.ticketsService.assignTicket(
       id,
-      body.contractorId,
+      dto.contractorId,
       user.id,
       userOrgIds,
       primaryRole,

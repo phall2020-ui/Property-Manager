@@ -79,10 +79,13 @@ export class AuthGuard implements CanActivate {
       };
       
       // Log successful authentication with user context
+      // In production, avoid logging PII (email) - only log user ID
+      const isDevelopment = this.configService.get<string>('app.nodeEnv') === 'development';
+      
       this.logger.log({
         message: 'User authenticated successfully',
         userId: user.id,
-        email: user.email,
+        ...(isDevelopment && { email: user.email }), // Only log email in development
         orgCount: user.orgMemberships.length,
         roles: request.user.orgs.map((o: any) => o.role).join(', '),
         path: `${method} ${path}`,
