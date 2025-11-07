@@ -3,10 +3,11 @@
 # Property Manager - Integration Test Script
 # Tests complete workflow: Login → Create Property → Create Ticket → View Ticket
 
-set -e
+# Note: Not using 'set -e' because we want to continue testing even if some tests fail
 
-BASE_URL="http://localhost:4000/api"
-FRONTEND_URL="http://localhost:3000"
+# Allow configuration through environment variables
+BASE_URL="${API_BASE_URL:-http://localhost:4000/api}"
+FRONTEND_URL="${FRONTEND_BASE_URL:-http://localhost:3000}"
 
 echo "=================================="
 echo "Property Manager Integration Tests"
@@ -37,6 +38,19 @@ test_endpoint() {
     fi
 }
 
+# Helper function to extract and validate token
+extract_token() {
+    local response=$1
+    local token=$(echo "$response" | jq -r '.accessToken')
+    
+    if [ "$token" != "null" ] && [ ! -z "$token" ] && [ "$token" != "" ]; then
+        echo "$token"
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Test 1: Health Check
 echo "Test 1: Health Check"
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" $BASE_URL/health)
@@ -49,8 +63,7 @@ LOGIN_RESPONSE=$(curl -s -X POST $BASE_URL/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"landlord@example.com","password":"password123"}')
 
-LANDLORD_TOKEN=$(echo $LOGIN_RESPONSE | jq -r '.accessToken')
-if [ "$LANDLORD_TOKEN" != "null" ] && [ ! -z "$LANDLORD_TOKEN" ]; then
+if LANDLORD_TOKEN=$(extract_token "$LOGIN_RESPONSE"); then
     echo -e "${GREEN}✓${NC} Landlord login successful"
     ((PASSED++))
 else
@@ -65,8 +78,7 @@ TENANT_RESPONSE=$(curl -s -X POST $BASE_URL/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"tenant@example.com","password":"password123"}')
 
-TENANT_TOKEN=$(echo $TENANT_RESPONSE | jq -r '.accessToken')
-if [ "$TENANT_TOKEN" != "null" ] && [ ! -z "$TENANT_TOKEN" ]; then
+if TENANT_TOKEN=$(extract_token "$TENANT_RESPONSE"); then
     echo -e "${GREEN}✓${NC} Tenant login successful"
     ((PASSED++))
 else
@@ -81,8 +93,7 @@ CONTRACTOR_RESPONSE=$(curl -s -X POST $BASE_URL/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"contractor@example.com","password":"password123"}')
 
-CONTRACTOR_TOKEN=$(echo $CONTRACTOR_RESPONSE | jq -r '.accessToken')
-if [ "$CONTRACTOR_TOKEN" != "null" ] && [ ! -z "$CONTRACTOR_TOKEN" ]; then
+if CONTRACTOR_TOKEN=$(extract_token "$CONTRACTOR_RESPONSE"); then
     echo -e "${GREEN}✓${NC} Contractor login successful"
     ((PASSED++))
 else
@@ -165,7 +176,7 @@ LANDLORD_TICKETS=$(curl -s $BASE_URL/tickets \
   -H "Authorization: Bearer $LANDLORD_TOKEN")
 
 LANDLORD_TICKET_COUNT=$(echo $LANDLORD_TICKETS | jq -r '.data | length')
-if [ "$LANDLORD_TICKET_COUNT" != "null" ]; then
+if [ "$LANDLORD_TICKET_COUNT" != "null" ] && [[ "$LANDLORD_TICKET_COUNT" =~ ^[0-9]+$ ]]; then
     echo -e "${GREEN}✓${NC} Landlord can list tickets ($LANDLORD_TICKET_COUNT tickets)"
     ((PASSED++))
 else
@@ -180,7 +191,7 @@ TENANT_TICKETS=$(curl -s $BASE_URL/tickets \
   -H "Authorization: Bearer $TENANT_TOKEN")
 
 TENANT_TICKET_COUNT=$(echo $TENANT_TICKETS | jq -r '.data | length')
-if [ "$TENANT_TICKET_COUNT" != "null" ]; then
+if [ "$TENANT_TICKET_COUNT" != "null" ] && [[ "$TENANT_TICKET_COUNT" =~ ^[0-9]+$ ]]; then
     echo -e "${GREEN}✓${NC} Tenant can list tickets ($TENANT_TICKET_COUNT tickets)"
     ((PASSED++))
 else
@@ -195,7 +206,7 @@ CONTRACTOR_TICKETS=$(curl -s $BASE_URL/tickets \
   -H "Authorization: Bearer $CONTRACTOR_TOKEN")
 
 CONTRACTOR_TICKET_COUNT=$(echo $CONTRACTOR_TICKETS | jq -r '.data | length')
-if [ "$CONTRACTOR_TICKET_COUNT" != "null" ]; then
+if [ "$CONTRACTOR_TICKET_COUNT" != "null" ] && [[ "$CONTRACTOR_TICKET_COUNT" =~ ^[0-9]+$ ]]; then
     echo -e "${GREEN}✓${NC} Contractor can list tickets ($CONTRACTOR_TICKET_COUNT tickets)"
     ((PASSED++))
 else
