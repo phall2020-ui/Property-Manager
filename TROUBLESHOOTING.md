@@ -47,8 +47,12 @@ app.enableCors({
   credentials: true,
 });
 
-# 2. Ensure frontend API base URL is correct (frontend-new/.env.local)
+# 2. Ensure frontend API base URL is correct
+# For Vite frontend (frontend-new/.env.local or .env)
 VITE_API_BASE_URL=http://localhost:4000/api
+
+# For Next.js frontend (frontend/.env.local) - DEPRECATED
+NEXT_PUBLIC_API_BASE=http://localhost:4000/api
 
 # 3. Verify cookies are being sent
 # In frontend API client (src/lib/api.ts), ensure:
@@ -77,10 +81,25 @@ res.cookie('refreshToken', refreshToken, {
 
 ## Database Issues
 
-### Issue: "Connection refused" to database
-**Symptoms**: Cannot connect to PostgreSQL, backend fails to start
+### Issue: "Connection refused" or "Cannot connect to database"
+**Symptoms**: Backend fails to start, database connection errors
 
-**Solutions**:
+**Solutions for SQLite (Development)**:
+```bash
+# 1. Check if database file exists
+ls -la backend/dev.db
+
+# 2. If missing, run migrations
+cd backend && npx prisma migrate deploy
+
+# 3. Generate Prisma client if needed
+npx prisma generate
+
+# 4. Verify DATABASE_URL in backend/.env
+DATABASE_URL=file:./dev.db
+```
+
+**Solutions for PostgreSQL (Production or optional dev)**:
 ```bash
 # 1. Check if PostgreSQL is running
 docker ps | grep postgres
@@ -92,7 +111,7 @@ cd backend && docker compose up -d postgres
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/property_management
 
 # 4. Test connection
-npx prisma db push --preview-feature
+npx prisma db push
 ```
 
 ### Issue: "Table does not exist"
@@ -193,11 +212,15 @@ createTicket() { ... }
 
 **Solutions**:
 ```bash
-# 1. Increase timeout in axios client (frontend/src/lib/api.ts)
+# 1. Increase timeout in axios client
+# For Vite frontend (frontend-new/src/lib/api.ts)
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // 30 seconds
 });
+
+# For Next.js frontend (frontend/_lib/apiClient.ts) - DEPRECATED
+// Similar configuration
 
 # 2. Check for long-running queries
 # Enable query logging and identify slow queries
