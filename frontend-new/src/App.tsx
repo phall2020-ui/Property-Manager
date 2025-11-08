@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -6,15 +7,17 @@ import { ToastProvider } from './contexts/ToastContext';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import PropertiesListPage from './pages/properties/PropertiesListPage';
-import PropertyCreatePage from './pages/properties/PropertyCreatePage';
-import PropertyDetailPage from './pages/properties/PropertyDetailPage';
-import TicketsListPage from './pages/tickets/TicketsListPage';
-import TicketCreatePage from './pages/tickets/TicketCreatePage';
-import TicketDetailPage from './pages/tickets/TicketDetailPage';
-import ComplianceCentrePage from './pages/compliance/ComplianceCentrePage';
-import JobsListPage from './pages/jobs/JobsListPage';
-import QueueListPage from './pages/queue/QueueListPage';
+
+// Lazy load pages for better performance
+const PropertiesListPage = lazy(() => import('./pages/properties/PropertiesListPage'));
+const PropertyCreatePage = lazy(() => import('./pages/properties/PropertyCreatePage'));
+const PropertyDetailPage = lazy(() => import('./pages/properties/PropertyDetailPage'));
+const TicketsListPage = lazy(() => import('./pages/tickets/TicketsListPage'));
+const TicketCreatePage = lazy(() => import('./pages/tickets/TicketCreatePage'));
+const TicketDetailPage = lazy(() => import('./pages/tickets/TicketDetailPage'));
+const ComplianceCentrePage = lazy(() => import('./pages/compliance/ComplianceCentrePage'));
+const JobsListPage = lazy(() => import('./pages/jobs/JobsListPage'));
+const QueueListPage = lazy(() => import('./pages/queue/QueueListPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,18 +29,23 @@ const queryClient = new QueryClient({
   },
 });
 
+// Loading component for lazy-loaded routes
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Loading page...</p>
+      </div>
+    </div>
+  );
+}
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!user) {
@@ -46,7 +54,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   return (
     <Layout>
-      {children}
+      <Suspense fallback={<PageLoader />}>
+        {children}
+      </Suspense>
     </Layout>
   );
 }
