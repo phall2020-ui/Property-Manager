@@ -56,3 +56,7 @@ prisma/migrations/**/migration.sql.bak
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Uploads (local storage)
+backend/uploads/
+uploads/

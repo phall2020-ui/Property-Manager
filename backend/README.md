@@ -34,8 +34,62 @@ The most important variables are:
 - `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` – secrets for signing JWTs (change from defaults for production)
 - `REDIS_URL` – Redis connection string (optional, only needed for background jobs)
 - `NOTIFICATIONS_ENABLED` – Enable/disable notification processing (default: `true`). Set to `false` to disable email/notification delivery while keeping the API functional.
-- `S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/`S3_BUCKET` – credentials for object storage (optional)
+- Storage configuration (for document uploads):
+  - `STORAGE_PROVIDER` – Storage backend (`LOCAL`, `S3`, or `GCS`). Defaults to `LOCAL`
+  - `S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/`S3_BUCKET`/`S3_REGION` – AWS S3 credentials (required when `STORAGE_PROVIDER=S3`)
+  - `MAX_FILE_SIZE` – Maximum upload size in bytes (default: `10485760` = 10MB, max: `52428800` = 50MB)
+  - `ALLOWED_MIME_TYPES` – Comma-separated list of allowed MIME types (optional, uses sensible defaults)
 - `SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`, etc. – credentials for email/SMS providers (optional)
+
+#### Storage Configuration
+
+The application supports multiple storage backends for document uploads:
+
+- **LOCAL** (default): Files stored in `./uploads` directory on the server
+- **S3**: Amazon S3 or S3-compatible storage (e.g., Cloudflare R2, DigitalOcean Spaces)
+- **GCS**: Google Cloud Storage (planned, not yet implemented)
+
+**Upload Flow:**
+
+1. Client requests a presigned URL via `POST /api/attachments/sign` with `contentType` and optional `maxSize`
+2. Server validates the request and returns a presigned URL that expires in 5 minutes
+3. Client uploads the file directly to storage using the presigned URL
+4. Client registers the document via `POST /api/documents` with metadata (filename, storageKey, size, etc.)
+5. Server links the document to a property, ticket, or tenancy and emits a `document.created` event
+
+**Example:**
+
+```bash
+# Request presigned URL
+curl -X POST http://localhost:4000/api/attachments/sign \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"contentType": "application/pdf", "maxSize": 5242880}'
+
+# Upload file (using the returned URL)
+curl -X PUT "$PRESIGNED_URL" \
+  -H "Content-Type: application/pdf" \
+  --data-binary @certificate.pdf
+
+# Register document
+curl -X POST http://localhost:4000/api/documents \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "propertyId": "550e8400-e29b-41d4-a716-446655440000",
+    "docType": "EPC",
+    "filename": "certificate.pdf",
+    "storageKey": "uploads/1699123456-abc123.pdf",
+    "contentType": "application/pdf",
+    "size": 524288
+  }'
+```
+
+**Allowed MIME Types (default):**
+- Images: `image/jpeg`, `image/png`, `image/gif`, `image/webp`
+- Documents: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+- Spreadsheets: `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- Text: `text/plain`, `text/csv`
 
 #### Background Jobs Configuration
 
