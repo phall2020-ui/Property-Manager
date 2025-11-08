@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../lib/api';
 
@@ -26,8 +26,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasCheckedAuth = useRef(false);
 
   useEffect(() => {
+    // Only check auth once on mount, not on every render
+    if (hasCheckedAuth.current) return;
+    hasCheckedAuth.current = true;
+
     // Check if user is logged in on mount
     const checkAuth = async () => {
       const token = localStorage.getItem('accessToken');
@@ -35,8 +40,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const userData = await authApi.getMe();
           setUser(userData);
-        } catch {
-          localStorage.removeItem('accessToken');
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          // Only clear token if it's an auth error (401/403), not network errors
+          if (error && typeof error === 'object' && 'response' in error) {
+            const status = (error as { response?: { status?: number } }).response?.status;
+            if (status === 401 || status === 403) {
+              localStorage.removeItem('accessToken');
+              setUser(null);
+            }
+          }
         }
       }
       setLoading(false);

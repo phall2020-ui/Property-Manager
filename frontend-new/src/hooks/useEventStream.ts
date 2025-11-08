@@ -19,8 +19,8 @@ interface UseEventStreamOptions {
   onError?: (error: Event) => void;
 }
 
-const MAX_RETRY_DELAY = 30000; // 30 seconds
-const INITIAL_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 60000; // 60 seconds (increased to avoid rate limits)
+const INITIAL_RETRY_DELAY = 5000; // 5 seconds (increased initial delay)
 
 export function useEventStream({
   token,
@@ -162,6 +162,11 @@ export function useEventStream({
       });
 
       if (!response.ok) {
+        // If rate limited, wait longer before retrying
+        if (response.status === 429) {
+          console.warn('Event stream rate limited, will retry with longer delay');
+          retryCountRef.current = Math.max(retryCountRef.current, 3); // Force longer delay
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 

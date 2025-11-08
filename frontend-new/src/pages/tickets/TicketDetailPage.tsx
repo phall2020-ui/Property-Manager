@@ -53,7 +53,17 @@ export default function TicketDetailPage() {
     enabled: !!id,
   });
 
-  const primaryOrg = user?.organisations?.[0];
+  if (!user || !user.organisations || user.organisations.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
+          <p>No organisation found for this user. Please contact support.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const primaryOrg = user.organisations[0];
   const userRole = primaryOrg?.role || 'TENANT';
   const isContractor = userRole === 'CONTRACTOR';
   const isLandlordOrTenant = userRole === 'LANDLORD' || userRole === 'TENANT';

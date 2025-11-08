@@ -12,7 +12,17 @@ export default function TicketCreatePage() {
   const toast = useToast();
   const { user } = useAuth();
 
-  const primaryRole = user?.organisations?.[0]?.role || 'TENANT';
+  if (!user || !user.organisations || user.organisations.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
+          <p>No organisation found for this user. Please contact support.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const primaryRole = user.organisations[0]?.role || 'TENANT';
   const isTenant = primaryRole === 'TENANT';
   const isLandlord = primaryRole === 'LANDLORD';
   const isContractor = primaryRole === 'CONTRACTOR';

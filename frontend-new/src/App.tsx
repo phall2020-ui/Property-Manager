@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { EventProvider } from './contexts/EventContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -63,12 +64,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ToastProvider>
-          <EventProvider>
-            <BrowserRouter>
-              <Routes>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ToastProvider>
+            <EventProvider>
+              <BrowserRouter>
+                <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route
                   path="/dashboard"
@@ -151,12 +153,13 @@ function App() {
                   }
                 />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </BrowserRouter>
-          </EventProvider>
-        </ToastProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+                </Routes>
+              </BrowserRouter>
+            </EventProvider>
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

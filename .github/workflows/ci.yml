@@ -39,6 +39,25 @@ jobs:
       
       - name: Run CI checks
         run: npm run check:ci
+      
+      - name: Run tests with coverage
+        run: npm run test:coverage
+      
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend-new/coverage
+          retention-days: 7
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend-new/test-results
+          retention-days: 7
 
   # Frontend Security Audit
   frontend-security:
@@ -184,8 +203,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pm_ci
       
-      - name: Run tests
-        run: npm test
+      - name: Run tests with coverage
+        run: npm run test:coverage
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pm_ci
           REDIS_URL: redis://localhost:6379
@@ -193,6 +212,22 @@ jobs:
           JWT_REFRESH_SECRET: test-refresh-secret
           NODE_ENV: test
           FRONTEND_URL: http://localhost:3000
+      
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+          retention-days: 7
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: backend/test-results
+          retention-days: 7
 
   # Frontend Build
   frontend-build:
@@ -322,15 +357,48 @@ jobs:
         env:
           VITE_API_BASE_URL: http://localhost:4000/api
       
+      - name: Setup backend services
+        run: |
+          cd ../backend
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pm_ci
+      
+      - name: Start backend server
+        run: |
+          cd ../backend
+          npm run dev &
+          sleep 10
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pm_ci
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: test-access-secret
+          JWT_REFRESH_SECRET: test-refresh-secret
+          NODE_ENV: test
+          FRONTEND_URL: http://localhost:5173
+      
       - name: Run Playwright tests
         run: npm run test:e2e
+        env:
+          BASE_URL: http://localhost:5173
+          API_URL: http://localhost:4000
       
-      - name: Upload test results
+      - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: frontend-new/playwright-report
+          retention-days: 7
+      
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: frontend-new/test-results
           retention-days: 7
 
   # Lighthouse CI

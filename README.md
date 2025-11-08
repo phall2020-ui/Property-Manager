@@ -329,35 +329,282 @@ npm run lhci                # ✅ Performance meets thresholds
 
 ## 🧪 Testing
 
-### Backend Tests
+### Test Setup
+
+The project includes comprehensive testing infrastructure:
+
+- **Frontend Unit Tests:** Vitest + Testing Library
+- **Backend Unit Tests:** Jest + Supertest
+- **E2E Tests:** Playwright (Chromium, Firefox, WebKit)
+- **Coverage:** 80% threshold for lines, branches, functions, statements
+- **Accessibility:** axe-core integration in E2E tests
+
+### Running Tests Locally
+
+#### Frontend Tests (frontend-new/)
+
+```bash
+cd frontend-new
+
+# Run all unit tests
+npm test
+
+# Run unit tests in watch mode
+npm run test:watch
+
+# Run unit tests with coverage
+npm run test:coverage
+
+# Run E2E tests (headless)
+npm run test:e2e
+
+# Run E2E tests with UI (headed browser)
+npm run test:ui
+
+# Run E2E tests with interactive UI
+npm run test:e2e:ui
+```
+
+**Test Output:**
+- Coverage reports: `./coverage/`
+- JUnit XML: `./test-results/junit.xml`
+- E2E reports: `./playwright-report/`
+- E2E artifacts: `./test-results/` (screenshots, videos, traces)
+
+#### Backend Tests
+
 ```bash
 cd backend
+
+# Run all tests
 npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run E2E tests (if configured)
+npm run test:e2e
 ```
 
-### Frontend Tests
-```bash
-cd frontend
-npm test             # Unit tests (Vitest)
-npm run test:e2e     # E2E tests (Playwright)
-npm run test:e2e:ui  # Interactive E2E test UI
-npm run lhci         # Lighthouse CI audit
+**Test Output:**
+- Coverage reports: `./coverage/`
+- JUnit XML: `./test-results/junit.xml`
+
+### Test Configuration
+
+#### Frontend Test Environment
+
+Create `frontend-new/.env.test` (see `.env.test.example`):
+```env
+VITE_API_BASE_URL=http://localhost:4000/api
+BASE_URL=http://localhost:5173
+API_URL=http://localhost:4000
 ```
 
-### Automated UI Operability Testing
+#### Backend Test Environment
 
-On every pull request, the CI/CD pipeline automatically:
-- Deploys a Vercel preview build
-- Runs Playwright E2E tests across Chrome, Firefox, and Safari
-- Performs accessibility audits using axe-core (WCAG 2.0 AA)
-- Runs Lighthouse CI for performance, SEO, and best practices
+Create `backend/.env.test` (see `.env.test.example`):
+```env
+DATABASE_URL=file:./test.db
+NODE_ENV=test
+JWT_ACCESS_SECRET=test-access-secret
+JWT_REFRESH_SECRET=test-refresh-secret
+```
 
-**Required GitHub Secrets** (Repository → Settings → Secrets and variables → Actions):
-- `VERCEL_TOKEN` - Your Vercel API token
-- `VERCEL_ORG_ID` - Your Vercel organization ID
-- `VERCEL_PROJECT_ID` - Your Vercel project ID
+### Test Coverage
 
-Test artifacts (reports, screenshots, videos) are uploaded for debugging failed runs.
+Coverage thresholds are set to **80%** for:
+- Lines
+- Branches
+- Functions
+- Statements
+
+View coverage reports:
+- **Frontend:** Open `frontend-new/coverage/index.html` in browser
+- **Backend:** Open `backend/coverage/index.html` in browser
+
+### E2E Test Scenarios
+
+The E2E test suite covers:
+
+1. **Authentication Flow** (`tests/e2e/auth-flow.spec.ts`)
+   - Login/logout
+   - Signup
+   - Token refresh
+   - Role-based redirects
+   - Invalid credentials handling
+
+2. **Ticket CRUD** (`tests/e2e/ticket-crud.spec.ts`)
+   - Create ticket
+   - View ticket list
+   - View ticket details
+   - Filter/search tickets
+   - Form validation
+
+3. **Role-Based Access Control** (`tests/e2e/rbac-access.spec.ts`)
+   - Landlord routes
+   - Tenant routes
+   - Contractor routes
+   - Ops routes
+   - Unauthorized access prevention
+
+4. **Accessibility** (integrated in all E2E tests)
+   - WCAG 2.0 AA compliance
+   - axe-core automated checks
+
+### Test Data & Fixtures
+
+Test fixtures are available in:
+- **Frontend:** `frontend-new/tests/fixtures/`
+- **Backend:** `backend/test/fixtures/`
+
+Test users (from seed data):
+- **Landlord:** `landlord@example.com` / `password123`
+- **Tenant:** `tenant@example.com` / `password123`
+- **Contractor:** `contractor@example.com` / `password123`
+- **Ops:** `ops@example.com` / `password123`
+
+### CI/CD Testing
+
+The GitHub Actions CI pipeline (`.github/workflows/ci.yml`) runs:
+
+1. **Frontend Check Job:**
+   - Lint
+   - TypeScript type checking
+   - Unit tests with coverage
+   - Build verification
+
+2. **Backend Test Job:**
+   - Unit tests with coverage
+   - Integration tests
+   - Uses PostgreSQL and Redis services
+
+3. **E2E Test Job:**
+   - Playwright tests across Chrome, Firefox, Safari
+   - Accessibility checks
+   - Screenshots/videos on failure
+
+4. **Lighthouse CI Job:**
+   - Performance audits
+   - SEO checks
+   - Best practices
+
+**Artifacts Uploaded:**
+- Coverage reports (HTML + LCOV)
+- JUnit XML test results
+- Playwright HTML reports
+- Screenshots, videos, traces (on failure)
+
+### Viewing Test Reports
+
+#### Local Development
+
+1. **Coverage Reports:**
+   ```bash
+   # Frontend
+   open frontend-new/coverage/index.html
+   
+   # Backend
+   open backend/coverage/index.html
+   ```
+
+2. **Playwright Reports:**
+   ```bash
+   cd frontend-new
+   npx playwright show-report
+   ```
+
+#### CI/CD
+
+Download artifacts from GitHub Actions:
+1. Go to the workflow run
+2. Scroll to "Artifacts" section
+3. Download:
+   - `frontend-coverage` - Frontend coverage HTML
+   - `backend-coverage` - Backend coverage HTML
+   - `playwright-report` - E2E test HTML report
+   - `playwright-test-results` - Screenshots/videos
+
+### Writing Tests
+
+#### Frontend Unit Test Example
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { LoginPage } from '@/pages/LoginPage';
+
+describe('LoginPage', () => {
+  it('should render login form', () => {
+    render(<LoginPage />);
+    expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+  });
+});
+```
+
+#### Backend Unit Test Example
+
+```typescript
+import { Test, TestingModule } from '@nestjs/testing';
+import { AuthService } from './auth.service';
+
+describe('AuthService', () => {
+  let service: AuthService;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [AuthService, /* mocks */],
+    }).compile();
+    service = module.get<AuthService>(AuthService);
+  });
+
+  it('should login successfully', async () => {
+    const result = await service.login('user@example.com', 'password');
+    expect(result).toHaveProperty('accessToken');
+  });
+});
+```
+
+#### E2E Test Example
+
+```typescript
+import { test, expect } from '@playwright/test';
+import AxeBuilder from 'axe-playwright';
+
+test('should login and access dashboard', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel(/email/i).fill('landlord@example.com');
+  await page.getByLabel(/password/i).fill('password123');
+  await page.getByRole('button', { name: /sign in/i }).click();
+  
+  await page.waitForURL(/dashboard/, { timeout: 10000 });
+  
+  // Accessibility check
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
+});
+```
+
+### Troubleshooting Tests
+
+**Tests failing locally:**
+1. Ensure backend is running: `cd backend && npm run dev`
+2. Check database is seeded: `cd backend && npm run seed`
+3. Verify environment variables in `.env.test`
+
+**E2E tests timing out:**
+- Increase timeout in `playwright.config.ts`
+- Check if backend is accessible at `http://localhost:4000`
+- Verify frontend is built: `npm run build`
+
+**Coverage below threshold:**
+- Review coverage report to identify untested code
+- Add tests for uncovered branches/lines
+- Adjust threshold if needed (not recommended)
 
 ## 📚 API Documentation
 
