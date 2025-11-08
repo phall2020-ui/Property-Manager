@@ -44,6 +44,10 @@ export class TicketJobsProcessor extends WorkerHost {
           return await this.handleTicketAssigned(job);
         case 'appointment.start':
           return await this.handleAppointmentStart(job);
+        case 'ticket.escalate':
+          return await this.handleTicketEscalation(job);
+        case 'appointment.reminder':
+          return await this.handleAppointmentReminder(job);
         default:
           this.logger.warn(`Unknown job type: ${job.name}`);
           return { status: 'skipped', reason: 'unknown job type' };
@@ -470,6 +474,211 @@ export class TicketJobsProcessor extends WorkerHost {
       };
     } catch (error) {
       this.logger.error(`[appointment.start] Error processing job: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle ticket escalation (Critical Priority #3)
+   * Auto-escalate stale tickets
+   */
+  private async handleTicketEscalation(job: Job) {
+    this.logger.log(`[ticket.escalate] Processing ticket escalation`);
+    
+    const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
+    const now = new Date();
+    
+    try {
+      // Find tickets in OPEN/TRIAGED for > 24 hours
+      const staleTickets = await this.prisma.ticket.findMany({
+        where: {
+          status: { in: ['OPEN', 'TRIAGED'] },
+          createdAt: { lt: new Date(now.getTime() - staleThreshold) },
+          priority: { not: 'URGENT' }, // Don't escalate already urgent
+        },
+        include: {
+          property: true,
+          tenancy: true,
+        },
+      });
+
+      let escalatedCount = 0;
+
+      for (const ticket of staleTickets) {
+        // Determine new priority
+        let newPriority: string;
+        switch (ticket.priority) {
+          case 'LOW':
+            newPriority = 'STANDARD';
+            break;
+          case 'STANDARD':
+            newPriority = 'HIGH';
+            break;
+          case 'HIGH':
+            newPriority = 'URGENT';
+            break;
+          default:
+            newPriority = ticket.priority;
+        }
+
+        // Update ticket priority
+        await this.prisma.ticket.update({
+          where: { id: ticket.id },
+          data: { priority: newPriority },
+        });
+
+        // Create timeline event
+        await this.prisma.ticketTimeline.create({
+          data: {
+            ticketId: ticket.id,
+            eventType: 'auto_escalated',
+            actorId: null, // System action
+            details: JSON.stringify({
+              oldPriority: ticket.priority,
+              newPriority,
+              reason: 'Ticket open for 24+ hours',
+            }),
+          },
+        });
+
+        // Find OPS users to notify
+        const opsUsers = await this.prisma.orgMember.findMany({
+          where: {
+            orgId: ticket.landlordId,
+            role: 'OPS',
+          },
+        });
+
+        const opsUserIds = opsUsers.map(member => member.userId);
+
+        // Notify OPS team
+        if (opsUserIds.length > 0) {
+          await this.notificationsService.createMany(opsUserIds, {
+            type: 'TICKET_ESCALATED',
+            title: 'Ticket Auto-Escalated',
+            message: `Ticket "${ticket.title}" has been open for 24+ hours and escalated to ${newPriority} priority`,
+            resourceType: 'ticket',
+            resourceId: ticket.id,
+          });
+        }
+
+        // Emit SSE event
+        this.eventsService.emit({
+          type: 'ticket.escalated',
+          actorRole: 'SYSTEM',
+          landlordId: ticket.landlordId,
+          tenantId: ticket.tenancy?.tenantOrgId,
+          resources: [{ type: 'ticket', id: ticket.id }],
+          payload: { oldPriority: ticket.priority, newPriority },
+        });
+
+        escalatedCount++;
+      }
+
+      this.logger.log(`[ticket.escalate] Escalated ${escalatedCount} tickets`);
+
+      return {
+        status: 'success',
+        event: 'ticket.escalate',
+        escalatedCount,
+      };
+    } catch (error) {
+      this.logger.error(`[ticket.escalate] Error processing job: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle appointment reminder (Medium Priority #11)
+   * Send reminders 24h and 2h before appointment
+   */
+  private async handleAppointmentReminder(job: Job) {
+    const { appointmentId, reminderType } = job.data; // '24h' or '2h'
+    
+    this.logger.log(`[appointment.reminder] Sending ${reminderType} reminder for appointment ${appointmentId}`);
+    
+    try {
+      const appointment = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: {
+          ticket: {
+            include: {
+              tenancy: true,
+              property: true,
+            },
+          },
+          contractor: true,
+        },
+      });
+
+      if (!appointment) {
+        this.logger.warn(`[appointment.reminder] Appointment ${appointmentId} not found`);
+        return { status: 'skipped', reason: 'appointment not found' };
+      }
+
+      if (appointment.status !== 'CONFIRMED') {
+        this.logger.warn(`[appointment.reminder] Appointment ${appointmentId} is not confirmed`);
+        return { status: 'skipped', reason: 'appointment not confirmed' };
+      }
+
+      const userIdsToNotify: string[] = [];
+
+      // Notify tenant
+      if (appointment.ticket.createdById) {
+        userIdsToNotify.push(appointment.ticket.createdById);
+        await this.notificationsService.create({
+          userId: appointment.ticket.createdById,
+          type: 'APPOINTMENT_REMINDER',
+          title: `Appointment Reminder (${reminderType})`,
+          message: `Reminder: Appointment for "${appointment.ticket.title}" is scheduled for ${appointment.startAt.toLocaleString()}`,
+          resourceType: 'appointment',
+          resourceId: appointmentId,
+        });
+      }
+
+      // Notify contractor
+      userIdsToNotify.push(appointment.contractorId);
+      await this.notificationsService.create({
+        userId: appointment.contractorId,
+        type: 'APPOINTMENT_REMINDER',
+        title: `Appointment Reminder (${reminderType})`,
+        message: `Reminder: You have an appointment for "${appointment.ticket.title}" at ${appointment.startAt.toLocaleString()}`,
+        resourceType: 'appointment',
+        resourceId: appointmentId,
+      });
+
+      // Notify landlord users
+      const landlordUsers = await this.prisma.orgMember.findMany({
+        where: {
+          orgId: appointment.ticket.landlordId,
+          role: 'LANDLORD',
+        },
+      });
+
+      const landlordUserIds = landlordUsers.map(member => member.userId);
+      userIdsToNotify.push(...landlordUserIds);
+
+      if (landlordUserIds.length > 0) {
+        await this.notificationsService.createMany(landlordUserIds, {
+          type: 'APPOINTMENT_REMINDER',
+          title: `Appointment Reminder (${reminderType})`,
+          message: `Reminder: Appointment for ticket "${appointment.ticket.title}" is scheduled for ${appointment.startAt.toLocaleString()}`,
+          resourceType: 'appointment',
+          resourceId: appointmentId,
+        });
+      }
+
+      this.logger.log(`[appointment.reminder] Sent ${reminderType} reminders to ${userIdsToNotify.length} users`);
+
+      return {
+        status: 'success',
+        event: 'appointment.reminder',
+        appointmentId,
+        reminderType,
+        notificationsSent: userIdsToNotify.length,
+      };
+    } catch (error) {
+      this.logger.error(`[appointment.reminder] Error processing job: ${error.message}`, error.stack);
       throw error;
     }
   }

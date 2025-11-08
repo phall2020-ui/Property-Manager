@@ -55,6 +55,8 @@ model User {
   notesCreated            PropertyNote[]
   mandates                Mandate[]
   contractorAppointments  Appointment[]  @relation("ContractorAppointments")
+  ticketComments          TicketComment[] @relation("TicketCommentAuthor")
+  categoryRoutingRules    CategoryRoutingRule[] @relation("CategoryRoutingContractor")
 
   @@index([email])
   @@index([landlordId])
@@ -385,6 +387,16 @@ model Ticket {
   noShowAt              DateTime? // If the job didn't start within grace period
   scheduledWindowStart  DateTime? // Denormalized from Appointment for faster queries
   scheduledWindowEnd    DateTime? // Denormalized from Appointment for faster queries
+  // SLA tracking fields
+  targetResponseTime    DateTime? // When ticket should be triaged
+  targetResolutionTime  DateTime? // When ticket should be completed
+  actualResponseTime    DateTime? // When ticket was triaged
+  actualResolutionTime  DateTime? // When ticket was completed
+  slaBreached          Boolean   @default(false)
+  reopenedAt           DateTime? // When ticket was reopened
+  reopenedBy           String?  // User who reopened the ticket
+  reopenedReason       String?  // Reason for reopening
+  templateId           String?  // Reference to template if created from template
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -396,6 +408,8 @@ model Ticket {
   attachmentFiles TicketAttachment[] @relation("TicketAttachments")
   timeline        TicketTimeline[]
   appointments    Appointment[]
+  comments        TicketComment[]
+  template        TicketTemplate? @relation("TicketFromTemplate", fields: [templateId], references: [id])
 
   @@index([landlordId])
   @@index([propertyId])
@@ -449,8 +463,14 @@ model Quote {
   notes           String?
   status          String // PROPOSED, APPROVED, REJECTED
   approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
   completedAt     DateTime?
   completionNotes String?
+  // Cost variance tracking
+  estimatedAmount Float?   // Original estimate
+  actualAmount    Float?   // Final cost
+  variance        Float?   // Calculated: actualAmount - amount
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -1083,6 +1103,61 @@ model TicketTimeline {
 
   @@index([ticketId, createdAt])
   @@index([actorId])
+}
+
+// Ticket templates for common maintenance issues
+model TicketTemplate {
+  id          String   @id @default(uuid())
+  landlordId  String
+  title       String
+  description String
+  category    String?
+  priority    String   @default("STANDARD")
+  tags        String?  // JSON array
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tickets Ticket[] @relation("TicketFromTemplate")
+
+  @@index([landlordId])
+  @@index([category])
+}
+
+// Comments/threading system for tickets
+model TicketComment {
+  id        String   @id @default(uuid())
+  ticketId  String
+  userId    String
+  content   String
+  parentId  String?  // For threading/replies
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation("TicketCommentAuthor", fields: [userId], references: [id])
+  parent TicketComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies TicketComment[] @relation("CommentReplies")
+
+  @@index([ticketId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+// Category-based routing rules for auto-assignment
+model CategoryRoutingRule {
+  id            String   @id @default(uuid())
+  landlordId    String
+  category      String
+  contractorId  String?  // Auto-assign to this contractor
+  priority      String   @default("STANDARD")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contractor User? @relation("CategoryRoutingContractor", fields: [contractorId], references: [id])
+
+  @@unique([landlordId, category])
+  @@index([landlordId])
+  @@index([category])
 }
 
 // Webhook event logs for payment providers

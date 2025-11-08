@@ -420,6 +420,42 @@ export class JobsService implements OnModuleInit {
   }
 
   /**
+   * Enqueue appointment reminder job
+   */
+  async enqueueAppointmentReminder(
+    data: {
+      appointmentId: string;
+      reminderType: '24h' | '2h';
+    },
+    options?: { delay?: number },
+  ) {
+    return this.enqueueOrLog(
+      'tickets',
+      'appointment.reminder',
+      data,
+      {
+        jobId: `appointment-reminder-${data.appointmentId}-${data.reminderType}`,
+        delay: options?.delay,
+      },
+    );
+  }
+
+  /**
+   * Enqueue ticket escalation job
+   */
+  async enqueueTicketEscalation() {
+    return this.enqueueOrLog(
+      'tickets',
+      'ticket.escalate',
+      {},
+      {
+        jobId: `ticket-escalate-${Date.now()}`,
+        // Run daily - this should be scheduled via cron
+      },
+    );
+  }
+
+  /**
    * Get queue by name (helper method)
    */
   private getQueueByName(name: string): Queue | null {

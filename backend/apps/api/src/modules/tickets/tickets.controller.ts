@@ -615,4 +615,276 @@ export class TicketsController {
       primaryRole,
     );
   }
+
+  @Roles('LANDLORD')
+  @Post('quotes/:quoteId/reject')
+  @ApiOperation({ summary: 'Reject a quote' })
+  @ApiBearerAuth()
+  async rejectQuote(
+    @Param('quoteId') quoteId: string,
+    @Body() body: { reason?: string },
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.ticketsService.rejectQuote(quoteId, user.id, userOrgIds, body.reason);
+  }
+
+  @Roles('TENANT', 'LANDLORD', 'OPS', 'CONTRACTOR')
+  @Post('appointments/:appointmentId/cancel')
+  @ApiOperation({ summary: 'Cancel an appointment' })
+  @ApiBearerAuth()
+  async cancelAppointment(
+    @Param('appointmentId') appointmentId: string,
+    @Body() body: { cancellationNote?: string },
+    @CurrentUser() user: any,
+  ) {
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    return this.ticketsService.cancelAppointment(
+      appointmentId,
+      user.id,
+      primaryRole,
+      body.cancellationNote,
+    );
+  }
+
+  @Get(':id/quotes/compare')
+  @ApiOperation({ summary: 'Compare quotes for a ticket' })
+  @ApiBearerAuth()
+  async compareQuotes(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.ticketsService.compareQuotes(id, userOrgIds);
+  }
+
+  @Get('contractors/:contractorId/availability')
+  @ApiOperation({ summary: 'Check contractor availability' })
+  @ApiQuery({ name: 'startAt', required: true, description: 'Proposed start time (ISO 8601)' })
+  @ApiQuery({ name: 'endAt', required: true, description: 'Proposed end time (ISO 8601)' })
+  @ApiBearerAuth()
+  async checkContractorAvailability(
+    @Param('contractorId') contractorId: string,
+    @Query('startAt') startAt: string,
+    @Query('endAt') endAt: string,
+  ) {
+    return this.ticketsService.checkContractorAvailability(
+      contractorId,
+      new Date(startAt),
+      new Date(endAt),
+    );
+  }
+
+  @Roles('OPS', 'LANDLORD')
+  @Post(':id/reopen')
+  @ApiOperation({ summary: 'Reopen a closed ticket' })
+  @ApiBearerAuth()
+  async reopenTicket(
+    @Param('id') id: string,
+    @Body() body: { reason: string },
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.ticketsService.reopenTicket(id, user.id, userOrgIds, body.reason);
+  }
+
+  @Roles('LANDLORD')
+  @Post('quotes/bulk/approve')
+  @ApiOperation({ summary: 'Bulk approve quotes' })
+  @ApiBearerAuth()
+  async bulkApproveQuotes(
+    @Body() body: { quoteIds: string[] },
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.ticketsService.bulkApproveQuotes(body.quoteIds, user.id, userOrgIds);
+  }
+
+  @Roles('LANDLORD')
+  @Post('templates')
+  @ApiOperation({ summary: 'Create a ticket template' })
+  @ApiBearerAuth()
+  async createTemplate(
+    @Body() body: {
+      title: string;
+      description: string;
+      category?: string;
+      priority?: string;
+      tags?: string[];
+    },
+    @CurrentUser() user: any,
+  ) {
+    const landlordId = user.orgs?.[0]?.orgId;
+    if (!landlordId) {
+      throw new BadRequestException('User must belong to a landlord organization');
+    }
+    return this.ticketsService.createTemplate(
+      landlordId,
+      body.title,
+      body.description,
+      body.category,
+      body.priority,
+      body.tags,
+    );
+  }
+
+  @Roles('LANDLORD')
+  @Get('templates')
+  @ApiOperation({ summary: 'Get ticket templates for landlord' })
+  @ApiBearerAuth()
+  async getTemplates(@CurrentUser() user: any) {
+    const landlordId = user.orgs?.[0]?.orgId;
+    if (!landlordId) {
+      throw new BadRequestException('User must belong to a landlord organization');
+    }
+    return this.ticketsService.getTemplates(landlordId);
+  }
+
+  @Roles('LANDLORD')
+  @Post('templates/:templateId/create-ticket')
+  @ApiOperation({ summary: 'Create ticket from template' })
+  @ApiBearerAuth()
+  async createFromTemplate(
+    @Param('templateId') templateId: string,
+    @Body() body: { propertyId: string; tenancyId?: string },
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    const landlordId = user.orgs?.[0]?.orgId;
+    if (!landlordId) {
+      throw new BadRequestException('User must belong to a landlord organization');
+    }
+    return this.ticketsService.createFromTemplate(
+      templateId,
+      landlordId,
+      body.propertyId,
+      body.tenancyId,
+      user.id,
+      userOrgIds,
+    );
+  }
+
+  @Post(':id/comments')
+  @ApiOperation({ summary: 'Add comment to ticket' })
+  @ApiBearerAuth()
+  async addComment(
+    @Param('id') id: string,
+    @Body() body: { content: string; parentId?: string },
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.ticketsService.addComment(id, user.id, userOrgIds, body.content, body.parentId);
+  }
+
+  @Get(':id/comments')
+  @ApiOperation({ summary: 'Get comments for a ticket' })
+  @ApiBearerAuth()
+  async getComments(
+    @Param('id') id: string,
+    @CurrentUser() user: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    return this.ticketsService.getComments(id, userOrgIds);
+  }
+
+  @Get('contractors/:contractorId/metrics')
+  @ApiOperation({ summary: 'Get contractor performance metrics' })
+  @ApiQuery({ name: 'periodDays', required: false, description: 'Period in days (default: 30)' })
+  @ApiBearerAuth()
+  async getContractorMetrics(
+    @Param('contractorId') contractorId: string,
+    @Query('periodDays') periodDays?: string,
+  ) {
+    const days = periodDays ? parseInt(periodDays, 10) : 30;
+    return this.ticketsService.getContractorMetrics(contractorId, days);
+  }
+
+  @Roles('LANDLORD')
+  @Post('category-routing')
+  @ApiOperation({ summary: 'Create or update category routing rule' })
+  @ApiBearerAuth()
+  async upsertCategoryRoutingRule(
+    @Body() body: {
+      category: string;
+      contractorId?: string | null;
+      priority?: string;
+    },
+    @CurrentUser() user: any,
+  ) {
+    const landlordId = user.orgs?.[0]?.orgId;
+    if (!landlordId) {
+      throw new BadRequestException('User must belong to a landlord organization');
+    }
+    return this.ticketsService.upsertCategoryRoutingRule(
+      landlordId,
+      body.category,
+      body.contractorId || null,
+      body.priority || 'STANDARD',
+    );
+  }
+
+  @Roles('LANDLORD')
+  @Get('category-routing')
+  @ApiOperation({ summary: 'Get category routing rules' })
+  @ApiBearerAuth()
+  async getCategoryRoutingRules(@CurrentUser() user: any) {
+    const landlordId = user.orgs?.[0]?.orgId;
+    if (!landlordId) {
+      throw new BadRequestException('User must belong to a landlord organization');
+    }
+    return this.ticketsService.getCategoryRoutingRules(landlordId);
+  }
+
+  @Roles('CONTRACTOR')
+  @Patch('quotes/:quoteId/actual-cost')
+  @ApiOperation({ summary: 'Update quote with actual cost' })
+  @ApiBearerAuth()
+  async updateQuoteActualCost(
+    @Param('quoteId') quoteId: string,
+    @Body() body: { actualAmount: number },
+    @CurrentUser() user: any,
+  ) {
+    return this.ticketsService.updateQuoteActualCost(quoteId, user.id, body.actualAmount);
+  }
+
+  @Get('export/csv')
+  @ApiOperation({ summary: 'Export tickets to CSV' })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'category', required: false })
+  @ApiQuery({ name: 'date_from', required: false })
+  @ApiQuery({ name: 'date_to', required: false })
+  @ApiBearerAuth()
+  async exportTickets(
+    @Query('status') status?: string,
+    @Query('category') category?: string,
+    @Query('date_from') dateFrom?: string,
+    @Query('date_to') dateTo?: string,
+    @CurrentUser() user?: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    
+    const csv = await this.ticketsService.exportTickets(userOrgIds, primaryRole, {
+      status,
+      category,
+      dateFrom,
+      dateTo,
+    });
+
+    return csv;
+  }
+
+  @Get('reports/summary')
+  @ApiOperation({ summary: 'Get ticket summary report' })
+  @ApiQuery({ name: 'period', required: false, enum: ['day', 'week', 'month', 'year'], description: 'Report period (default: month)' })
+  @ApiBearerAuth()
+  async getTicketReport(
+    @Query('period') period?: 'day' | 'week' | 'month' | 'year',
+    @CurrentUser() user?: any,
+  ) {
+    const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    
+    return this.ticketsService.getTicketReport(userOrgIds, primaryRole, period || 'month');
+  }
 }

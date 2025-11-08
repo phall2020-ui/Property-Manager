@@ -84,6 +84,43 @@ export class TicketsService {
       },
     });
 
+    // Check for category routing rule and auto-assign
+    if (ticket.category) {
+      const routingRule = await this.prisma.categoryRoutingRule.findUnique({
+        where: {
+          landlordId_category: {
+            landlordId: ticket.landlordId,
+            category: ticket.category,
+          },
+        },
+      });
+
+      if (routingRule && routingRule.contractorId) {
+        // Auto-assign to contractor
+        await this.prisma.ticket.update({
+          where: { id: ticket.id },
+          data: {
+            assignedToId: routingRule.contractorId,
+            priority: routingRule.priority,
+          },
+        });
+
+        // Create timeline event
+        await this.prisma.ticketTimeline.create({
+          data: {
+            ticketId: ticket.id,
+            eventType: 'assigned',
+            actorId: 'SYSTEM',
+            details: JSON.stringify({
+              contractorId: routingRule.contractorId,
+              autoAssigned: true,
+              category: ticket.category,
+            }),
+          },
+        });
+      }
+    }
+
     // Enqueue background job for notifications
     await this.jobsService.enqueueTicketCreated({
       ticketId: ticket.id,
@@ -217,12 +254,40 @@ export class TicketsService {
       }
     }
 
-    // Full-text search filter on title and description
+    // Enhanced search - includes title, description, ticket ID, contractor name, property address, and tags
     if (filters?.q) {
-      where.OR = [
-        { title: { contains: filters.q, mode: 'insensitive' } },
-        { description: { contains: filters.q, mode: 'insensitive' } },
-      ];
+      const searchTerm = filters.q.trim();
+      
+      // Check if it's a UUID (ticket ID)
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchTerm);
+      
+      if (isUUID) {
+        // Direct ID search
+        where.id = searchTerm;
+      } else {
+        // Multi-field search
+        where.OR = [
+          { title: { contains: searchTerm, mode: 'insensitive' } },
+          { description: { contains: searchTerm, mode: 'insensitive' } },
+          { id: { contains: searchTerm, mode: 'insensitive' } },
+          { tags: { contains: searchTerm, mode: 'insensitive' } },
+          // Search in related data
+          {
+            assignedTo: {
+              name: { contains: searchTerm, mode: 'insensitive' },
+            },
+          },
+          {
+            property: {
+              OR: [
+                { addressLine1: { contains: searchTerm, mode: 'insensitive' } },
+                { addressLine2: { contains: searchTerm, mode: 'insensitive' } },
+                { postcode: { contains: searchTerm, mode: 'insensitive' } },
+              ],
+            },
+          },
+        ];
+      }
     }
 
     // Pagination defaults
@@ -680,6 +745,9 @@ export class TicketsService {
       data: { status: newStatus },
     });
 
+    // Update SLA fields
+    await this.updateSLAFields(ticketId, newStatus);
+
     // Create timeline event
     await this.prisma.ticketTimeline.create({
       data: {
@@ -1058,6 +1126,26 @@ export class TicketsService {
       ticketId: appointment.ticketId,
       startAt: appointment.startAt.toISOString(),
     });
+
+    // Schedule reminder jobs (24h and 2h before)
+    const appointmentTime = appointment.startAt.getTime();
+    const now = Date.now();
+    const hours24Before = appointmentTime - (24 * 60 * 60 * 1000);
+    const hours2Before = appointmentTime - (2 * 60 * 60 * 1000);
+
+    if (hours24Before > now) {
+      await this.jobsService.enqueueAppointmentReminder({
+        appointmentId: appointment.id,
+        reminderType: '24h',
+      }, { delay: hours24Before - now });
+    }
+
+    if (hours2Before > now) {
+      await this.jobsService.enqueueAppointmentReminder({
+        appointmentId: appointment.id,
+        reminderType: '2h',
+      }, { delay: hours2Before - now });
+    }
 
     return confirmed;
   }
@@ -1737,5 +1825,1055 @@ export class TicketsService {
     }
 
     return { ok, failed };
+  }
+
+  /**
+   * Reject a quote (Critical Priority #1)
+   */
+  async rejectQuote(
+    quoteId: string,
+    userId: string,
+    userOrgIds: string[],
+    reason?: string,
+  ) {
+    const quote = await this.prisma.quote.findUnique({
+      where: { id: quoteId },
+      include: {
+        ticket: {
+          include: {
+            property: true,
+            tenancy: true,
+          },
+        },
+      },
+    });
+
+    if (!quote) {
+      throw new NotFoundException('Quote not found');
+    }
+
+    // Verify user is landlord of property
+    if (!userOrgIds.includes(quote.ticket.property.ownerOrgId)) {
+      throw new ForbiddenException('Only property owner can reject quotes');
+    }
+
+    // Update quote
+    await this.prisma.quote.update({
+      where: { id: quoteId },
+      data: {
+        status: 'REJECTED',
+        rejectedAt: new Date(),
+        rejectionReason: reason,
+      },
+    });
+
+    // Update ticket status to TRIAGED to allow new quote submission
+    await this.prisma.ticket.update({
+      where: { id: quote.ticketId },
+      data: { status: 'TRIAGED' },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId: quote.ticketId,
+        eventType: 'quote_rejected',
+        actorId: userId,
+        details: JSON.stringify({
+          quoteId,
+          reason,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'ticket.quote_rejected',
+      actorRole: 'LANDLORD',
+      landlordId: quote.ticket.landlordId,
+      tenantId: quote.ticket.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'ticket', id: quote.ticketId },
+        { type: 'quote', id: quoteId },
+      ],
+      payload: { reason },
+    });
+
+    return { message: 'Quote rejected successfully' };
+  }
+
+  /**
+   * Cancel an appointment (Critical Priority #2)
+   */
+  async cancelAppointment(
+    appointmentId: string,
+    cancelledBy: string,
+    userRole: string,
+    cancellationNote?: string,
+  ) {
+    const appointment = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        ticket: {
+          include: {
+            tenancy: true,
+          },
+        },
+      },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    if (!['TENANT', 'LANDLORD', 'OPS', 'CONTRACTOR'].includes(userRole)) {
+      throw new ForbiddenException('Cannot cancel appointment');
+    }
+
+    if (appointment.status === 'CANCELLED') {
+      throw new BadRequestException('Appointment already cancelled');
+    }
+
+    if (appointment.status === 'COMPLETED') {
+      throw new BadRequestException('Cannot cancel completed appointment');
+    }
+
+    await this.prisma.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: 'CANCELLED',
+        cancelledBy,
+        cancelledAt: new Date(),
+        cancellationNote,
+      },
+    });
+
+    // If ticket is SCHEDULED, revert to APPROVED
+    if (appointment.ticket.status === 'SCHEDULED') {
+      await this.prisma.ticket.update({
+        where: { id: appointment.ticketId },
+        data: {
+          status: 'APPROVED',
+          scheduledWindowStart: null,
+          scheduledWindowEnd: null,
+        },
+      });
+    }
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId: appointment.ticketId,
+        eventType: 'appointment_cancelled',
+        actorId: cancelledBy,
+        details: JSON.stringify({
+          appointmentId: appointment.id,
+          cancellationNote,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'appointment.cancelled',
+      actorRole: userRole,
+      landlordId: appointment.ticket.landlordId,
+      tenantId: appointment.ticket.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'ticket', id: appointment.ticketId },
+        { type: 'appointment', id: appointmentId },
+      ],
+    });
+
+    return { message: 'Appointment cancelled successfully' };
+  }
+
+  /**
+   * Compare quotes for a ticket (Critical Priority #4)
+   */
+  async compareQuotes(ticketId: string, userOrgIds: string[]) {
+    const ticket = await this.findOne(ticketId, userOrgIds);
+
+    const quotes = await this.prisma.quote.findMany({
+      where: {
+        ticketId,
+        status: { in: ['PROPOSED', 'APPROVED'] },
+      },
+      include: {
+        contractor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { amount: 'asc' },
+    });
+
+    const total = quotes.reduce((sum, q) => sum + q.amount, 0);
+    const average = quotes.length > 0 ? total / quotes.length : 0;
+
+    return {
+      ticketId,
+      quotes: quotes.map((q) => ({
+        id: q.id,
+        contractor: q.contractor.name,
+        contractorId: q.contractorId,
+        amount: q.amount,
+        notes: q.notes,
+        createdAt: q.createdAt,
+        status: q.status,
+      })),
+      cheapest: quotes[0]?.id || null,
+      mostExpensive: quotes[quotes.length - 1]?.id || null,
+      average,
+      count: quotes.length,
+      total,
+    };
+  }
+
+  /**
+   * Check contractor availability (High Priority #6)
+   */
+  async checkContractorAvailability(
+    contractorId: string,
+    proposedStart: Date,
+    proposedEnd: Date,
+  ) {
+    const conflicts = await this.prisma.appointment.findMany({
+      where: {
+        contractorId,
+        status: { in: ['PROPOSED', 'CONFIRMED'] },
+        OR: [
+          {
+            startAt: { lte: proposedEnd },
+            endAt: { gte: proposedStart },
+          },
+          {
+            startAt: { gte: proposedStart, lte: proposedEnd },
+          },
+        ],
+      },
+      include: {
+        ticket: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+
+    return {
+      available: conflicts.length === 0,
+      conflicts: conflicts.map((c) => ({
+        appointmentId: c.id,
+        ticketId: c.ticketId,
+        ticketTitle: c.ticket.title,
+        startAt: c.startAt,
+        endAt: c.endAt,
+        status: c.status,
+      })),
+    };
+  }
+
+  /**
+   * Reopen a ticket (High Priority #10)
+   */
+  async reopenTicket(
+    ticketId: string,
+    userId: string,
+    userOrgIds: string[],
+    reason: string,
+  ) {
+    const ticket = await this.findOne(ticketId, userOrgIds);
+
+    if (!['COMPLETED', 'CANCELLED', 'AUDITED'].includes(ticket.status)) {
+      throw new ForbiddenException(
+        `Cannot reopen ticket in ${ticket.status} status`,
+      );
+    }
+
+    // Update ticket
+    const updated = await this.prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        status: 'TRIAGED',
+        reopenedAt: new Date(),
+        reopenedBy: userId,
+        reopenedReason: reason,
+      },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId,
+        eventType: 'reopened',
+        actorId: userId,
+        details: JSON.stringify({
+          reason,
+          previousStatus: ticket.status,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'ticket.reopened',
+      actorRole: 'OPS',
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      resources: [{ type: 'ticket', id: ticketId }],
+      payload: { reason },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Bulk approve quotes (High Priority #9)
+   */
+  async bulkApproveQuotes(
+    quoteIds: string[],
+    userId: string,
+    userOrgIds: string[],
+  ) {
+    if (quoteIds.length === 0) {
+      throw new BadRequestException('No quote IDs provided');
+    }
+
+    if (quoteIds.length > 50) {
+      throw new BadRequestException('Cannot approve more than 50 quotes at once');
+    }
+
+    const results = [];
+    const errors = [];
+
+    for (const quoteId of quoteIds) {
+      try {
+        await this.approveQuote(quoteId, userId, userOrgIds);
+        results.push({ quoteId, status: 'success' });
+      } catch (error) {
+        errors.push({ quoteId, error: error.message });
+      }
+    }
+
+    return {
+      success: results.length,
+      failed: errors.length,
+      results,
+      errors,
+    };
+  }
+
+  /**
+   * Create ticket from template (High Priority #7)
+   */
+  async createFromTemplate(
+    templateId: string,
+    landlordId: string,
+    propertyId: string,
+    tenancyId: string | undefined,
+    createdById: string,
+    userOrgIds: string[],
+  ) {
+    const template = await this.prisma.ticketTemplate.findUnique({
+      where: { id: templateId },
+    });
+
+    if (!template) {
+      throw new NotFoundException('Template not found');
+    }
+
+    if (template.landlordId !== landlordId) {
+      throw new ForbiddenException('Template does not belong to this landlord');
+    }
+
+    // Verify property ownership
+    const property = await this.findProperty(propertyId);
+    if (property.ownerOrgId !== landlordId) {
+      throw new ForbiddenException('Property does not belong to this landlord');
+    }
+
+    const ticket = await this.prisma.ticket.create({
+      data: {
+        landlordId,
+        propertyId,
+        tenancyId,
+        title: template.title,
+        description: template.description,
+        category: template.category,
+        priority: template.priority,
+        tags: template.tags,
+        createdById,
+        createdByRole: 'LANDLORD',
+        status: 'OPEN',
+        templateId: template.id,
+      },
+      include: {
+        property: true,
+        tenancy: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId: ticket.id,
+        eventType: 'created',
+        actorId: createdById,
+        details: JSON.stringify({
+          title: ticket.title,
+          priority: ticket.priority,
+          category: ticket.category,
+          fromTemplate: true,
+          templateId: template.id,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    this.eventsService.emit({
+      type: 'ticket.created',
+      actorRole: 'LANDLORD',
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      resources: [
+        { type: 'ticket', id: ticket.id },
+        { type: 'property', id: ticket.propertyId },
+      ],
+    });
+
+    return ticket;
+  }
+
+  /**
+   * Create ticket template (High Priority #7)
+   */
+  async createTemplate(
+    landlordId: string,
+    title: string,
+    description: string,
+    category?: string,
+    priority: string = 'STANDARD',
+    tags?: string[],
+  ) {
+    const template = await this.prisma.ticketTemplate.create({
+      data: {
+        landlordId,
+        title,
+        description,
+        category,
+        priority,
+        tags: tags ? JSON.stringify(tags) : null,
+      },
+    });
+
+    return template;
+  }
+
+  /**
+   * Get templates for a landlord
+   */
+  async getTemplates(landlordId: string) {
+    return this.prisma.ticketTemplate.findMany({
+      where: { landlordId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Add comment to ticket (Medium Priority #14)
+   */
+  async addComment(
+    ticketId: string,
+    userId: string,
+    userOrgIds: string[],
+    content: string,
+    parentId?: string,
+  ) {
+    // Verify access
+    await this.findOne(ticketId, userOrgIds);
+
+    // If parentId provided, verify it exists and belongs to same ticket
+    if (parentId) {
+      const parent = await this.prisma.ticketComment.findUnique({
+        where: { id: parentId },
+      });
+
+      if (!parent || parent.ticketId !== ticketId) {
+        throw new NotFoundException('Parent comment not found');
+      }
+    }
+
+    const comment = await this.prisma.ticketComment.create({
+      data: {
+        ticketId,
+        userId,
+        content,
+        parentId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId,
+        eventType: 'comment_added',
+        actorId: userId,
+        details: JSON.stringify({
+          commentId: comment.id,
+          parentId: comment.parentId,
+        }),
+      },
+    });
+
+    // Emit SSE event
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+      include: { tenancy: true },
+    });
+
+    this.eventsService.emit({
+      type: 'ticket.comment_added',
+      actorRole: 'TENANT',
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      resources: [{ type: 'ticket', id: ticketId }],
+      payload: { commentId: comment.id },
+    });
+
+    return comment;
+  }
+
+  /**
+   * Get comments for a ticket
+   */
+  async getComments(ticketId: string, userOrgIds: string[]) {
+    // Verify access
+    await this.findOne(ticketId, userOrgIds);
+
+    return this.prisma.ticketComment.findMany({
+      where: { ticketId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        replies: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
+   * Get contractor performance metrics (Medium Priority #12)
+   */
+  async getContractorMetrics(contractorId: string, periodDays: number = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - periodDays);
+
+    const tickets = await this.prisma.ticket.findMany({
+      where: {
+        assignedToId: contractorId,
+        createdAt: { gte: startDate },
+      },
+      include: {
+        quotes: {
+          where: { contractorId },
+        },
+      },
+    });
+
+    const completedTickets = tickets.filter(
+      (t) => t.status === 'COMPLETED' || t.status === 'AUDITED',
+    );
+
+    const quotes = tickets.flatMap((t) => t.quotes);
+    const approvedQuotes = quotes.filter((q) => q.status === 'APPROVED');
+    const rejectedQuotes = quotes.filter((q) => q.status === 'REJECTED');
+
+    // Calculate average quote time (time from assignment to quote submission)
+    const quoteTimes = approvedQuotes
+      .map((q) => {
+        const ticket = tickets.find((t) => t.id === q.ticketId);
+        if (!ticket) return null;
+        const assignmentTime = ticket.updatedAt;
+        const quoteTime = q.createdAt;
+        return quoteTime.getTime() - assignmentTime.getTime();
+      })
+      .filter((t) => t !== null) as number[];
+
+    const avgQuoteTime =
+      quoteTimes.length > 0
+        ? quoteTimes.reduce((a, b) => a + b, 0) / quoteTimes.length
+        : 0;
+
+    // Calculate average completion time
+    const completionTimes = completedTickets
+      .map((t) => {
+        if (!t.inProgressAt) return null;
+        return (
+          (t.actualResolutionTime || t.updatedAt).getTime() -
+          t.inProgressAt.getTime()
+        );
+      })
+      .filter((t) => t !== null) as number[];
+
+    const avgCompletionTime =
+      completionTimes.length > 0
+        ? completionTimes.reduce((a, b) => a + b, 0) / completionTimes.length
+        : 0;
+
+    return {
+      contractorId,
+      periodDays,
+      totalTickets: tickets.length,
+      completedTickets: completedTickets.length,
+      completionRate:
+        tickets.length > 0
+          ? (completedTickets.length / tickets.length) * 100
+          : 0,
+      totalQuotes: quotes.length,
+      approvedQuotes: approvedQuotes.length,
+      rejectedQuotes: rejectedQuotes.length,
+      acceptanceRate:
+        quotes.length > 0
+          ? (approvedQuotes.length / quotes.length) * 100
+          : 0,
+      averageQuoteTimeHours: avgQuoteTime / (1000 * 60 * 60),
+      averageCompletionTimeHours: avgCompletionTime / (1000 * 60 * 60),
+    };
+  }
+
+  /**
+   * Create or update category routing rule (Medium Priority #13)
+   */
+  async upsertCategoryRoutingRule(
+    landlordId: string,
+    category: string,
+    contractorId: string | null,
+    priority: string = 'STANDARD',
+  ) {
+    return this.prisma.categoryRoutingRule.upsert({
+      where: {
+        landlordId_category: {
+          landlordId,
+          category,
+        },
+      },
+      update: {
+        contractorId,
+        priority,
+      },
+      create: {
+        landlordId,
+        category,
+        contractorId,
+        priority,
+      },
+    });
+  }
+
+  /**
+   * Get category routing rules for a landlord
+   */
+  async getCategoryRoutingRules(landlordId: string) {
+    return this.prisma.categoryRoutingRule.findMany({
+      where: { landlordId },
+      include: {
+        contractor: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Update quote with actual cost (Medium Priority #16)
+   */
+  async updateQuoteActualCost(
+    quoteId: string,
+    contractorId: string,
+    actualAmount: number,
+  ) {
+    const quote = await this.prisma.quote.findUnique({
+      where: { id: quoteId },
+    });
+
+    if (!quote) {
+      throw new NotFoundException('Quote not found');
+    }
+
+    if (quote.contractorId !== contractorId) {
+      throw new ForbiddenException('Only quote creator can update actual cost');
+    }
+
+    const variance = actualAmount - quote.amount;
+
+    const updated = await this.prisma.quote.update({
+      where: { id: quoteId },
+      data: {
+        actualAmount,
+        variance,
+        estimatedAmount: quote.amount, // Store original as estimate
+      },
+    });
+
+    // Create timeline event
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId: quote.ticketId,
+        eventType: 'quote_cost_updated',
+        actorId: contractorId,
+        details: JSON.stringify({
+          quoteId,
+          estimatedAmount: quote.amount,
+          actualAmount,
+          variance,
+        }),
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Calculate and update SLA fields when status changes
+   */
+  async updateSLAFields(ticketId: string, newStatus: string) {
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+    });
+
+    if (!ticket) return;
+
+    const updates: any = {};
+
+    // Set target times if not set (based on priority)
+    if (!ticket.targetResponseTime) {
+      const responseHours = {
+        URGENT: 2,
+        HIGH: 4,
+        STANDARD: 24,
+        LOW: 48,
+      };
+      const hours = responseHours[ticket.priority as keyof typeof responseHours] || 24;
+      updates.targetResponseTime = new Date(
+        ticket.createdAt.getTime() + hours * 60 * 60 * 1000,
+      );
+    }
+
+    if (!ticket.targetResolutionTime) {
+      const resolutionHours = {
+        URGENT: 24,
+        HIGH: 72,
+        STANDARD: 168, // 7 days
+        LOW: 336, // 14 days
+      };
+      const hours =
+        resolutionHours[ticket.priority as keyof typeof resolutionHours] || 168;
+      updates.targetResolutionTime = new Date(
+        ticket.createdAt.getTime() + hours * 60 * 60 * 1000,
+      );
+    }
+
+    // Update actual times
+    if (newStatus === 'TRIAGED' && !ticket.actualResponseTime) {
+      updates.actualResponseTime = new Date();
+    }
+
+    if (newStatus === 'COMPLETED' && !ticket.actualResolutionTime) {
+      updates.actualResolutionTime = new Date();
+    }
+
+    // Check SLA breaches
+    if (ticket.targetResponseTime && updates.actualResponseTime) {
+      if (updates.actualResponseTime > ticket.targetResponseTime) {
+        updates.slaBreached = true;
+      }
+    }
+
+    if (ticket.targetResolutionTime && updates.actualResolutionTime) {
+      if (updates.actualResolutionTime > ticket.targetResolutionTime) {
+        updates.slaBreached = true;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await this.prisma.ticket.update({
+        where: { id: ticketId },
+        data: updates,
+      });
+    }
+  }
+
+  /**
+   * Export tickets to CSV format (Medium Priority #18)
+   */
+  async exportTickets(
+    userOrgIds: string[],
+    role: string,
+    filters?: {
+      status?: string;
+      category?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    },
+  ) {
+    const where: any = {};
+
+    // Role-based scoping
+    if (role === 'LANDLORD') {
+      where.property = {
+        ownerOrgId: { in: userOrgIds },
+      };
+    } else if (role === 'TENANT') {
+      where.tenancy = {
+        tenantOrgId: { in: userOrgIds },
+      };
+    }
+
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+    if (filters?.category) {
+      where.category = filters.category;
+    }
+
+    if (filters?.dateFrom || filters?.dateTo) {
+      where.createdAt = {};
+      if (filters.dateFrom) {
+        where.createdAt.gte = new Date(filters.dateFrom);
+      }
+      if (filters.dateTo) {
+        const endDate = new Date(filters.dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDate;
+      }
+    }
+
+    const tickets = await this.prisma.ticket.findMany({
+      where,
+      include: {
+        property: {
+          select: {
+            addressLine1: true,
+            postcode: true,
+          },
+        },
+        assignedTo: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        createdBy: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+        quotes: {
+          where: {
+            status: 'APPROVED',
+          },
+          select: {
+            amount: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Generate CSV
+    const headers = [
+      'Ticket ID',
+      'Title',
+      'Status',
+      'Priority',
+      'Category',
+      'Property Address',
+      'Assigned To',
+      'Created By',
+      'Created At',
+      'Completed At',
+      'Total Cost',
+      'SLA Breached',
+    ];
+
+    const rows = tickets.map((ticket) => {
+      const totalCost = ticket.quotes.reduce((sum, q) => sum + q.amount, 0);
+      return [
+        ticket.id,
+        ticket.title,
+        ticket.status,
+        ticket.priority,
+        ticket.category || '',
+        ticket.property
+          ? `${ticket.property.addressLine1}, ${ticket.property.postcode}`
+          : '',
+        ticket.assignedTo?.name || '',
+        ticket.createdBy?.name || '',
+        ticket.createdAt.toISOString(),
+        ticket.actualResolutionTime?.toISOString() || '',
+        totalCost.toString(),
+        ticket.slaBreached ? 'Yes' : 'No',
+      ];
+    });
+
+    const csv = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+    ].join('\n');
+
+    return csv;
+  }
+
+  /**
+   * Get ticket summary report (Medium Priority #18)
+   */
+  async getTicketReport(
+    userOrgIds: string[],
+    role: string,
+    period: 'day' | 'week' | 'month' | 'year' = 'month',
+  ) {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (period) {
+      case 'day':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+    }
+
+    const where: any = {
+      createdAt: { gte: startDate },
+    };
+
+    // Role-based scoping
+    if (role === 'LANDLORD') {
+      where.property = {
+        ownerOrgId: { in: userOrgIds },
+      };
+    } else if (role === 'TENANT') {
+      where.tenancy = {
+        tenantOrgId: { in: userOrgIds },
+      };
+    }
+
+    const tickets = await this.prisma.ticket.findMany({
+      where,
+      include: {
+        quotes: {
+          where: {
+            status: 'APPROVED',
+          },
+        },
+      },
+    });
+
+    const byStatus = tickets.reduce((acc, ticket) => {
+      acc[ticket.status] = (acc[ticket.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const byCategory = tickets.reduce((acc, ticket) => {
+      const cat = ticket.category || 'Uncategorized';
+      acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const byPriority = tickets.reduce((acc, ticket) => {
+      acc[ticket.priority] = (acc[ticket.priority] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const totalCost = tickets.reduce((sum, ticket) => {
+      return sum + ticket.quotes.reduce((qSum, q) => qSum + q.amount, 0);
+    }, 0);
+
+    const completedTickets = tickets.filter(
+      (t) => t.status === 'COMPLETED' || t.status === 'AUDITED',
+    );
+
+    const avgResolutionTime =
+      completedTickets.length > 0
+        ? completedTickets.reduce((sum, ticket) => {
+            if (ticket.actualResolutionTime && ticket.createdAt) {
+              return (
+                sum +
+                (ticket.actualResolutionTime.getTime() -
+                  ticket.createdAt.getTime())
+              );
+            }
+            return sum;
+          }, 0) /
+          completedTickets.filter(
+            (t) => t.actualResolutionTime && t.createdAt,
+          ).length
+        : 0;
+
+    const slaBreachedCount = tickets.filter((t) => t.slaBreached).length;
+
+    return {
+      period,
+      startDate: startDate.toISOString(),
+      endDate: now.toISOString(),
+      summary: {
+        total: tickets.length,
+        completed: completedTickets.length,
+        slaBreached: slaBreachedCount,
+        totalCost,
+        averageResolutionTimeHours: avgResolutionTime / (1000 * 60 * 60),
+      },
+      byStatus,
+      byCategory,
+      byPriority,
+    };
   }
 }
