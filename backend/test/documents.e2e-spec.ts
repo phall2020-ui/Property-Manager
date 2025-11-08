@@ -283,7 +283,7 @@ describe('Documents API (e2e)', () => {
   });
 
   describe('Double-slash route normalization', () => {
-    it('should redirect /api//attachments/sign to /api/attachments/sign', async () => {
+    it('should handle /api//attachments/sign by rewriting the URL', async () => {
       const response = await request(app.getHttpServer())
         .post('/api//attachments/sign')
         .set('Authorization', `Bearer ${landlordToken}`)
@@ -291,11 +291,12 @@ describe('Documents API (e2e)', () => {
           contentType: 'application/pdf',
         });
 
-      // Should either redirect (301) or work directly
-      expect([200, 301]).toContain(response.status);
+      // Should work directly (middleware rewrites the URL)
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('url');
     });
 
-    it('should redirect /api//documents to /api/documents', async () => {
+    it('should handle /api//documents by rewriting the URL', async () => {
       const response = await request(app.getHttpServer())
         .post('/api//documents')
         .set('Authorization', `Bearer ${landlordToken}`)
@@ -308,8 +309,9 @@ describe('Documents API (e2e)', () => {
           size: 524288,
         });
 
-      // Should either redirect (301) or work directly
-      expect([200, 201, 301]).toContain(response.status);
+      // Should work directly (middleware rewrites the URL)
+      expect(response.status).toBe(201);
+      expect(response.body).toHaveProperty('id');
     });
   });
 });

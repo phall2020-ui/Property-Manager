@@ -12,9 +12,13 @@ export class NormalizePathMiddleware implements NestMiddleware {
     const originalUrl = req.url;
     const normalizedUrl = originalUrl.replace(/\/+/g, '/');
     
-    // If the URL was modified, redirect to the normalized version
+    // If the URL was modified, rewrite the request URL instead of redirecting
+    // This avoids open redirect vulnerabilities
     if (originalUrl !== normalizedUrl) {
-      return res.redirect(301, normalizedUrl);
+      // Validate that the normalized URL is still a valid path (not an external URL)
+      if (normalizedUrl.startsWith('/')) {
+        req.url = normalizedUrl;
+      }
     }
     
     next();
