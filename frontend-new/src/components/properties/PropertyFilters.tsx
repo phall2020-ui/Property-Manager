@@ -13,8 +13,15 @@ export default function PropertyFilters({ all, onChange }: PropertyFiltersProps)
   const [minYield, setMinYield] = useState<number>(0);
 
   const filtered = useMemo(() => {
+    // Ensure all is an array
+    if (!Array.isArray(all)) {
+      return [];
+    }
     return all.filter((p) => {
-      const searchText = `${p.name || ''} ${p.address.line1} ${p.address.postcode}`.toLowerCase();
+      // Handle both address formats: { address: { line1, postcode } } or { addressLine1, postcode }
+      const addressLine1 = p.address?.line1 || (p as any).addressLine1 || (p as any).address1 || '';
+      const postcode = p.address?.postcode || (p as any).postcode || '';
+      const searchText = `${p.name || ''} ${addressLine1} ${postcode}`.toLowerCase();
       const matchQ = q ? searchText.includes(q.toLowerCase()) : true;
       const matchStatus = status === 'All' ? true : p.status === status;
       const y = grossYieldPct(p.monthlyRent, p.estimatedValue) ?? 0;

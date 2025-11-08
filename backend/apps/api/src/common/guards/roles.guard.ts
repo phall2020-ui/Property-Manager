@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
@@ -8,6 +8,8 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
+  private readonly logger = new Logger(RolesGuard.name);
+  
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -25,21 +27,43 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
-    // Check legacy user.role field
-    if (user.role && requiredRoles.includes(user.role)) {
-      return true;
+    // Log user object structure for debugging
+    this.logger.debug(`RolesGuard - user.orgs: ${JSON.stringify(user.orgs)}, user.role: ${user.role}`);
+
+    // Check legacy user.role field (case-insensitive)
+    if (user.role) {
+      const hasLegacyRole = requiredRoles.some(required => 
+        required.toUpperCase() === user.role.toUpperCase()
+      );
+      if (hasLegacyRole) {
+        return true;
+      }
     }
 
     // Check org memberships (new multi-tenant system)
-    if (user.orgs && Array.isArray(user.orgs)) {
-      const hasRequiredRole = user.orgs.some((org: any) => 
-        requiredRoles.includes(org.role)
-      );
+    // Also check if orgs is in the JWT payload (from token)
+    const orgs = user.orgs || (user as any).orgs || [];
+    if (Array.isArray(orgs) && orgs.length > 0) {
+      const userRoles = orgs.map((org: any) => org.role).filter(Boolean);
+      this.logger.debug(`Checking roles - Required: ${requiredRoles.join(', ')}, User has: ${userRoles.join(', ')}`);
+      const hasRequiredRole = orgs.some((org: any) => {
+        const role = org.role;
+        if (!role) return false;
+        // Case-insensitive comparison for robustness
+        return requiredRoles.some(required => 
+          required.toUpperCase() === role.toUpperCase()
+        );
+      });
       if (hasRequiredRole) {
         return true;
       }
     }
 
-    throw new ForbiddenException('Insufficient permissions');
+    // Debug: log what we're checking
+    const userRoles = user.orgs?.map((org: any) => org.role) || [];
+    this.logger.warn(`Role check failed - Required: ${requiredRoles.join(', ')}, User has: ${userRoles.join(', ') || 'none'}, user.orgs: ${JSON.stringify(user.orgs)}`);
+    throw new ForbiddenException(
+      `Insufficient permissions. Required: ${requiredRoles.join(', ')}, User has: ${userRoles.join(', ') || 'none'}`
+    );
   }
 }

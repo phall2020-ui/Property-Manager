@@ -15,6 +15,7 @@ export default function DashboardPage() {
   const { data: properties } = useQuery<Property[]>({
     queryKey: ['enhanced-properties'],
     queryFn: enhancedPropertiesApi.list,
+    retry: 1,
   });
 
   if (!user) return null;
@@ -34,16 +35,17 @@ export default function DashboardPage() {
   const isLandlord = primaryOrg?.role === 'LANDLORD';
 
   // Calculate KPIs from properties
-  const totalProperties = properties?.length || 0;
-  const occupiedProperties = properties?.filter((p) => p.status === 'Occupied').length || 0;
+  const propertiesArray = Array.isArray(properties) ? properties : [];
+  const totalProperties = propertiesArray.length || 0;
+  const occupiedProperties = propertiesArray.filter((p: Property) => p.status === 'Occupied').length || 0;
   const occupancyRate = totalProperties > 0 ? Math.round((occupiedProperties / totalProperties) * 100) : 0;
-  const totalRent = properties?.reduce((sum, p) => sum + (p.monthlyRent || 0), 0) || 0;
+  const totalRent = propertiesArray.reduce((sum: number, p: Property) => sum + (p.monthlyRent || 0), 0) || 0;
 
   // Convert properties to map pins
   const mapPins: MapPin[] =
-    properties
-      ?.filter((p) => p.lat && p.lng)
-      .map((p) => ({
+    propertiesArray
+      .filter((p: Property) => p.lat && p.lng)
+      .map((p: Property) => ({
         id: p.id,
         name: p.name || p.address.line1,
         position: [p.lat!, p.lng!] as [number, number],

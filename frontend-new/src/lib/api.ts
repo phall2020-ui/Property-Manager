@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { Property } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 
@@ -168,6 +169,8 @@ export const tenanciesApi = {
 export const ticketsApi = {
   list: async () => {
     const response = await api.get('/tickets');
+    // Backend returns paginated response {items: [], page: 1, ...}
+    // Return the full response object so frontend can access items, pagination, etc.
     return response.data;
   },
 
@@ -288,12 +291,50 @@ export const complianceApi = {
   },
 };
 
+// Transform backend property format to frontend Property type
+function transformProperty(backendProp: any): Property {
+  // Handle both formats: backend format (addressLine1, address2, etc.) or already transformed
+  if (backendProp.address && typeof backendProp.address === 'object') {
+    // Already in frontend format
+    return backendProp as Property;
+  }
+  
+  // Transform from backend format
+  return {
+    id: backendProp.id,
+    name: backendProp.name,
+    address: {
+      line1: backendProp.addressLine1 || backendProp.address1 || '',
+      line2: backendProp.address2 || backendProp.addressLine2,
+      city: backendProp.city,
+      postcode: backendProp.postcode || '',
+      country: backendProp.country,
+    },
+    lat: backendProp.lat,
+    lng: backendProp.lng,
+    units: backendProp.units,
+    bedrooms: backendProp.bedrooms,
+    bathrooms: backendProp.bathrooms,
+    floorAreaM2: backendProp.floorAreaM2,
+    monthlyRent: backendProp.monthlyRent,
+    lastRentPaidAt: backendProp.lastRentPaidAt,
+    annualInsurance: backendProp.annualInsurance,
+    annualServiceCharge: backendProp.annualServiceCharge,
+    estimatedValue: backendProp.estimatedValue,
+    occupancyRate: backendProp.occupancyRate,
+    status: backendProp.status,
+  };
+}
+
 // Enhanced Properties API with extended data
 export const enhancedPropertiesApi = {
   list: async () => {
     try {
       const response = await api.get('/properties');
-      return response.data;
+      // Backend returns { data: Property[], total, page, pageSize } or just Property[]
+      const rawData = response.data?.data || response.data || [];
+      // Transform each property to frontend format
+      return Array.isArray(rawData) ? rawData.map(transformProperty) : [];
     } catch {
       // Fallback mock data for development
       console.warn('Using mock property data');
@@ -361,7 +402,7 @@ export const enhancedPropertiesApi = {
   getById: async (id: string) => {
     try {
       const response = await api.get(`/properties/${id}`);
-      return response.data;
+      return transformProperty(response.data);
     } catch {
       // Fallback to mock data
       const mockProperties = await enhancedPropertiesApi.list();

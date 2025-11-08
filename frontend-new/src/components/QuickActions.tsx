@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Plus, UserPlus, FileText, Wrench } from 'lucide-react';
+import { Plus, FileText, Wrench, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function QuickActions() {
@@ -12,9 +12,9 @@ export default function QuickActions() {
 
   const actions = [
     { icon: Plus, label: 'Add Property', path: '/properties/new', show: isLandlord, tone: 'blue' },
-    { icon: UserPlus, label: 'New Tenancy', path: '/tenancies/new', show: isLandlord, tone: 'teal' },
     { icon: Wrench, label: 'Report Issue', path: '/tickets/new', show: true, tone: 'peach' },
-    { icon: FileText, label: 'View Reports', path: '/reports', show: isLandlord, tone: 'blue' },
+    { icon: FileText, label: 'View Tickets', path: '/tickets', show: true, tone: 'blue' },
+    { icon: Shield, label: 'Compliance', path: '/compliance', show: isLandlord, tone: 'teal' },
   ];
 
   return (

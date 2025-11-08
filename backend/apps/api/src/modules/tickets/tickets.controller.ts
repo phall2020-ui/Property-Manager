@@ -43,11 +43,11 @@ export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute
-  @Roles('TENANT', 'CONTRACTOR')
+  @Roles('TENANT', 'CONTRACTOR', 'LANDLORD')
   @Post()
   @ApiOperation({ 
     summary: 'Create a maintenance ticket',
-    description: 'Create a new maintenance ticket. Tenant must provide either propertyId or tenancyId. Contractor must provide propertyId. Ticket will be visible to the landlord immediately and appears in their list within 5 seconds via polling. Rate limited to 5 requests per minute.'
+    description: 'Create a new maintenance ticket. Tenant must provide either propertyId or tenancyId. Contractor must provide propertyId. Landlord can create tickets for their properties. Ticket will be visible to the landlord immediately and appears in their list within 5 seconds via polling. Rate limited to 5 requests per minute.'
   })
   @ApiBearerAuth()
   async create(@Body() dto: CreateTicketDto, @CurrentUser() user: any) {
@@ -55,16 +55,36 @@ export class TicketsController {
     let landlordId: string;
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
     const isContractor = primaryRole === 'CONTRACTOR';
+    const isLandlord = primaryRole === 'LANDLORD';
     
     if (dto.propertyId) {
       const property = await this.ticketsService.findProperty(dto.propertyId);
       landlordId = property.ownerOrgId;
+      
+      // If landlord is creating ticket, verify they own the property
+      if (isLandlord) {
+        const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+        if (!userOrgIds.includes(landlordId)) {
+          throw new ForbiddenException('You can only create tickets for your own properties');
+        }
+      }
     } else if (dto.tenancyId) {
       const tenancy = await this.ticketsService.findTenancy(dto.tenancyId);
       landlordId = tenancy.property.ownerOrgId;
+      
+      // If landlord is creating ticket, verify they own the property
+      if (isLandlord) {
+        const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
+        if (!userOrgIds.includes(landlordId)) {
+          throw new ForbiddenException('You can only create tickets for your own properties');
+        }
+      }
     } else {
       if (isContractor) {
         throw new BadRequestException('Contractors must provide propertyId');
+      }
+      if (isLandlord) {
+        throw new BadRequestException('Landlords must provide propertyId or tenancyId');
       }
       throw new BadRequestException('Either propertyId or tenancyId must be provided');
     }

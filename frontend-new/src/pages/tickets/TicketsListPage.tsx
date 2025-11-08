@@ -18,18 +18,39 @@ interface Ticket {
   };
 }
 
+interface TicketsResponse {
+  items: Ticket[];
+  page: number;
+  page_size: number;
+  total: number;
+  has_next: boolean;
+}
+
 export default function TicketsListPage() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [priorityFilter, setPriorityFilter] = useState<string>('All');
   
-  const { data: tickets, isLoading, error } = useQuery<Ticket[]>({
+  const { data: ticketsData, isLoading, error } = useQuery<TicketsResponse>({
     queryKey: ['tickets'],
     queryFn: () => ticketsApi.list(),
   });
 
-  const primaryOrg = user?.organisations?.[0];
+  // Extract tickets array from paginated response
+  const tickets = ticketsData?.items || [];
+
+  if (!user || !user.organisations || user.organisations.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
+          <p>No organisation found for this user. Please contact support.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const primaryOrg = user.organisations[0];
   const isTenant = primaryOrg?.role === 'TENANT';
 
   const filteredTickets = useMemo(() => {

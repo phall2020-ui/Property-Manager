@@ -14,10 +14,10 @@ export default function Sidebar() {
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/dashboard', show: true },
     { icon: Building2, label: 'Properties', path: '/properties', show: isLandlord },
-    { icon: Users, label: 'Tenancies', path: '/tenancies', show: isLandlord },
-    { icon: FileText, label: 'Finance', path: '/finance', show: isLandlord },
     { icon: Wrench, label: 'Maintenance', path: '/tickets', show: true },
     { icon: Shield, label: 'Compliance', path: '/compliance', show: isLandlord },
+    { icon: FileText, label: 'Jobs', path: '/jobs', show: isLandlord },
+    { icon: Users, label: 'Queue', path: '/queue', show: isLandlord },
   ];
 
   return (

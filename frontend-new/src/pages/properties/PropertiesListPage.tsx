@@ -15,6 +15,9 @@ export default function PropertiesListPage() {
     queryFn: enhancedPropertiesApi.list,
   });
 
+  // Ensure properties is always an array
+  const allProperties = Array.isArray(properties) ? properties : [];
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -37,7 +40,6 @@ export default function PropertiesListPage() {
     );
   }
 
-  const allProperties = properties || [];
   const displayProperties = filtered.length > 0 || allProperties.length > 0 ? filtered : allProperties;
 
   return (
