@@ -19,8 +19,19 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
+  // Check if user has organisations
+  if (!user.organisations || user.organisations.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
+          <p>No organisation found for this user. Please contact support.</p>
+        </div>
+      </div>
+    );
+  }
+
   const primaryOrg = user.organisations[0];
-  const isLandlord = primaryOrg.role === 'LANDLORD';
+  const isLandlord = primaryOrg?.role === 'LANDLORD';
 
   // Calculate KPIs from properties
   const totalProperties = properties?.length || 0;

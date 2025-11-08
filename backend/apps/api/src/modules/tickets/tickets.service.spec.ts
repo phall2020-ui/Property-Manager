@@ -117,6 +117,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
             enqueueAppointmentStart: jest.fn(),
             enqueueTicketQuoted: jest.fn(),
             enqueueTicketApproved: jest.fn(),
+            enqueueTicketAssigned: jest.fn(),
           },
         },
       ],
@@ -478,6 +479,72 @@ describe('TicketsService - Landlord & Scheduling', () => {
         service.createQuote('non-existent', 'contractor-456', 250.0),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('should allow contractor to quote unassigned ticket', async () => {
+      const unassignedTicket = { ...mockTicket, assignedToId: null, status: 'OPEN' };
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(unassignedTicket as any);
+      jest.spyOn(prisma.quote, 'create').mockResolvedValue({
+        id: 'quote-123',
+        ticketId: 'ticket-123',
+        contractorId: 'contractor-456',
+        amount: 250.0,
+        status: 'PROPOSED',
+      } as any);
+      jest.spyOn(prisma.ticket, 'update').mockResolvedValue({} as any);
+      jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
+
+      const result = await service.createQuote('ticket-123', 'contractor-456', 250.0);
+
+      expect(result).toHaveProperty('id', 'quote-123');
+      expect(prisma.quote.create).toHaveBeenCalled();
+    });
+
+    it('should allow contractor to quote TRIAGED ticket without assignment', async () => {
+      const triagedTicket = { ...mockTicket, assignedToId: null, status: 'TRIAGED' };
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(triagedTicket as any);
+      jest.spyOn(prisma.quote, 'create').mockResolvedValue({
+        id: 'quote-123',
+        ticketId: 'ticket-123',
+        contractorId: 'contractor-456',
+        amount: 250.0,
+        status: 'PROPOSED',
+      } as any);
+      jest.spyOn(prisma.ticket, 'update').mockResolvedValue({} as any);
+      jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
+
+      const result = await service.createQuote('ticket-123', 'contractor-456', 250.0);
+
+      expect(result).toHaveProperty('id', 'quote-123');
+    });
+
+    it('should allow multiple contractors to quote the same ticket', async () => {
+      const quotedTicket = { ...mockTicket, assignedToId: null, status: 'QUOTED' };
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(quotedTicket as any);
+      jest.spyOn(prisma.quote, 'create').mockResolvedValue({
+        id: 'quote-456',
+        ticketId: 'ticket-123',
+        contractorId: 'contractor-789',
+        amount: 200.0,
+        status: 'PROPOSED',
+      } as any);
+      jest.spyOn(prisma.ticket, 'update').mockResolvedValue({} as any);
+      jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
+
+      // First contractor already quoted, second contractor can also quote
+      const result = await service.createQuote('ticket-123', 'contractor-789', 200.0);
+
+      expect(result).toHaveProperty('id', 'quote-456');
+      expect(prisma.quote.create).toHaveBeenCalled();
+    });
+
+    it('should reject quote for ticket in invalid status', async () => {
+      const completedTicket = { ...mockTicket, status: 'COMPLETED' };
+      jest.spyOn(prisma.ticket, 'findUnique').mockResolvedValue(completedTicket as any);
+
+      await expect(
+        service.createQuote('ticket-123', 'contractor-456', 250.0),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
   describe('approveQuote', () => {
@@ -511,12 +578,24 @@ describe('TicketsService - Landlord & Scheduling', () => {
       });
       expect(prisma.ticket.update).toHaveBeenCalledWith({
         where: { id: 'ticket-123' },
-        data: { status: 'APPROVED' },
+        data: { 
+          status: 'APPROVED',
+          assignedToId: 'contractor-456', // Auto-assign contractor on approval
+        },
       });
+      // Should create both quote_approved and assigned timeline events
+      expect(prisma.ticketTimeline.create).toHaveBeenCalledTimes(2);
       expect(prisma.ticketTimeline.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           actorId: 'user-123',
           eventType: 'quote_approved',
+        }),
+      });
+      expect(prisma.ticketTimeline.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorId: 'user-123',
+          eventType: 'assigned',
+          details: expect.stringContaining('contractor-456'),
         }),
       });
     });
@@ -747,6 +826,61 @@ describe('TicketsService - Landlord & Scheduling', () => {
         expect.objectContaining({
           where: expect.objectContaining({
             status: 'OPEN',
+          }),
+        }),
+      );
+    });
+
+    it('should show assigned tickets and unassigned tickets for contractors', async () => {
+      const assignedTicket = { ...mockTicket, id: 'ticket-assigned', assignedToId: 'contractor-456' };
+      const unassignedTicket = { ...mockTicket, id: 'ticket-unassigned', assignedToId: null, status: 'OPEN' };
+      const mockTickets = [assignedTicket, unassignedTicket];
+      
+      jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue(mockTickets as any);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(2);
+
+      const result = await service.findMany([], 'CONTRACTOR', undefined, 'contractor-456');
+
+      expect(result.items).toHaveLength(2);
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              { assignedToId: 'contractor-456' },
+              {
+                AND: [
+                  { assignedToId: null },
+                  { status: { in: ['OPEN', 'TRIAGED', 'QUOTED'] } },
+                ],
+              },
+            ]),
+          }),
+        }),
+      );
+    });
+
+    it('should show only unassigned tickets for quoting when contractor has no userId', async () => {
+      const unassignedTicket = { ...mockTicket };
+      unassignedTicket.assignedToId = null;
+      unassignedTicket.status = 'OPEN';
+      
+      jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue([unassignedTicket] as any);
+      jest.spyOn(prisma.ticket, 'count').mockResolvedValue(1);
+
+      const result = await service.findMany([], 'CONTRACTOR');
+
+      expect(result.items).toHaveLength(1);
+      expect(prisma.ticket.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              {
+                AND: [
+                  { assignedToId: null },
+                  { status: { in: ['OPEN', 'TRIAGED', 'QUOTED'] } },
+                ],
+              },
+            ]),
           }),
         }),
       );
