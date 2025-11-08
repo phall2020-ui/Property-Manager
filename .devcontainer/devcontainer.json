@@ -20,5 +20,5 @@
 	
 	// Lifecycle scripts
 	"postCreateCommand": "bash .devcontainer/setup.sh",
-	"postStartCommand": "bash .devcontainer/start-services.sh"
+	"postStartCommand": "USE_PROD_MODE=true bash .devcontainer/start-services.sh"
 }

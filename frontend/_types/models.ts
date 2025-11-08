@@ -89,9 +89,14 @@ export interface Ticket {
   assignedToId?: string;
   priority: string;
   status: TicketStatus | string;
-  attachments?: string;
+  attachments?: string | any[];
   createdAt: string;
   updatedAt: string;
+  inProgressAt?: string;
+  scheduledWindowStart?: string;
+  scheduledWindowEnd?: string;
+  noShowAt?: string;
+  createdByRole?: string;
   property?: any;
   tenancy?: any;
   createdBy?: any;

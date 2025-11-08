@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery, useQueryClient, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getMe, logout } from '@/lib/auth';
 import { Role, User } from '@/types/models';
@@ -19,7 +19,16 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
  * your entire app inside `app/layout.tsx`.
  */
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const queryClient = new QueryClient();
+  // Create QueryClient only once using useState
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000, // 1 minute
+        retry: 1,
+      },
+    },
+  }));
+  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthInner>{children}</AuthInner>

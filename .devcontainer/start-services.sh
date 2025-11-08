@@ -21,12 +21,23 @@ if [ -n "$GITPOD_WORKSPACE_URL" ]; then
     fi
 fi
 
+# Check if we should use production or development mode
+USE_PROD_MODE=${USE_PROD_MODE:-false}
+
 # Start backend in background
 echo "🔧 Starting backend server..."
 cd /workspaces/Property-Manager/backend
-nohup npm run dev > /tmp/backend.log 2>&1 &
+
+if [ "$USE_PROD_MODE" = "true" ] && [ -d "dist" ]; then
+    echo "   Using production mode (faster startup)"
+    nohup npm start > /tmp/backend.log 2>&1 &
+else
+    echo "   Using development mode (hot reload enabled)"
+    nohup npm run dev > /tmp/backend.log 2>&1 &
+fi
+
 BACKEND_PID=$!
-echo "Backend started with PID: $BACKEND_PID"
+echo "   Backend started with PID: $BACKEND_PID"
 
 # Wait for backend to be ready
 echo "⏳ Waiting for backend to be ready..."
@@ -44,9 +55,17 @@ done
 # Start frontend in background
 echo "🎨 Starting frontend server..."
 cd /workspaces/Property-Manager/frontend
-nohup npm run dev > /tmp/frontend.log 2>&1 &
+
+if [ "$USE_PROD_MODE" = "true" ] && [ -d ".next" ]; then
+    echo "   Using production mode (faster startup)"
+    nohup npm start > /tmp/frontend.log 2>&1 &
+else
+    echo "   Using development mode (hot reload enabled)"
+    nohup npm run dev > /tmp/frontend.log 2>&1 &
+fi
+
 FRONTEND_PID=$!
-echo "Frontend started with PID: $FRONTEND_PID"
+echo "   Frontend started with PID: $FRONTEND_PID"
 
 # Wait for frontend to be ready
 echo "⏳ Waiting for frontend to be ready..."

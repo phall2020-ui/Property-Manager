@@ -58,4 +58,18 @@ if [ ! -f .env.local ]; then
     fi
 fi
 
+# Build frontend for production
+echo "🔨 Building frontend..."
+npm run build
+
+echo ""
 echo "✅ Setup complete!"
+echo ""
+echo "📋 Summary:"
+echo "  ✅ Backend dependencies installed"
+echo "  ✅ Backend built"
+echo "  ✅ Database migrated and seeded"
+echo "  ✅ Frontend dependencies installed"
+echo "  ✅ Frontend built"
+echo ""
+echo "🚀 Ready to start services!"
