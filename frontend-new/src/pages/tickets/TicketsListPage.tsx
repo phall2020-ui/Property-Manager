@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { ticketsApi } from '../../lib/api';
+import { useTickets } from '../../hooks/useTickets';
 import { useAuth } from '../../contexts/AuthContext';
 import TableSkeleton from '../../components/skeletons/TableSkeleton';
 
