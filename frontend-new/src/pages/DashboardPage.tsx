@@ -59,7 +59,7 @@ export default function DashboardPage() {
       })) || [];
 
   // Transform notifications into activity items
-  const activity: ActivityItem[] = (notifications || []).map((notification: any) => ({
+  const activity: ActivityItem[] = (notifications || []).map((notification: { id: string; message: string; createdAt: string }) => ({
     id: notification.id,
     text: notification.message,
     date: notification.createdAt,

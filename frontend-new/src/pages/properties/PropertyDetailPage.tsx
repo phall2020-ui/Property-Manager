@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { enhancedPropertiesApi, complianceApi } from '../../lib/api';
+import { enhancedPropertiesApi, complianceApi, financeApi } from '../../lib/api';
 import { fmtGBP, grossYieldPct, annualisedRentGBP } from '../../lib/calculations';
 import Header from '../../components/Header';
 import MetricCard from '../../components/properties/MetricCard';
@@ -38,6 +38,12 @@ export default function PropertyDetailPage() {
     queryKey: ['compliance', 'property', id],
     queryFn: () => complianceApi.getPropertyCompliance(id!),
     enabled: !!id && activeTab === 'compliance',
+  });
+
+  const { data: rentSummary, isLoading: rentLoading } = useQuery({
+    queryKey: ['finance', 'property', id, 'rent-summary'],
+    queryFn: () => financeApi.getPropertyRentSummary(id!),
+    enabled: !!id && activeTab === 'finance',
   });
 
   if (isLoading) {
@@ -232,7 +238,57 @@ export default function PropertyDetailPage() {
 
       {activeTab === 'finance' && (
         <div className="rounded-xl bg-white p-6 shadow-card">
-          <p className="text-brand-subtle">Finance tab - Coming soon</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Summary</h3>
+          {rentLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : rentSummary ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm font-medium text-gray-600">Monthly Rent</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-2">
+                    {fmtGBP(rentSummary.monthlyRent || property?.monthlyRent || 0)}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm font-medium text-gray-600">Total Received</p>
+                  <p className="text-2xl font-bold text-green-600 mt-2">
+                    {fmtGBP(rentSummary.totalReceived || 0)}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm font-medium text-gray-600">Outstanding</p>
+                  <p className="text-2xl font-bold text-amber-600 mt-2">
+                    {fmtGBP(rentSummary.outstanding || 0)}
+                  </p>
+                </div>
+              </div>
+
+              {rentSummary.lastPaymentDate && (
+                <div className="border-t pt-4">
+                  <p className="text-sm text-gray-600">
+                    Last payment received:{' '}
+                    <span className="font-medium text-gray-900">
+                      {new Date(rentSummary.lastPaymentDate).toLocaleDateString()}
+                    </span>
+                  </p>
+                </div>
+              )}
+
+              <div className="border-t pt-4">
+                <Link
+                  to={`/finance/invoices?propertyId=${property?.id}`}
+                  className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  View All Invoices
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <p className="text-brand-subtle">No financial data available for this property.</p>
+          )}
         </div>
       )}
 

@@ -19,6 +19,8 @@ const TicketDetailPage = lazy(() => import('./pages/tickets/TicketDetailPage'));
 const ComplianceCentrePage = lazy(() => import('./pages/compliance/ComplianceCentrePage'));
 const JobsListPage = lazy(() => import('./pages/jobs/JobsListPage'));
 const QueueListPage = lazy(() => import('./pages/queue/QueueListPage'));
+const FinanceDashboardPage = lazy(() => import('./pages/finance/FinanceDashboardPage'));
+const TenantInvoicesPage = lazy(() => import('./pages/finance/TenantInvoicesPage'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -149,6 +151,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <QueueListPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/finance"
+                  element={
+                    <ProtectedRoute>
+                      <FinanceDashboardPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tenant/invoices"
+                  element={
+                    <ProtectedRoute>
+                      <TenantInvoicesPage />
                     </ProtectedRoute>
                   }
                 />
