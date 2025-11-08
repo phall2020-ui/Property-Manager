@@ -459,6 +459,23 @@ docker compose down -v
 
 ## 📝 Common Tasks
 
+### Running Functional Gap Analysis
+
+Identify functional gaps between frontend, backend, and UI:
+
+```bash
+./run-gap-analysis.sh
+# or
+node analyze-functional-gaps.js
+```
+
+This generates a comprehensive report (`FUNCTIONAL_GAP_ANALYSIS.md`) that identifies:
+- Frontend features lacking backend support
+- Backend endpoints not used by frontend
+- Missing error handling, validation, and loading states
+
+See [GAP_ANALYSIS_README.md](./GAP_ANALYSIS_README.md) for detailed documentation.
+
 ### Adding a New Feature Module
 
 1. **Backend:** Create module in `backend/apps/api/src/modules/`
