@@ -169,9 +169,10 @@ export const tenanciesApi = {
 export const ticketsApi = {
   list: async () => {
     const response = await api.get('/tickets');
-    // Backend returns paginated response {items: [], page: 1, ...}
-    // Return the full response object so frontend can access items, pagination, etc.
-    return response.data;
+    // Backend returns paginated response: { items: [], total, page, page_size, has_next }
+    // Extract the items array for compatibility with component
+    const result = response.data;
+    return Array.isArray(result) ? result : (result.items || result.data || []);
   },
 
   create: async (data: {
@@ -331,10 +332,10 @@ export const enhancedPropertiesApi = {
   list: async () => {
     try {
       const response = await api.get('/properties');
-      // Backend returns { data: Property[], total, page, pageSize } or just Property[]
-      const rawData = response.data?.data || response.data || [];
-      // Transform each property to frontend format
-      return Array.isArray(rawData) ? rawData.map(transformProperty) : [];
+      // Backend returns paginated response: { data: [], total, page, pageSize }
+      // Extract the data array for compatibility with component
+      const result = response.data;
+      return Array.isArray(result) ? result : (result.data || []);
     } catch {
       // Fallback mock data for development
       console.warn('Using mock property data');

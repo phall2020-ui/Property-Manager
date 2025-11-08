@@ -131,7 +131,6 @@ export class PropertiesService {
             postcode: true,
             propertyType: true,
             bedrooms: true,
-            bathrooms: true,
             ownerOrgId: true,
             createdAt: true,
             updatedAt: true,

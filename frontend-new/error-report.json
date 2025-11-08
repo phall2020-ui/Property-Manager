@@ -1,0 +1,16 @@
+{
+  "errors": [
+    {
+      "type": "console",
+      "message": "Stream read error: JSHandle@error",
+      "timestamp": "2025-11-08T15:36:56.810Z",
+      "context": {
+        "location": {
+          "url": "http://localhost:5173/src/hooks/useEventStream.ts?t=1762616147038",
+          "lineNumber": 142,
+          "columnNumber": 20
+        }
+      }
+    }
+  ]
+}

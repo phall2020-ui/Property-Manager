@@ -36,8 +36,10 @@ export function EventProvider({ children }: { children: ReactNode }) {
     enabled: !!user && !!token,
     onEvent: handleEvent,
     onError: (error) => {
-      // Silently handle event stream errors - don't crash the app
-      console.warn('Event stream error (non-critical):', error);
+      // Reduce console noise - only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('EventStream connection error (non-critical)');
+      }
     },
   });
 

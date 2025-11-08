@@ -39,24 +39,24 @@ model User {
   email        String   @unique
   name         String
   passwordHash String
-  role         String?  // LANDLORD, TENANT, OPS (optional for backward compatibility)
-  landlordId   String?  // New: For linking to landlord org
+  role         String? // LANDLORD, TENANT, OPS (optional for backward compatibility)
+  landlordId   String? // New: For linking to landlord org
   phone        String?
   notifyEmail  Boolean  @default(true)
   notifySms    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  orgMemberships          OrgMember[]
-  refreshTokens           RefreshToken[]
-  ticketsCreated          Ticket[]       @relation("TicketCreator")
-  ticketsAssigned         Ticket[]       @relation("TicketAssignee")
-  quotesCreated           Quote[]
-  notesCreated            PropertyNote[]
-  mandates                Mandate[]
-  contractorAppointments  Appointment[]  @relation("ContractorAppointments")
-  ticketComments          TicketComment[] @relation("TicketCommentAuthor")
-  categoryRoutingRules    CategoryRoutingRule[] @relation("CategoryRoutingContractor")
+  orgMemberships         OrgMember[]
+  refreshTokens          RefreshToken[]
+  ticketsCreated         Ticket[]              @relation("TicketCreator")
+  ticketsAssigned        Ticket[]              @relation("TicketAssignee")
+  quotesCreated          Quote[]
+  notesCreated           PropertyNote[]
+  mandates               Mandate[]
+  contractorAppointments Appointment[]         @relation("ContractorAppointments")
+  ticketComments         TicketComment[]       @relation("TicketCommentAuthor")
+  categoryRoutingRules   CategoryRoutingRule[] @relation("CategoryRoutingContractor")
 
   @@index([email])
   @@index([landlordId])
@@ -123,18 +123,18 @@ model Landlord {
 // Properties owned by landlord organisations
 model Property {
   id             String    @id @default(uuid())
-  landlordId     String?   // New: Direct landlord reference as per Step 2 requirements
-  addressLine1   String    // Renamed from address1 to match Step 2 spec
+  landlordId     String? // New: Direct landlord reference as per Step 2 requirements
+  addressLine1   String // Renamed from address1 to match Step 2 spec
   address2       String?
   city           String
   postcode       String
-  councilTaxBand String?   // New: as per Step 2 spec
+  councilTaxBand String? // New: as per Step 2 spec
   bedrooms       Int?
-  propertyType   String?   // House, Flat, HMO, Maisonette, Bungalow, Other
-  furnished      String?   // Unfurnished, Part, Full
-  epcRating      String?   // A-G or Unknown
-  propertyValue  Float?    // For yield calculations
-  ownerOrgId     String    // Keep for backward compatibility
+  propertyType   String? // House, Flat, HMO, Maisonette, Bungalow, Other
+  furnished      String? // Unfurnished, Part, Full
+  epcRating      String? // A-G or Unknown
+  propertyValue  Float? // For yield calculations
+  ownerOrgId     String // Keep for backward compatibility
   deletedAt      DateTime? // Soft delete timestamp
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -155,30 +155,30 @@ model Property {
 
 // Tenancies linking properties to tenant organisations
 model Tenancy {
-  id           String    @id @default(uuid())
-  propertyId   String
-  landlordId   String?   // New: Direct landlord reference (Step 2)
-  tenantOrgId  String    // Keep for backward compatibility
-  primaryTenant String?  // userId of the main tenant
-  start        DateTime  // Renamed from startDate (Step 2 spec)
-  startDate    DateTime? // Keep for backward compatibility  
-  end          DateTime? // Renamed from endDate (Step 2 spec)
-  endDate      DateTime? // Keep for backward compatibility
-  rent         Float     // New: rent amount as Decimal equivalent (Step 2)
-  rentPcm      Float?    // Keep for backward compatibility
-  rentAmount   Float?    // Keep for backward compatibility
-  frequency    String    @default("MONTHLY") // MONTHLY, WEEKLY (Step 2 spec)
-  rentFrequency String?  // Keep for backward compatibility
-  rentDueDay   Int?      // 1-28
-  deposit      Float     // Decimal(14,2) equivalent
-  externalRef  String?   @unique // New: for idempotency (Step 2)
-  status       String    @default("PENDING") // PENDING, ACTIVE, ENDED, SCHEDULED, EXPIRING, TERMINATED
-  
+  id            String    @id @default(uuid())
+  propertyId    String
+  landlordId    String? // New: Direct landlord reference (Step 2)
+  tenantOrgId   String // Keep for backward compatibility
+  primaryTenant String? // userId of the main tenant
+  start         DateTime // Renamed from startDate (Step 2 spec)
+  startDate     DateTime? // Keep for backward compatibility  
+  end           DateTime? // Renamed from endDate (Step 2 spec)
+  endDate       DateTime? // Keep for backward compatibility
+  rent          Float // New: rent amount as Decimal equivalent (Step 2)
+  rentPcm       Float? // Keep for backward compatibility
+  rentAmount    Float? // Keep for backward compatibility
+  frequency     String    @default("MONTHLY") // MONTHLY, WEEKLY (Step 2 spec)
+  rentFrequency String? // Keep for backward compatibility
+  rentDueDay    Int? // 1-28
+  deposit       Float // Decimal(14,2) equivalent
+  externalRef   String?   @unique // New: for idempotency (Step 2)
+  status        String    @default("PENDING") // PENDING, ACTIVE, ENDED, SCHEDULED, EXPIRING, TERMINATED
+
   // Lifecycle fields
   terminatedAt      DateTime?
   terminationReason String?
-  renewalOfId       String?  // reference to prior tenancy when renewed
-  
+  renewalOfId       String? // reference to prior tenancy when renewed
+
   // Legal & Deposit
   depositScheme          String? // DPS, TDS, MyDeposits, None
   depositProtectedAt     DateTime?
@@ -248,7 +248,7 @@ model BreakClause {
   id                String   @id @default(uuid())
   tenancyId         String   @unique
   earliestBreakDate DateTime
-  noticeMonths      Int      // required notice period
+  noticeMonths      Int // required notice period
   notes             String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -277,7 +277,7 @@ model RentRevision {
   id            String   @id @default(uuid())
   tenancyId     String
   effectiveFrom DateTime
-  rentPcm       Float    // Using Float for SQLite compatibility
+  rentPcm       Float // Using Float for SQLite compatibility
   reason        String?
   createdAt     DateTime @default(now())
 
@@ -321,8 +321,8 @@ model Invite {
 model ImportJob {
   id         String   @id @default(uuid())
   landlordId String
-  type       String   // PROPERTIES, TENANCIES
-  status     String   // PENDING, RUNNING, DONE, FAILED
+  type       String // PROPERTIES, TENANCIES
+  status     String // PENDING, RUNNING, DONE, FAILED
   totals     String?
   errorsUrl  String?
   createdAt  DateTime @default(now())
@@ -333,15 +333,15 @@ model ImportJob {
 
 // Request logs for idempotency (Step 2)
 model RequestLog {
-  id              String   @id @default(uuid())
-  idempotencyKey  String   @unique
-  landlordId      String
-  method          String
-  path            String
-  requestBody     String?
-  responseStatus  Int?
-  responseBody    String?
-  createdAt       DateTime @default(now())
+  id             String   @id @default(uuid())
+  idempotencyKey String   @unique
+  landlordId     String
+  method         String
+  path           String
+  requestBody    String?
+  responseStatus Int?
+  responseBody   String?
+  createdAt      DateTime @default(now())
 
   @@index([idempotencyKey])
   @@index([landlordId])
@@ -369,36 +369,36 @@ model Vendor {
 
 // Maintenance tickets
 model Ticket {
-  id                    String    @id @default(uuid())
-  landlordId            String // For tenant isolation
-  propertyId            String?
-  tenancyId             String?
-  title                 String
-  category              String? // plumbing, electrical, heating, etc.
-  description           String
-  createdById           String
-  createdByRole         String    @default("TENANT") // LANDLORD, TENANT, OPS, CONTRACTOR
-  assignedToId          String?
-  priority              String // LOW, STANDARD, HIGH, URGENT
-  status                String    @default("OPEN") // OPEN, TRIAGED, QUOTED, APPROVED, SCHEDULED, IN_PROGRESS, COMPLETED, AUDITED, CANCELLED
-  attachments           String? // JSON array as string
-  tags                  String? // JSON array as string (e.g., ["urgent", "high-priority"])
-  inProgressAt          DateTime? // When status flipped to IN_PROGRESS
-  noShowAt              DateTime? // If the job didn't start within grace period
-  scheduledWindowStart  DateTime? // Denormalized from Appointment for faster queries
-  scheduledWindowEnd    DateTime? // Denormalized from Appointment for faster queries
+  id                   String    @id @default(uuid())
+  landlordId           String // For tenant isolation
+  propertyId           String?
+  tenancyId            String?
+  title                String
+  category             String? // plumbing, electrical, heating, etc.
+  description          String
+  createdById          String
+  createdByRole        String    @default("TENANT") // LANDLORD, TENANT, OPS, CONTRACTOR
+  assignedToId         String?
+  priority             String // LOW, STANDARD, HIGH, URGENT
+  status               String    @default("OPEN") // OPEN, TRIAGED, QUOTED, APPROVED, SCHEDULED, IN_PROGRESS, COMPLETED, AUDITED, CANCELLED
+  attachments          String? // JSON array as string
+  tags                 String? // JSON array as string (e.g., ["urgent", "high-priority"])
+  inProgressAt         DateTime? // When status flipped to IN_PROGRESS
+  noShowAt             DateTime? // If the job didn't start within grace period
+  scheduledWindowStart DateTime? // Denormalized from Appointment for faster queries
+  scheduledWindowEnd   DateTime? // Denormalized from Appointment for faster queries
   // SLA tracking fields
-  targetResponseTime    DateTime? // When ticket should be triaged
-  targetResolutionTime  DateTime? // When ticket should be completed
-  actualResponseTime    DateTime? // When ticket was triaged
-  actualResolutionTime  DateTime? // When ticket was completed
+  targetResponseTime   DateTime? // When ticket should be triaged
+  targetResolutionTime DateTime? // When ticket should be completed
+  actualResponseTime   DateTime? // When ticket was triaged
+  actualResolutionTime DateTime? // When ticket was completed
   slaBreached          Boolean   @default(false)
   reopenedAt           DateTime? // When ticket was reopened
-  reopenedBy           String?  // User who reopened the ticket
-  reopenedReason       String?  // Reason for reopening
-  templateId           String?  // Reference to template if created from template
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  reopenedBy           String? // User who reopened the ticket
+  reopenedReason       String? // Reason for reopening
+  templateId           String? // Reference to template if created from template
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   property        Property?          @relation(fields: [propertyId], references: [id])
   tenancy         Tenancy?           @relation(fields: [tenancyId], references: [id])
@@ -409,7 +409,7 @@ model Ticket {
   timeline        TicketTimeline[]
   appointments    Appointment[]
   comments        TicketComment[]
-  template        TicketTemplate? @relation("TicketFromTemplate", fields: [templateId], references: [id])
+  template        TicketTemplate?    @relation("TicketFromTemplate", fields: [templateId], references: [id])
 
   @@index([landlordId])
   @@index([propertyId])
@@ -468,9 +468,9 @@ model Quote {
   completedAt     DateTime?
   completionNotes String?
   // Cost variance tracking
-  estimatedAmount Float?   // Original estimate
-  actualAmount    Float?   // Final cost
-  variance        Float?   // Calculated: actualAmount - amount
+  estimatedAmount Float? // Original estimate
+  actualAmount    Float? // Final cost
+  variance        Float? // Calculated: actualAmount - amount
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -536,8 +536,8 @@ model PropertyDocument {
 model PropertyImage {
   id         String   @id @default(uuid())
   propertyId String
-  ownerOrgId String   // For tenant isolation
-  fileId     String   // Reference to storage service
+  ownerOrgId String // For tenant isolation
+  fileId     String // Reference to storage service
   url        String
   name       String?
   sortOrder  Int      @default(0)
@@ -583,16 +583,16 @@ model PropertyNote {
 // Audit log for property & tenancy changes
 model AuditLog {
   id         String   @id @default(uuid())
-  tenantId   String?  // landlordId for multi-tenant scoping
-  actorId    String?  // userId who performed the action
-  action     String   // CREATE, UPDATE, DELETE, etc.
-  entity     String   // property, tenancy, ticket, document, etc.
-  entityId   String   // ID of the entity affected
-  propertyId String?  // Keep for backward compatibility
-  tenancyId  String?  // Keep for backward compatibility
-  eventType  String?  // Keep for backward compatibility
-  meta       String?  // JSON metadata with details
-  details    String?  // Keep for backward compatibility
+  tenantId   String? // landlordId for multi-tenant scoping
+  actorId    String? // userId who performed the action
+  action     String // CREATE, UPDATE, DELETE, etc.
+  entity     String // property, tenancy, ticket, document, etc.
+  entityId   String // ID of the entity affected
+  propertyId String? // Keep for backward compatibility
+  tenancyId  String? // Keep for backward compatibility
+  eventType  String? // Keep for backward compatibility
+  meta       String? // JSON metadata with details
+  details    String? // Keep for backward compatibility
   ts         DateTime @default(now()) // Timestamp
   createdAt  DateTime @default(now())
 
@@ -614,9 +614,9 @@ model AuditLog {
 model LedgerAccount {
   id         String   @id @default(uuid())
   landlordId String
-  code       String   // Account code
+  code       String // Account code
   name       String
-  type       String   // ASSET, LIAB, INCOME, EXPENSE (Step 4 spec)
+  type       String // ASSET, LIAB, INCOME, EXPENSE (Step 4 spec)
   currency   String   @default("GBP")
   createdAt  DateTime @default(now())
 
@@ -629,22 +629,22 @@ model LedgerAccount {
 
 // Double-entry ledger for all financial transactions (Step 4)
 model LedgerEntry {
-  id            String    @id @default(uuid())
-  landlordId    String
-  propertyId    String?
-  tenancyId     String?
-  tenantUserId  String?   // References User.id where role=TENANT
-  accountId     String
-  amount        Float     // Decimal(14,2) equivalent - store in smallest units
-  drCr          String    // DR or CR (Step 4 spec)
-  direction     String?   // DEBIT, CREDIT (keep for backward compatibility)
-  memo          String?   // Description (Step 4 spec)
-  description   String?   // Keep for backward compatibility
-  refType       String?   // invoice, payment, payout, etc.
-  refId         String?   // Reference to related entity
-  bookedAt      DateTime  @default(now()) // When transaction was booked (Step 4)
-  eventAt       DateTime? // Keep for backward compatibility
-  createdAt     DateTime  @default(now())
+  id           String    @id @default(uuid())
+  landlordId   String
+  propertyId   String?
+  tenancyId    String?
+  tenantUserId String? // References User.id where role=TENANT
+  accountId    String
+  amount       Float // Decimal(14,2) equivalent - store in smallest units
+  drCr         String // DR or CR (Step 4 spec)
+  direction    String? // DEBIT, CREDIT (keep for backward compatibility)
+  memo         String? // Description (Step 4 spec)
+  description  String? // Keep for backward compatibility
+  refType      String? // invoice, payment, payout, etc.
+  refId        String? // Reference to related entity
+  bookedAt     DateTime  @default(now()) // When transaction was booked (Step 4)
+  eventAt      DateTime? // Keep for backward compatibility
+  createdAt    DateTime  @default(now())
 
   account LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
 
@@ -671,8 +671,8 @@ model RentSchedule {
   landlordId  String
   tenancyId   String
   invoiceDate DateTime
-  amount      Float    // Decimal(14,2) equivalent
-  status      String   // PENDING, INVOICED, PAID
+  amount      Float // Decimal(14,2) equivalent
+  status      String // PENDING, INVOICED, PAID
   createdAt   DateTime @default(now())
 
   tenancy Tenancy @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
@@ -685,31 +685,31 @@ model RentSchedule {
 
 // Invoices for rent and other charges (Step 5)
 model Invoice {
-  id               String    @id @default(uuid())
-  landlordId       String
-  propertyId       String
-  tenancyId        String
-  tenantUserId     String?   // Primary tenant for this invoice
-  number           String    @unique // Invoice number (backward compat)
-  reference        String    // Human-readable reference e.g. "2025-03 Rent"
-  periodStart      DateTime  // Billing period start
-  periodEnd        DateTime  // Billing period end
-  issueDate        DateTime? // Keep for backward compatibility
-  dueAt            DateTime  // When payment is due
-  dueDate          DateTime? // Keep for backward compatibility
-  amountGBP        Float     // Total amount in GBP (Float for SQLite, Decimal for Postgres)
-  amount           Float?    // Keep for backward compatibility
-  lineTotal        Float?    // Keep for backward compatibility
-  taxTotal         Float?    // Keep for backward compatibility  
-  grandTotal       Float?    // Keep for backward compatibility
-  status           String    // DRAFT, DUE, PART_PAID, PAID, LATE, VOID
-  notes            String?   // Optional notes
-  pdfUrl           String?   // URL to generated PDF invoice
-  reminderCount    Int       @default(0) // Number of payment reminders sent
-  lastReminderAt   DateTime? // Timestamp of last reminder sent
-  lateFeeTotal     Float     @default(0.0) // Total late fees applied
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  landlordId     String
+  propertyId     String
+  tenancyId      String
+  tenantUserId   String? // Primary tenant for this invoice
+  number         String    @unique // Invoice number (backward compat)
+  reference      String // Human-readable reference e.g. "2025-03 Rent"
+  periodStart    DateTime // Billing period start
+  periodEnd      DateTime // Billing period end
+  issueDate      DateTime? // Keep for backward compatibility
+  dueAt          DateTime // When payment is due
+  dueDate        DateTime? // Keep for backward compatibility
+  amountGBP      Float // Total amount in GBP (Float for SQLite, Decimal for Postgres)
+  amount         Float? // Keep for backward compatibility
+  lineTotal      Float? // Keep for backward compatibility
+  taxTotal       Float? // Keep for backward compatibility  
+  grandTotal     Float? // Keep for backward compatibility
+  status         String // DRAFT, DUE, PART_PAID, PAID, LATE, VOID
+  notes          String? // Optional notes
+  pdfUrl         String? // URL to generated PDF invoice
+  reminderCount  Int       @default(0) // Number of payment reminders sent
+  lastReminderAt DateTime? // Timestamp of last reminder sent
+  lateFeeTotal   Float     @default(0.0) // Total late fees applied
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   tenancy     Tenancy             @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
   lines       InvoiceLine[]
@@ -764,19 +764,19 @@ model Payment {
   propertyId    String
   tenancyId     String
   invoiceId     String
-  tenantUserId  String?   // Keep for backward compatibility
-  amountGBP     Float     // Amount in GBP (Float for SQLite, Decimal for Postgres)
-  method        String    // BANK_TRANSFER, DD, CARD, CASH, OTHER
-  provider      String    // TEST, GOCARDLESS, STRIPE, OPEN_BANKING
+  tenantUserId  String? // Keep for backward compatibility
+  amountGBP     Float // Amount in GBP (Float for SQLite, Decimal for Postgres)
+  method        String // BANK_TRANSFER, DD, CARD, CASH, OTHER
+  provider      String // TEST, GOCARDLESS, STRIPE, OPEN_BANKING
   providerRef   String    @unique // Provider reference (unique for idempotency)
-  status        String    // PENDING, SETTLED, FAILED
-  feeGBP        Float?    // Optional payment processing fee
-  vatGBP        Float?    // Optional VAT on fee
-  paidAt        DateTime  // When payment was made
-  receiptNumber String?   // Receipt number for payment confirmation
-  amount        Float?    // Keep for backward compatibility
+  status        String // PENDING, SETTLED, FAILED
+  feeGBP        Float? // Optional payment processing fee
+  vatGBP        Float? // Optional VAT on fee
+  paidAt        DateTime // When payment was made
+  receiptNumber String? // Receipt number for payment confirmation
+  amount        Float? // Keep for backward compatibility
   receivedAt    DateTime? // Keep for backward compatibility
-  externalId    String?   // Keep for backward compatibility
+  externalId    String? // Keep for backward compatibility
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -811,12 +811,12 @@ model PaymentAllocation {
 model Mandate {
   id           String    @id @default(uuid())
   landlordId   String
-  tenancyId    String    // Step 6 spec links to tenancy
-  tenantUserId String?   // Keep for backward compatibility
-  provider     String    // gocardless|stripe (Step 6 spec)
-  providerRef  String    // Provider mandate ID (Step 6: providerRef)
-  reference    String?   // Keep for backward compatibility
-  status       String    // PENDING, ACTIVE, FAILED (Step 6 spec)
+  tenancyId    String // Step 6 spec links to tenancy
+  tenantUserId String? // Keep for backward compatibility
+  provider     String // gocardless|stripe (Step 6 spec)
+  providerRef  String // Provider mandate ID (Step 6: providerRef)
+  reference    String? // Keep for backward compatibility
+  status       String // PENDING, ACTIVE, FAILED (Step 6 spec)
   createdAt    DateTime  @default(now())
   activatedAt  DateTime?
   updatedAt    DateTime  @updatedAt
@@ -894,7 +894,7 @@ model BankTransaction {
   hash             String   @unique // For deduplication
   matchedInvoiceId String? // Direct reference to matched invoice
   confidence       Int? // 0-100 confidence score for auto-match
-  rawString          String? // Store original transaction data
+  rawString        String? // Store original transaction data
   createdAt        DateTime @default(now())
 
   bankAccount     BankAccount      @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
@@ -957,24 +957,24 @@ model BalanceSnapshot {
 
 // Finance settings per landlord
 model FinanceSettings {
-  id                  String   @id @default(uuid())
-  landlordId          String   @unique
-  invoicePrefix       String   @default("INV")
-  defaultDueDays      Int      @default(7)
-  lateFeeEnabled      Boolean  @default(false)
-  lateFeePercent      Float? // Daily percentage
-  lateFeeFixed        Float? // Or fixed amount per day
-  lateFeeGraceDays    Int      @default(0)
-  lateFeeCap          Float? // Max late fee per invoice
-  vatOnFeesEnabled    Boolean  @default(false)
-  vatRate             Float    @default(20.0)
-  currency            String   @default("GBP")
-  remindersEnabled    Boolean  @default(true) // Enable payment reminders
-  reminderGraceDays   Int      @default(1) // Days after due date before first reminder
-  reminderCadence     String   @default("1,3,7,14") // Comma-separated days for reminders
-  maxReminders        Int      @default(4) // Maximum number of reminders to send
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                String   @id @default(uuid())
+  landlordId        String   @unique
+  invoicePrefix     String   @default("INV")
+  defaultDueDays    Int      @default(7)
+  lateFeeEnabled    Boolean  @default(false)
+  lateFeePercent    Float? // Daily percentage
+  lateFeeFixed      Float? // Or fixed amount per day
+  lateFeeGraceDays  Int      @default(0)
+  lateFeeCap        Float? // Max late fee per invoice
+  vatOnFeesEnabled  Boolean  @default(false)
+  vatRate           Float    @default(20.0)
+  currency          String   @default("GBP")
+  remindersEnabled  Boolean  @default(true) // Enable payment reminders
+  reminderGraceDays Int      @default(1) // Days after due date before first reminder
+  reminderCadence   String   @default("1,3,7,14") // Comma-separated days for reminders
+  maxReminders      Int      @default(4) // Maximum number of reminders to send
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([landlordId])
 }
@@ -1045,23 +1045,23 @@ model UpsellOpportunity {
 
 // Notifications for in-app inbox
 model Notification {
-  id           String    @id @default(uuid())
-  userId       String
-  type         String    // ticket.created, invoice.created, etc.
-  title        String
-  message      String
-  resourceType String?   // ticket, invoice, payment, document
-  resourceId   String?
-  channel      String    @default("in-app") // in-app, email, webhook
-  status       String    @default("pending") // pending, sent, failed, delivered
-  sentAt       DateTime?
-  deliveredAt  DateTime?
-  failureReason String?
-  retryCount   Int       @default(0)
-  idempotencyKey String? @unique
-  isRead       Boolean   @default(false)
-  readAt       DateTime?
-  createdAt    DateTime  @default(now())
+  id             String    @id @default(uuid())
+  userId         String
+  type           String // ticket.created, invoice.created, etc.
+  title          String
+  message        String
+  resourceType   String? // ticket, invoice, payment, document
+  resourceId     String?
+  channel        String    @default("in-app") // in-app, email, webhook
+  status         String    @default("pending") // pending, sent, failed, delivered
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  failureReason  String?
+  retryCount     Int       @default(0)
+  idempotencyKey String?   @unique
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
@@ -1072,20 +1072,20 @@ model Notification {
 
 // User notification preferences
 model NotificationPreference {
-  id               String   @id @default(uuid())
-  userId           String   @unique
-  emailEnabled     Boolean  @default(true)
-  webhookEnabled   Boolean  @default(false)
-  inAppEnabled     Boolean  @default(true)
-  webhookUrl       String?
-  webhookSecret    String?
-  notifyTicketCreated     Boolean @default(true)
-  notifyTicketAssigned    Boolean @default(true)
-  notifyQuoteSubmitted    Boolean @default(true)
-  notifyQuoteApproved     Boolean @default(true)
-  notifyTicketCompleted   Boolean @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  emailEnabled          Boolean  @default(true)
+  webhookEnabled        Boolean  @default(false)
+  inAppEnabled          Boolean  @default(true)
+  webhookUrl            String?
+  webhookSecret         String?
+  notifyTicketCreated   Boolean  @default(true)
+  notifyTicketAssigned  Boolean  @default(true)
+  notifyQuoteSubmitted  Boolean  @default(true)
+  notifyQuoteApproved   Boolean  @default(true)
+  notifyTicketCompleted Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@index([userId])
 }
@@ -1094,9 +1094,9 @@ model NotificationPreference {
 model TicketTimeline {
   id        String   @id @default(uuid())
   ticketId  String
-  eventType String   // created, status_changed, quote_submitted, quote_approved, etc.
-  actorId   String?  // User who performed the action
-  details   String?    // Event-specific details
+  eventType String // created, status_changed, quote_submitted, quote_approved, etc.
+  actorId   String? // User who performed the action
+  details   String? // Event-specific details
   createdAt DateTime @default(now())
 
   ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
@@ -1113,7 +1113,7 @@ model TicketTemplate {
   description String
   category    String?
   priority    String   @default("STANDARD")
-  tags        String?  // JSON array
+  tags        String? // JSON array
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1129,13 +1129,13 @@ model TicketComment {
   ticketId  String
   userId    String
   content   String
-  parentId  String?  // For threading/replies
+  parentId  String? // For threading/replies
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user   User   @relation("TicketCommentAuthor", fields: [userId], references: [id])
-  parent TicketComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  ticket  Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user    User            @relation("TicketCommentAuthor", fields: [userId], references: [id])
+  parent  TicketComment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies TicketComment[] @relation("CommentReplies")
 
   @@index([ticketId])
@@ -1145,13 +1145,13 @@ model TicketComment {
 
 // Category-based routing rules for auto-assignment
 model CategoryRoutingRule {
-  id            String   @id @default(uuid())
-  landlordId    String
-  category      String
-  contractorId  String?  // Auto-assign to this contractor
-  priority      String   @default("STANDARD")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(uuid())
+  landlordId   String
+  category     String
+  contractorId String? // Auto-assign to this contractor
+  priority     String   @default("STANDARD")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   contractor User? @relation("CategoryRoutingContractor", fields: [contractorId], references: [id])
 
@@ -1163,12 +1163,12 @@ model CategoryRoutingRule {
 // Webhook event logs for payment providers
 model WebhookLog {
   id        String   @id @default(uuid())
-  provider  String   // GOCARDLESS, STRIPE, TRUELAYER, YAPILY
-  eventId   String   // Provider's event ID
-  action    String   // Event action/type
-  payload   String   // Full webhook payload as JSON
+  provider  String // GOCARDLESS, STRIPE, TRUELAYER, YAPILY
+  eventId   String // Provider's event ID
+  action    String // Event action/type
+  payload   String // Full webhook payload as JSON
   processed Boolean  @default(false)
-  error     String?  // Error message if processing failed
+  error     String? // Error message if processing failed
   createdAt DateTime @default(now())
 
   @@index([provider, eventId])
@@ -1178,13 +1178,13 @@ model WebhookLog {
 
 // Job audit log for tracking manual job actions
 model JobAudit {
-  id            String   @id @default(uuid())
-  queue         String   // Queue name (tickets, notifications, dead-letter)
-  jobId         String   // BullMQ job ID
-  action        String   // retry, remove, cancel
-  actorUserId   String   // User who performed the action
-  reason        String?  // Optional reason for the action
-  createdAt     DateTime @default(now())
+  id          String   @id @default(uuid())
+  queue       String // Queue name (tickets, notifications, dead-letter)
+  jobId       String // BullMQ job ID
+  action      String // retry, remove, cancel
+  actorUserId String // User who performed the action
+  reason      String? // Optional reason for the action
+  createdAt   DateTime @default(now())
 
   @@index([queue, jobId])
   @@index([actorUserId])
