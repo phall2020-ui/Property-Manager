@@ -13,8 +13,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { BulkResponseInterceptor } from '../../common/interceptors/bulk-response.interceptor';
 import { TicketsService } from './tickets.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { CreateQuoteDto } from './dto/create-quote.dto';
@@ -100,18 +101,57 @@ export class TicketsController {
     summary: 'List tickets with comprehensive filtering',
     description: 'List tickets filtered by role. Supports filters: q (title+description), id, date_from, date_to, category, contractor_id. Includes pagination (page, page_size) and sorting (sort_by, sort_dir).'
   })
-  @ApiQuery({ name: 'q', required: false, description: 'Search query for title and description (min 2 chars)' })
-  @ApiQuery({ name: 'id', required: false, description: 'Filter by ticket ID' })
-  @ApiQuery({ name: 'date_from', required: false, description: 'Filter tickets created on or after this date (ISO 8601)' })
-  @ApiQuery({ name: 'date_to', required: false, description: 'Filter tickets created on or before this date (ISO 8601)' })
-  @ApiQuery({ name: 'category', required: false, description: 'Filter by ticket category' })
+  @ApiQuery({ name: 'q', required: false, description: 'Search query for title and description (min 2 chars)', example: 'leak' })
+  @ApiQuery({ name: 'id', required: false, description: 'Filter by ticket ID', example: '123e4567-e89b-12d3-a456-426614174000' })
+  @ApiQuery({ name: 'date_from', required: false, description: 'Filter tickets created on or after this date (ISO 8601)', example: '2024-01-01' })
+  @ApiQuery({ name: 'date_to', required: false, description: 'Filter tickets created on or before this date (ISO 8601)', example: '2024-12-31' })
+  @ApiQuery({ name: 'category', required: false, description: 'Filter by ticket category', example: 'plumbing' })
   @ApiQuery({ name: 'contractor_id', required: false, description: 'Filter by assigned contractor ID' })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status' })
-  @ApiQuery({ name: 'priority', required: false, description: 'Filter by priority' })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
-  @ApiQuery({ name: 'page_size', required: false, description: 'Items per page (default: 25, max: 100)' })
-  @ApiQuery({ name: 'sort_by', required: false, description: 'Sort field (default: created_at)' })
-  @ApiQuery({ name: 'sort_dir', required: false, description: 'Sort direction: asc or desc (default: desc)' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by ticket status', enum: ['OPEN', 'TRIAGED', 'QUOTED', 'APPROVED', 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'AUDITED', 'CANCELLED'] })
+  @ApiQuery({ name: 'priority', required: false, description: 'Filter by priority', enum: ['LOW', 'STANDARD', 'HIGH', 'URGENT'] })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)', example: 1 })
+  @ApiQuery({ name: 'page_size', required: false, description: 'Items per page (default: 25, max: 100)', example: 25 })
+  @ApiQuery({ name: 'sort_by', required: false, description: 'Sort field (default: created_at)', enum: ['created_at', 'updated_at', 'status', 'priority', 'category'] })
+  @ApiQuery({ name: 'sort_dir', required: false, description: 'Sort direction: asc or desc (default: desc)', enum: ['asc', 'desc'] })
+  @ApiResponse({
+    status: 200,
+    description: 'List of tickets with pagination',
+    schema: {
+      example: {
+        items: [
+          {
+            id: '123e4567-e89b-12d3-a456-426614174000',
+            title: 'Leaking kitchen faucet',
+            description: 'The faucet is dripping constantly',
+            category: 'plumbing',
+            status: 'OPEN',
+            priority: 'STANDARD',
+            createdAt: '2024-01-15T10:30:00Z',
+            createdBy: {
+              id: 'user-123',
+              name: 'John Tenant',
+              email: 'john@example.com'
+            }
+          }
+        ],
+        page: 1,
+        page_size: 25,
+        total: 145,
+        has_next: true
+      }
+    }
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid parameters',
+    schema: {
+      example: {
+        code: 'BAD_REQUEST',
+        message: 'Search query (q) must be at least 2 characters',
+        details: {}
+      }
+    }
+  })
   @ApiBearerAuth()
   async findMany(
     @Query('q') q?: string,
@@ -399,10 +439,13 @@ export class TicketsController {
 
   @Roles('OPS')
   @Post('bulk/assign')
+  @UseInterceptors(BulkResponseInterceptor)
   @ApiOperation({ 
     summary: 'Bulk assign tickets to contractor (OPS only)',
     description: 'Assign multiple tickets to a contractor at once. Limited to 50 tickets per request.'
   })
+  @ApiResponse({ status: 200, description: 'All tickets assigned successfully' })
+  @ApiResponse({ status: 207, description: 'Some tickets failed to assign' })
   @ApiBearerAuth()
   async bulkAssign(
     @Body() dto: BulkAssignDto,
@@ -419,9 +462,30 @@ export class TicketsController {
 
   @Roles('OPS')
   @Post('bulk/close')
+  @UseInterceptors(BulkResponseInterceptor)
   @ApiOperation({ 
     summary: 'Bulk close tickets (OPS only)',
     description: 'Close multiple tickets at once with optional resolution note. Returns 207 Multi-Status with partial failure reporting.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'All tickets closed successfully',
+    schema: {
+      example: {
+        ok: ['t1', 't2', 't3'],
+        failed: []
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 207, 
+    description: 'Some tickets failed to close',
+    schema: {
+      example: {
+        ok: ['t1', 't2'],
+        failed: [{ id: 't3', error: 'Already closed' }]
+      }
+    }
   })
   @ApiBearerAuth()
   async bulkClose(
@@ -440,9 +504,30 @@ export class TicketsController {
 
   @Roles('OPS')
   @Post('bulk/reassign')
+  @UseInterceptors(BulkResponseInterceptor)
   @ApiOperation({ 
     summary: 'Bulk reassign tickets (OPS only)',
     description: 'Reassign multiple tickets to a new contractor. Returns 207 Multi-Status with partial failure reporting.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'All tickets reassigned successfully',
+    schema: {
+      example: {
+        ok: ['t1', 't2'],
+        failed: []
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 207, 
+    description: 'Some tickets failed to reassign',
+    schema: {
+      example: {
+        ok: ['t1'],
+        failed: [{ id: 't2', error: 'Cannot reassign closed ticket' }]
+      }
+    }
   })
   @ApiBearerAuth()
   async bulkReassign(
@@ -461,10 +546,13 @@ export class TicketsController {
 
   @Roles('OPS')
   @Post('bulk/tag')
+  @UseInterceptors(BulkResponseInterceptor)
   @ApiOperation({ 
     summary: 'Bulk add/remove tags (OPS only)',
     description: 'Add or remove tags from multiple tickets. Returns 207 Multi-Status with partial failure reporting.'
   })
+  @ApiResponse({ status: 200, description: 'All tickets tagged successfully' })
+  @ApiResponse({ status: 207, description: 'Some tickets failed to tag' })
   @ApiBearerAuth()
   async bulkTag(
     @Body() dto: BulkTagDto,
@@ -483,10 +571,13 @@ export class TicketsController {
 
   @Roles('OPS')
   @Post('bulk/category')
+  @UseInterceptors(BulkResponseInterceptor)
   @ApiOperation({ 
     summary: 'Bulk update category (OPS only)',
     description: 'Update category for multiple tickets. Returns 207 Multi-Status with partial failure reporting.'
   })
+  @ApiResponse({ status: 200, description: 'All tickets categorized successfully' })
+  @ApiResponse({ status: 207, description: 'Some tickets failed to categorize' })
   @ApiBearerAuth()
   async bulkCategory(
     @Body() dto: BulkCategoryDto,
