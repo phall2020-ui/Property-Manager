@@ -4,6 +4,7 @@ import { TicketsService } from './tickets.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRouterService } from '../notifications/notification-router.service';
 import { JobsService } from '../jobs/jobs.service';
 
 describe('TicketsService - Landlord & Scheduling', () => {
@@ -102,6 +103,12 @@ describe('TicketsService - Landlord & Scheduling', () => {
         {
           provide: NotificationsService,
           useValue: {},
+        },
+        {
+          provide: NotificationRouterService,
+          useValue: {
+            routeNotification: jest.fn(),
+          },
         },
         {
           provide: JobsService,
@@ -492,7 +499,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
       jest.spyOn(prisma.ticket, 'update').mockResolvedValue({} as any);
       jest.spyOn(prisma.ticketTimeline, 'create').mockResolvedValue({} as any);
 
-      const result = await service.approveQuote('quote-123', ['landlord-org-456']);
+      const result = await service.approveQuote('quote-123', 'user-123', ['landlord-org-456']);
 
       expect(result).toHaveProperty('message', 'Quote approved successfully');
       expect(prisma.quote.update).toHaveBeenCalledWith({
@@ -506,13 +513,19 @@ describe('TicketsService - Landlord & Scheduling', () => {
         where: { id: 'ticket-123' },
         data: { status: 'APPROVED' },
       });
+      expect(prisma.ticketTimeline.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          actorId: 'user-123',
+          eventType: 'quote_approved',
+        }),
+      });
     });
 
     it('should throw NotFoundException if quote does not exist', async () => {
       jest.spyOn(prisma.quote, 'findUnique').mockResolvedValue(null);
 
       await expect(
-        service.approveQuote('non-existent', ['landlord-org-456']),
+        service.approveQuote('non-existent', 'user-123', ['landlord-org-456']),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -520,7 +533,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
       jest.spyOn(prisma.quote, 'findUnique').mockResolvedValue(mockQuote as any);
 
       await expect(
-        service.approveQuote('quote-123', ['different-org']),
+        service.approveQuote('quote-123', 'user-123', ['different-org']),
       ).rejects.toThrow(ForbiddenException);
     });
   });
