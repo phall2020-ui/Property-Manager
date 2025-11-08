@@ -4,10 +4,12 @@ This guide covers deploying the Property Management Platform to production using
 
 ## Overview
 
-- **Frontend**: Next.js 14 deployed to Vercel
+- **Frontend**: Vite + React 19 (frontend-new) deployed to Vercel
 - **Backend**: NestJS deployed to Railway with PostgreSQL and Redis
-- **Database**: PostgreSQL (managed by Railway)
-- **Cache/Queue**: Redis (managed by Railway)
+- **Database**: PostgreSQL (managed by Railway) - required for production
+- **Cache/Queue**: Redis (managed by Railway) - optional but recommended for background jobs
+
+**Note:** While the development environment uses SQLite by default, **production deployments require PostgreSQL** for better performance, scalability, and reliability.
 
 ## Prerequisites
 
@@ -118,8 +120,8 @@ https://your-app.railway.app/api
 1. Go to https://vercel.com
 2. Click "Add New" → "Project"
 3. Import your GitHub repository
-4. Select the `frontend` directory as root
-5. Framework preset should auto-detect "Next.js"
+4. **Important:** Select the `frontend-new` directory as root (not `frontend`)
+5. Framework preset should auto-detect "Vite"
 
 ### 2. Configure Environment Variables
 
@@ -127,20 +129,18 @@ Add the following in Vercel project settings:
 
 ```bash
 # API Base URL (use your Railway backend URL)
-NEXT_PUBLIC_API_BASE=https://your-app.railway.app/api
-
-# Optional
-MAX_UPLOAD_MB=10
+VITE_API_BASE_URL=https://your-app.railway.app/api
 ```
 
 ### 3. Configure Build Settings
 
 Vercel should auto-detect these, but verify:
 
-- **Framework Preset**: Next.js
+- **Framework Preset**: Vite
 - **Build Command**: `npm run build`
-- **Output Directory**: `.next`
-- **Install Command**: `npm install --legacy-peer-deps`
+- **Output Directory**: `dist`
+- **Install Command**: `npm install`
+- **Root Directory**: `frontend-new`
 
 ### 4. Deploy
 

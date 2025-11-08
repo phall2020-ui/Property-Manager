@@ -5,8 +5,8 @@ Get the Property Management Platform running in 5 minutes.
 ## ⚡ Prerequisites
 
 - Node.js 20+
-- Docker Desktop running
 - Terminal/Command Prompt
+- **Optional:** Docker Desktop (only if using PostgreSQL instead of SQLite)
 
 ## 🚀 Setup (First Time Only)
 
@@ -15,18 +15,39 @@ Get the Property Management Platform running in 5 minutes.
 ./setup.sh
 ```
 
-### Option 2: Manual Setup
+The script will ask you to choose:
+- **SQLite** (default, no Docker required)
+- **PostgreSQL** (requires Docker)
+
+### Option 2: Manual Setup (SQLite)
+```bash
+# 1. Backend
+cd backend
+npm install
+cp .env.example .env
+npx prisma generate
+npx prisma migrate deploy
+npm run seed  # Optional: adds sample data
+
+# 2. Frontend (frontend-new)
+cd ../frontend-new
+npm install
+```
+
+### Option 3: Manual Setup (PostgreSQL)
 ```bash
 # 1. Backend
 cd backend
 npm install
 docker compose up -d
+cp .env.example .env
+# Edit .env: DATABASE_URL=postgresql://postgres:postgres@localhost:5432/property_management
 npx prisma generate
 npx prisma migrate deploy
 npm run seed  # Optional: adds sample data
 
-# 2. Frontend
-cd ../frontend
+# 2. Frontend (frontend-new)
+cd ../frontend-new
 npm install
 ```
 
@@ -46,14 +67,14 @@ cd backend && npm run dev
 ```bash
 ./start-frontend.sh
 # or
-cd frontend && npm run dev
+cd frontend-new && npm run dev
 ```
 
-✅ Frontend running at: http://localhost:3000
+✅ Frontend running at: http://localhost:5173
 
 ## 🧪 Test the Integration
 
-1. Open http://localhost:3000
+1. Open http://localhost:5173
 2. Click "Sign up"
 3. Create account:
    - Email: `landlord@test.com`
@@ -93,15 +114,18 @@ npx prisma studio
 npm test
 ```
 
-### Frontend
+### Frontend (frontend-new)
 ```bash
-cd frontend
+cd frontend-new
 
 # Start dev server
 npm run dev
 
+# Run all CI checks (lint, typecheck, test, build)
+npm run check:ci
+
 # Run tests
-npm test
+npm run test
 
 # Run E2E tests
 npm run test:e2e
@@ -110,8 +134,10 @@ npm run test:e2e
 npm run build
 ```
 
-### Docker
+### Docker (Only if using PostgreSQL)
 ```bash
+cd backend
+
 # Start services
 docker compose up -d
 
@@ -128,7 +154,20 @@ docker compose down -v
 
 ## 🐛 Troubleshooting
 
-### Backend won't start
+### Backend won't start (SQLite)
+```bash
+# Ensure database file exists
+cd backend
+ls -la dev.db
+
+# If missing, run migrations
+npx prisma migrate deploy
+
+# Regenerate Prisma client
+npx prisma generate
+```
+
+### Backend won't start (PostgreSQL)
 ```bash
 # Check if PostgreSQL is running
 docker ps
@@ -145,12 +184,12 @@ docker compose logs postgres
 # 1. Verify backend is running
 curl http://localhost:4000/api/docs
 
-# 2. Check frontend .env.local
-cat frontend/.env.local
-# Should have: NEXT_PUBLIC_API_BASE=http://localhost:4000/api
+# 2. Check frontend .env.local (or .env)
+cat frontend-new/.env.local
+# Should have: VITE_API_BASE_URL=http://localhost:4000/api
 
 # 3. Restart frontend
-cd frontend && npm run dev
+cd frontend-new && npm run dev
 ```
 
 ### Database errors
@@ -170,22 +209,22 @@ npx prisma migrate deploy
 lsof -i :4000
 kill -9 <PID>
 
-# Find process using port 3000 (frontend)
-lsof -i :3000
+# Find process using port 5173 (frontend)
+lsof -i :5173
 kill -9 <PID>
 ```
 
 ### Clear everything and start fresh
 ```bash
-# Stop all services
+# Stop all services (if using Docker)
 cd backend && docker compose down -v
 
 # Remove node_modules
-rm -rf backend/node_modules frontend/node_modules
+rm -rf backend/node_modules frontend-new/node_modules
 
 # Reinstall
 cd backend && npm install
-cd ../frontend && npm install
+cd ../frontend-new && npm install
 
 # Restart setup
 ./setup.sh
@@ -196,7 +235,8 @@ cd ../frontend && npm install
 ```
 Property-Manager/
 ├── backend/          # NestJS API (port 4000)
-├── frontend/         # Next.js app (port 3000)
+├── frontend-new/     # Vite + React app (port 5173) ⭐ CANONICAL
+├── frontend/         # Next.js app (legacy, being phased out)
 ├── setup.sh          # One-time setup
 ├── start-backend.sh  # Start API server
 └── start-frontend.sh # Start web app
@@ -204,7 +244,7 @@ Property-Manager/
 
 ## 🔗 Important URLs
 
-- **Frontend:** http://localhost:3000
+- **Frontend:** http://localhost:5173
 - **Backend API:** http://localhost:4000/api
 - **API Docs:** http://localhost:4000/api/docs
 - **Prisma Studio:** Run `npx prisma studio` in backend/
@@ -213,26 +253,27 @@ Property-Manager/
 
 1. ✅ Get both servers running
 2. ✅ Create a test account
-3. 📖 Read [INTEGRATION.md](./INTEGRATION.md) for architecture details
-4. 📖 Read [README.md](./README.md) for full documentation
+3. 📖 Read [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) for all documentation
+4. 📖 Read [README.md](./README.md) for full project documentation
 5. 🔨 Start building features!
 
 ## 💡 Tips
 
 - Keep both terminals open (backend + frontend)
-- Use Prisma Studio to view/edit database
+- Use Prisma Studio to view/edit database (SQLite or PostgreSQL)
 - Check API docs for available endpoints
 - Use browser DevTools to debug API calls
 - Check backend logs for errors
+- SQLite database is just a file (`backend/dev.db`) - easy to backup/reset
 
 ## 🆘 Need Help?
 
-1. Check [INTEGRATION.md](./INTEGRATION.md) for integration details
+1. Check [DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md) for navigation
 2. Check [README.md](./README.md) for full documentation
 3. Review backend logs: `cd backend && npm run dev`
 4. Review frontend console in browser DevTools
-5. Check Docker logs: `docker compose logs -f`
+5. Check Docker logs (if using PostgreSQL): `docker compose logs -f`
 
 ---
 
-**Ready to code?** Start both servers and open http://localhost:3000 🚀
+**Ready to code?** Start both servers and open http://localhost:5173 🚀

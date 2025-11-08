@@ -6,17 +6,18 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                         Browser                              │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │           Next.js Frontend (Port 3000)                │  │
+│  │        Vite + React 19 Frontend (Port 5173)           │  │
 │  │  ┌─────────────┐  ┌──────────────┐  ┌─────────────┐  │  │
-│  │  │   Pages     │  │  Components  │  │   Hooks     │  │  │
-│  │  │  (App Dir)  │  │   (UI/UX)    │  │  (useAuth)  │  │  │
+│  │  │   Pages     │  │  Components  │  │  Contexts   │  │  │
+│  │  │   (Routes)  │  │   (UI/UX)    │  │ (AuthContext)│ │  │
 │  │  └─────────────┘  └──────────────┘  └─────────────┘  │  │
 │  │         │                 │                 │         │  │
 │  │         └─────────────────┴─────────────────┘         │  │
 │  │                           │                           │  │
 │  │                    ┌──────▼──────┐                    │  │
 │  │                    │ API Client  │                    │  │
-│  │                    │ (apiClient) │                    │  │
+│  │                    │   (Axios)   │                    │  │
+│  │                    │TanStack Query│                   │  │
 │  │                    └──────┬──────┘                    │  │
 │  └───────────────────────────┼───────────────────────────┘  │
 └────────────────────────────┼─┼───────────────────────────────┘
@@ -48,19 +49,23 @@
                           │ SQL
                           │
 ┌─────────────────────────▼───────────────────────────────────┐
-│                    PostgreSQL Database                       │
+│              Database (SQLite dev / PostgreSQL prod)         │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │  Tables: users, properties, tenancies, tickets, etc.  │  │
+│  │  Development: SQLite (file:./dev.db) - No Docker!    │  │
+│  │  Production: PostgreSQL - Managed service            │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
-│                      Redis (Port 6379)                       │
+│              Redis (Port 6379) - OPTIONAL                    │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │         BullMQ Job Queue (Background Tasks)           │  │
+│  │   BullMQ Job Queue (Background Tasks - Production)    │  │
 │  │    - Email notifications                              │  │
 │  │    - SMS notifications                                │  │
 │  │    - Document processing                              │  │
+│  │                                                        │  │
+│  │   Note: Gracefully falls back without Redis in dev   │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```

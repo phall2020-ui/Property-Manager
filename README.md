@@ -23,9 +23,10 @@ A full-stack multi-tenant property management platform with role-based access co
 ## 🏗️ Architecture
 
 **Frontend:** Vite + React 19 + TypeScript + Tailwind CSS + TanStack Query v5  
-**Backend:** NestJS + Prisma + SQLite (dev) / PostgreSQL (prod)  
+**Backend:** NestJS + Prisma + SQLite (development) / PostgreSQL (production)  
 **Authentication:** JWT (access tokens 15min + httpOnly refresh cookies 7 days)  
-**Security:** Helmet, rate limiting, CORS with credentials, org-based isolation (with optional strict tenant scoping)
+**Security:** Helmet, rate limiting, CORS with credentials, org-based isolation (with optional strict tenant scoping)  
+**Background Jobs:** Optional BullMQ with Redis (gracefully falls back without Redis in development)
 
 ## 📁 Project Structure
 
@@ -98,12 +99,12 @@ Just wait ~2 minutes and you'll see:
 
 - **Node.js** 18 or later (v20+ recommended, `.nvmrc` file included)
   - If using [nvm](https://github.com/nvm-sh/nvm), run `nvm use` in the project root
-- **Docker** and **Docker Compose** (optional - only needed for PostgreSQL/Redis, SQLite is default)
 - **npm** or **yarn**
+- **Optional:** Docker and Docker Compose (only needed if using PostgreSQL/Redis instead of SQLite)
 
 #### Automated Setup
 
-Run the setup script to install dependencies and configure the database:
+Run the setup script for quick installation (uses SQLite by default):
 
 ```bash
 ./setup.sh
@@ -111,14 +112,15 @@ Run the setup script to install dependencies and configure the database:
 
 This will:
 1. Install backend and frontend dependencies
-2. Start PostgreSQL and Redis via Docker
-3. Run database migrations
-4. Generate Prisma client
-5. Optionally seed the database
+2. Generate Prisma client
+3. Run database migrations (SQLite)
+4. Optionally seed the database with test data
+
+**Note:** For production deployments with PostgreSQL/Redis, see the [Manual Setup](#manual-setup) section below.
 
 ### Manual Setup
 
-#### 1. Backend Setup
+#### 1. Backend Setup (Development with SQLite)
 
 ```bash
 cd backend
@@ -126,8 +128,8 @@ cd backend
 # Install dependencies
 npm install
 
-# Start PostgreSQL and Redis
-docker compose up -d
+# Copy environment example
+cp .env.example .env
 
 # Generate Prisma client
 npx prisma generate
@@ -144,6 +146,36 @@ npm run dev
 
 Backend runs on: [http://localhost:4000](http://localhost:4000)  
 API docs: [http://localhost:4000/api/docs](http://localhost:4000/api/docs)
+
+#### 1a. Backend Setup (Production with PostgreSQL)
+
+If you need PostgreSQL for production-like environment:
+
+```bash
+cd backend
+
+# Install dependencies
+npm install
+
+# Start PostgreSQL and Redis (optional)
+docker compose up -d
+
+# Update .env to use PostgreSQL
+# DATABASE_URL=postgresql://postgres:postgres@localhost:5432/property_management
+# REDIS_URL=redis://localhost:6379
+
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate deploy
+
+# (Optional) Seed database
+npm run seed
+
+# Start backend server
+npm run dev
+```
 
 #### 2. Frontend Setup
 
@@ -165,13 +197,27 @@ Frontend runs on: [http://localhost:5173](http://localhost:5173)
 
 Located in `backend/.env`:
 
+**Development (SQLite - Default):**
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/property_management
-REDIS_URL=redis://localhost:6379
+DATABASE_URL=file:./dev.db
 JWT_ACCESS_SECRET=dev-access-secret-change-in-production
 JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
 PORT=4000
 NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+CORS_ORIGIN=http://localhost:5173
+```
+
+**Production (PostgreSQL):**
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/property_management
+REDIS_URL=redis://localhost:6379
+JWT_ACCESS_SECRET=your-secure-access-secret
+JWT_REFRESH_SECRET=your-secure-refresh-secret
+PORT=4000
+NODE_ENV=production
+FRONTEND_URL=https://your-frontend-domain.com
+CORS_ORIGIN=https://your-frontend-domain.com
 ```
 
 ### Frontend Environment Variables
@@ -249,10 +295,11 @@ npm run lhci                # ✅ Performance meets thresholds
 
 - **Authentication:** JWT with httpOnly refresh cookies, token rotation, Argon2 hashing
 - **Multi-Tenancy:** Automatic tenant isolation via Prisma middleware
-- **Background Jobs:** BullMQ with Redis (gracefully falls back without Redis)
+- **Background Jobs:** Optional BullMQ with Redis (gracefully falls back in development)
 - **Real-Time:** Server-Sent Events (SSE) for cross-portal synchronization
 - **API:** Complete REST API with Swagger docs at `/api/docs`
 - **Security:** 0 vulnerabilities (CodeQL verified), Helmet headers, rate limiting
+- **Database:** SQLite for development, PostgreSQL for production
 
 ### Role-Based Access Control
 - **Landlords:** Manage properties, tenancies, approve maintenance quotes
@@ -271,7 +318,8 @@ npm run lhci                # ✅ Performance meets thresholds
 - **Job Types:** ticket.created, ticket.quoted, ticket.approved, ticket.assigned
 - **Retry Logic:** Exponential backoff (2s → 4s → 8s)
 - **Dead Letter Queue:** Failed jobs captured for inspection
-- **Development Mode:** Works without Redis (logs to console)
+- **Development Mode:** Gracefully falls back without Redis (logs to console)
+- **Production Mode:** Full BullMQ integration with Redis for background job processing
 
 ### API Integration
 - Centralized API client with automatic token management
@@ -357,11 +405,13 @@ npx prisma migrate reset
 npx prisma studio
 ```
 
-## 🐳 Docker Services
+## 🐳 Docker Services (Optional)
 
-PostgreSQL and Redis run in Docker containers:
+PostgreSQL and Redis can be run in Docker containers for production-like environments:
 
 ```bash
+cd backend
+
 # Start services
 docker compose up -d
 
@@ -374,6 +424,8 @@ docker compose logs -f
 # Reset volumes
 docker compose down -v
 ```
+
+**Note:** Docker services are optional. The default development setup uses SQLite and works without Docker.
 
 ## 🔐 Security Notes
 
@@ -471,17 +523,22 @@ The platform is ready for production deployment with complete configurations for
 ## 🐛 Troubleshooting
 
 **Database connection failed:**
-- Ensure Docker is running: `docker ps`
-- Check DATABASE_URL in `.env`
+- **SQLite:** Ensure `DATABASE_URL=file:./dev.db` in `.env` and `dev.db` file exists
+- **PostgreSQL:** Ensure Docker is running with `docker ps`, check `DATABASE_URL` in `.env`
 
 **Frontend can't reach backend:**
 - Verify backend is running on port 4000
-- Check NEXT_PUBLIC_API_BASE in `.env.local`
+- Check `VITE_API_BASE_URL` in `frontend-new/.env.local`
 - Ensure CORS is configured in backend
 
 **Token refresh failing:**
 - Clear localStorage: `localStorage.clear()`
 - Check JWT secrets match in backend `.env`
+- Ensure cookies are enabled in browser
+
+**Which frontend to use?**
+- Use `frontend-new/` (Vite + React 19) - this is the canonical, actively maintained version
+- `frontend/` (Next.js 14) is legacy and being phased out
 
 ## 📄 License
 
