@@ -168,7 +168,10 @@ export const tenanciesApi = {
 export const ticketsApi = {
   list: async () => {
     const response = await api.get('/tickets');
-    return response.data;
+    // Backend returns paginated response: { items: [], total, page, page_size, has_next }
+    // Extract the items array for compatibility with component
+    const result = response.data;
+    return Array.isArray(result) ? result : (result.items || result.data || []);
   },
 
   create: async (data: {
@@ -293,7 +296,10 @@ export const enhancedPropertiesApi = {
   list: async () => {
     try {
       const response = await api.get('/properties');
-      return response.data;
+      // Backend returns paginated response: { data: [], total, page, pageSize }
+      // Extract the data array for compatibility with component
+      const result = response.data;
+      return Array.isArray(result) ? result : (result.data || []);
     } catch {
       // Fallback mock data for development
       console.warn('Using mock property data');

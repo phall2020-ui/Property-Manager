@@ -94,7 +94,10 @@ export function useEventStream({
 
   const handleError = useCallback(
     (event: Event) => {
-      console.error('EventSource error:', event);
+      // Reduce console noise
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('EventSource connection error');
+      }
       setIsConnected(false);
 
       if (onError) {
@@ -115,7 +118,9 @@ export function useEventStream({
       
       retryCountRef.current++;
       
-      console.log(`Retrying in ${retryDelay}ms (attempt ${retryCountRef.current})`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`EventStream retrying in ${retryDelay}ms (attempt ${retryCountRef.current})`);
+      }
       
       retryTimeoutRef.current = setTimeout(() => {
         if (enabled && token && connectFnRef.current) {
@@ -212,7 +217,10 @@ export function useEventStream({
       fakeEventSource.readLoop();
       
     } catch (error) {
-      console.error('Failed to connect:', error);
+      // Reduce noise in console - only log connection errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('EventStream connection failed:', error instanceof Error ? error.message : 'Unknown error');
+      }
       handleError(new Event('error'));
     }
   }, [enabled, token, getApiUrl, handleEvent, handleError]);
