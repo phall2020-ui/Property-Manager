@@ -10,7 +10,7 @@ export interface NotificationEvent {
   landlordId?: string;
   tenantId?: string;
   contractorId?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface NotificationRecipient {
@@ -231,7 +231,17 @@ export class NotificationRouterService {
   /**
    * Get user notification preferences
    */
-  private async getUserPreferences(userId: string) {
+  private async getUserPreferences(userId: string): Promise<{
+    emailEnabled: boolean;
+    webhookEnabled: boolean;
+    inAppEnabled: boolean;
+    webhookUrl?: string | null;
+    notifyTicketCreated: boolean;
+    notifyTicketAssigned: boolean;
+    notifyQuoteSubmitted: boolean;
+    notifyQuoteApproved: boolean;
+    notifyTicketCompleted: boolean;
+  }> {
     const prefs = await this.prisma.notificationPreference.findUnique({
       where: { userId },
     });
@@ -254,7 +264,12 @@ export class NotificationRouterService {
   /**
    * Check if a channel is enabled for the user
    */
-  private isChannelEnabled(channel: string, preferences: any): boolean {
+  private isChannelEnabled(channel: string, preferences: {
+    emailEnabled: boolean;
+    webhookEnabled: boolean;
+    inAppEnabled: boolean;
+    webhookUrl?: string | null;
+  }): boolean {
     switch (channel) {
       case 'email':
         return preferences.emailEnabled;
@@ -308,8 +323,9 @@ export class NotificationRouterService {
 
       // Deliver based on channel
       await this.deliverNotification(notification, channel);
-    } catch (error) {
-      this.logger.error(`Failed to send notification to ${userId} via ${channel}: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Failed to send notification to ${userId} via ${channel}: ${errorMessage}`);
     }
   }
 
@@ -355,7 +371,10 @@ export class NotificationRouterService {
    * Deliver notification via the specified channel
    * Implements retry logic with exponential backoff
    */
-  private async deliverNotification(notification: any, channel: string): Promise<void> {
+  private async deliverNotification(
+    notification: { id: string; userId: string; title: string; message: string; type: string },
+    channel: string,
+  ): Promise<void> {
     try {
       switch (channel) {
         case 'in-app':
@@ -380,15 +399,15 @@ export class NotificationRouterService {
         default:
           this.logger.warn(`Unknown channel: ${channel}`);
       }
-    } catch (error) {
-      await this.handleDeliveryFailure(notification, error);
+    } catch (error: unknown) {
+      await this.handleDeliveryFailure(notification, error instanceof Error ? error : new Error('Unknown error'));
     }
   }
 
   /**
    * Deliver notification via email
    */
-  private async deliverEmail(notification: any): Promise<void> {
+  private async deliverEmail(notification: { id: string; userId: string; title: string; message: string }): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: notification.userId },
       select: { email: true, name: true },
@@ -416,7 +435,7 @@ export class NotificationRouterService {
   /**
    * Deliver notification via webhook
    */
-  private async deliverWebhook(notification: any): Promise<void> {
+  private async deliverWebhook(notification: { id: string; userId: string }): Promise<void> {
     const prefs = await this.prisma.notificationPreference.findUnique({
       where: { userId: notification.userId },
     });
@@ -439,9 +458,12 @@ export class NotificationRouterService {
   /**
    * Handle delivery failure and schedule retry
    */
-  private async handleDeliveryFailure(notification: any, error: Error): Promise<void> {
+  private async handleDeliveryFailure(
+    notification: { id: string; retryCount?: number },
+    error: Error,
+  ): Promise<void> {
     const maxRetries = 3;
-    const retryCount = notification.retryCount + 1;
+    const retryCount = (notification.retryCount || 0) + 1;
 
     await this.prisma.notification.update({
       where: { id: notification.id },
