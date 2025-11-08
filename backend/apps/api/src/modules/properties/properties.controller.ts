@@ -39,19 +39,26 @@ export class PropertiesController {
     return this.propertiesService.findOne(id, landlordOrg.orgId);
   }
 
-  @Roles('LANDLORD')
+  @Roles('LANDLORD', 'CONTRACTOR')
   @Get()
-  @ApiOperation({ summary: 'List and search properties of current landlord' })
+  @ApiOperation({ summary: 'List and search properties. Landlords see their properties, contractors see properties from assigned tickets.' })
   @ApiBearerAuth()
   async findMany(
     @Query() query: ListPropertiesQueryDto,
     @CurrentUser() user?: any,
   ) {
     const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
-    if (!landlordOrg) {
-      throw new ForbiddenException('User is not a landlord');
+    const contractorOrg = user.orgs?.find((o: any) => o.role === 'CONTRACTOR');
+    
+    if (landlordOrg) {
+      // Landlord: return their properties
+      return this.propertiesService.findMany(landlordOrg.orgId, query);
+    } else if (contractorOrg) {
+      // Contractor: return properties from tickets assigned to them
+      return this.propertiesService.findPropertiesForContractor(user.id);
+    } else {
+      throw new ForbiddenException('User must be a landlord or contractor');
     }
-    return this.propertiesService.findMany(landlordOrg.orgId, query);
   }
 
   @Roles('LANDLORD')

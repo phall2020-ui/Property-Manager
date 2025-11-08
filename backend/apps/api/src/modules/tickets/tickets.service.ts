@@ -204,6 +204,7 @@ export class TicketsService {
       sortBy?: string;
       sortDir?: 'asc' | 'desc';
     },
+    userId?: string, // Optional user ID for contractor filtering
   ) {
     const where: any = {};
 
@@ -217,8 +218,30 @@ export class TicketsService {
         tenantOrgId: { in: userOrgIds },
       };
     } else if (role === 'CONTRACTOR') {
-      // Contractors see tickets assigned to them
-      where.assignedToId = { not: null };
+      // Contractors see:
+      // 1. Tickets assigned to them (for work)
+      // 2. Unassigned tickets in OPEN/TRIAGED/QUOTED states (for quoting)
+      if (userId) {
+        where.OR = [
+          { assignedToId: userId }, // Assigned to this contractor
+          {
+            AND: [
+              { assignedToId: null }, // Not assigned
+              { status: { in: ['OPEN', 'TRIAGED', 'QUOTED'] } }, // Available for quoting
+            ],
+          },
+        ];
+      } else {
+        // Fallback: show all unassigned tickets available for quoting
+        where.OR = [
+          {
+            AND: [
+              { assignedToId: null }, // Not assigned
+              { status: { in: ['OPEN', 'TRIAGED', 'QUOTED'] } }, // Available for quoting
+            ],
+          },
+        ];
+      }
     }
 
     // Filter by specific ticket ID
@@ -376,6 +399,14 @@ export class TicketsService {
       throw new NotFoundException('Ticket not found');
     }
 
+    // Contractors can quote on OPEN, TRIAGED, or QUOTED tickets
+    // No assignment required - any contractor can quote
+    if (!['OPEN', 'TRIAGED', 'QUOTED'].includes(ticket.status)) {
+      throw new ForbiddenException(
+        `Cannot submit quote for ticket in ${ticket.status} status. Quotes can only be submitted for OPEN, TRIAGED, or QUOTED tickets.`
+      );
+    }
+
     // Create quote
     const quote = await this.prisma.quote.create({
       data: {
@@ -462,13 +493,17 @@ export class TicketsService {
       },
     });
 
-    // Update ticket status to APPROVED
+    // Update ticket: assign contractor and set status to APPROVED
+    // Assignment happens automatically when quote is approved
     await this.prisma.ticket.update({
       where: { id: quote.ticketId },
-      data: { status: 'APPROVED' },
+      data: {
+        status: 'APPROVED',
+        assignedToId: quote.contractorId, // Assign the contractor who submitted the approved quote
+      },
     });
 
-    // Create timeline event
+    // Create timeline events
     await this.prisma.ticketTimeline.create({
       data: {
         ticketId: quote.ticketId,
@@ -481,7 +516,21 @@ export class TicketsService {
       },
     });
 
-    // Emit SSE event
+    // Create assignment timeline event (assignment happens automatically on approval)
+    await this.prisma.ticketTimeline.create({
+      data: {
+        ticketId: quote.ticketId,
+        eventType: 'assigned',
+        actorId: userId,
+        details: JSON.stringify({
+          contractorId: quote.contractorId,
+          autoAssigned: true,
+          reason: 'Quote approved',
+        }),
+      },
+    });
+
+    // Emit SSE events
     this.eventsService.emit({
       type: 'ticket.approved',
       actorRole: 'LANDLORD',
@@ -494,11 +543,29 @@ export class TicketsService {
       payload: { amount: quote.amount },
     });
 
-    // Enqueue background job for notifications
+    // Emit assignment event
+    this.eventsService.emit({
+      type: 'ticket.assigned',
+      actorRole: 'LANDLORD',
+      landlordId: quote.ticket.landlordId,
+      tenantId: quote.ticket.tenancy?.tenantOrgId,
+      resources: [{ type: 'ticket', id: quote.ticketId }],
+      payload: { contractorId: quote.contractorId, autoAssigned: true },
+    });
+
+    // Enqueue background jobs for notifications
     await this.jobsService.enqueueTicketApproved({
       ticketId: quote.ticketId,
       quoteId,
       approvedBy: userId,
+      landlordId: quote.ticket.landlordId,
+    });
+
+    // Also notify contractor of assignment
+    await this.jobsService.enqueueTicketAssigned({
+      ticketId: quote.ticketId,
+      assignedToId: quote.contractorId,
+      assignedBy: userId,
       landlordId: quote.ticket.landlordId,
     });
 
@@ -1392,6 +1459,8 @@ export class TicketsService {
 
   /**
    * Assign a single ticket to a contractor (LANDLORD or OPS role)
+   * Assignment should typically happen automatically when quote is approved.
+   * Manual assignment is allowed for OPEN/TRIAGED tickets or after quote approval.
    */
   async assignTicket(
     ticketId: string,
@@ -1406,6 +1475,11 @@ export class TicketsService {
       include: { 
         property: true,
         tenancy: true,
+        quotes: {
+          where: {
+            status: 'APPROVED',
+          },
+        },
       },
     });
 
@@ -1421,6 +1495,21 @@ export class TicketsService {
       if (!hasAccess) {
         throw new ForbiddenException('You can only assign tickets for your properties');
       }
+    }
+
+    // For APPROVED status, ensure there's an approved quote
+    // Manual assignment after quote approval is allowed (e.g., reassignment)
+    if (ticket.status === 'APPROVED' && ticket.quotes.length === 0) {
+      throw new ForbiddenException(
+        'Cannot assign ticket in APPROVED status without an approved quote. Please approve a quote first.'
+      );
+    }
+
+    // Allow assignment for OPEN, TRIAGED, QUOTED, or APPROVED tickets
+    if (!['OPEN', 'TRIAGED', 'QUOTED', 'APPROVED'].includes(ticket.status)) {
+      throw new ForbiddenException(
+        `Cannot assign ticket in ${ticket.status} status. Assignment is only allowed for OPEN, TRIAGED, QUOTED, or APPROVED tickets.`
+      );
     }
 
     // Verify contractor exists

@@ -110,6 +110,53 @@ export class PropertiesService {
     };
   }
 
+  /**
+   * Get properties for a contractor (from tickets assigned to them)
+   */
+  async findPropertiesForContractor(contractorId: string) {
+    // Get unique properties from tickets assigned to this contractor
+    const tickets = await this.prisma.ticket.findMany({
+      where: {
+        assignedToId: contractorId,
+        propertyId: { not: null },
+      },
+      select: {
+        propertyId: true,
+        property: {
+          select: {
+            id: true,
+            addressLine1: true,
+            address2: true,
+            city: true,
+            postcode: true,
+            propertyType: true,
+            bedrooms: true,
+            bathrooms: true,
+            ownerOrgId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+      distinct: ['propertyId'],
+    });
+
+    // Extract unique properties
+    const properties = tickets
+      .map(t => t.property)
+      .filter((p): p is NonNullable<typeof p> => p !== null)
+      .filter((p, index, self) => 
+        index === self.findIndex(prop => prop.id === p.id)
+      );
+
+    return {
+      data: properties,
+      total: properties.length,
+      page: 1,
+      pageSize: properties.length,
+    };
+  }
+
   async update(
     id: string,
     ownerOrgId: string,

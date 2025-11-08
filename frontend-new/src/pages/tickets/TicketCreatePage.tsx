@@ -1,36 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ticketsApi, propertiesApi } from '../../lib/api';
+import { ticketsApi, propertiesApi, tenanciesApi } from '../../lib/api';
 import { extractErrorMessage } from '../../lib/validation';
 import { useToast } from '../../contexts/ToastContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function TicketCreatePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const { user } = useAuth();
+
+  const primaryRole = user?.organisations?.[0]?.role || 'TENANT';
+  const isTenant = primaryRole === 'TENANT';
+  const isLandlord = primaryRole === 'LANDLORD';
+  const isContractor = primaryRole === 'CONTRACTOR';
 
   const [formData, setFormData] = useState({
     propertyId: '',
+    tenancyId: '',
     title: '',
     description: '',
-    priority: 'MEDIUM',
+    priority: 'STANDARD',
+    category: '',
   });
 
   const [error, setError] = useState('');
 
-  // Fetch properties for dropdown
-  const { data: properties } = useQuery({
+  // Fetch properties for landlords and contractors
+  const { data: propertiesResponse } = useQuery({
     queryKey: ['properties'],
     queryFn: () => propertiesApi.list(),
+    enabled: isLandlord || isContractor,
   });
+  const properties = propertiesResponse?.data || propertiesResponse || [];
+
+  // Fetch tenancies for tenants (only their tenancy)
+  const { data: tenanciesResponse } = useQuery({
+    queryKey: ['tenancies'],
+    queryFn: () => tenanciesApi.list(),
+    enabled: isTenant,
+  });
+  const tenancies = tenanciesResponse?.data || tenanciesResponse || [];
+
+  // Auto-select tenancy for tenants (they only have one)
+  useEffect(() => {
+    if (isTenant && tenancies.length > 0) {
+      const activeTenancy = tenancies.find((t: any) => t.status === 'ACTIVE') || tenancies[0];
+      if (activeTenancy) {
+        setFormData(prev => ({
+          ...prev,
+          tenancyId: activeTenancy.id,
+          propertyId: activeTenancy.propertyId || activeTenancy.property?.id || '',
+        }));
+      }
+    }
+  }, [isTenant, tenancies]);
 
   const createMutation = useMutation({
     mutationFn: (data: {
       propertyId?: string;
+      tenancyId?: string;
       title: string;
       description: string;
       priority: string;
+      category?: string;
     }) => ticketsApi.create(data),
     onMutate: async (newTicket) => {
       // Cancel any outgoing refetches to avoid overwriting our optimistic update
@@ -81,11 +116,23 @@ export default function TicketCreatePage() {
       return;
     }
 
+    // Validate based on role
+    if (isTenant && !formData.tenancyId) {
+      setError('Please select a tenancy');
+      return;
+    }
+    if ((isLandlord || isContractor) && !formData.propertyId) {
+      setError('Please select a property');
+      return;
+    }
+
     createMutation.mutate({
       propertyId: formData.propertyId || undefined,
+      tenancyId: formData.tenancyId || undefined,
       title: formData.title,
       description: formData.description,
       priority: formData.priority,
+      category: formData.category || undefined,
     });
   };
 
@@ -114,25 +161,77 @@ export default function TicketCreatePage() {
           </div>
         )}
 
-        {properties && properties.length > 0 && (
+        {/* Property Selection - For Landlords and Contractors */}
+        {(isLandlord || isContractor) && (
           <div>
             <label htmlFor="propertyId" className="block text-sm font-medium text-gray-700">
-              Property
+              Property <span className="text-red-500">*</span>
             </label>
             <select
               id="propertyId"
               name="propertyId"
               value={formData.propertyId}
               onChange={handleChange}
+              required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Select a property</option>
-              {properties.map((property: { id: string; address1: string; city?: string; postcode?: string }) => (
-                <option key={property.id} value={property.id}>
-                  {property.address1}, {property.city || property.postcode}
-                </option>
-              ))}
+              {properties.map((property: any) => {
+                const address = property.addressLine1 || property.address1 || '';
+                const city = property.city || '';
+                const postcode = property.postcode || '';
+                const display = [address, city, postcode].filter(Boolean).join(', ');
+                return (
+                  <option key={property.id} value={property.id}>
+                    {display || property.id}
+                  </option>
+                );
+              })}
             </select>
+            {properties.length === 0 && (
+              <p className="mt-1 text-sm text-gray-500">
+                {isLandlord ? 'No properties found. Please create a property first.' : 'No properties assigned to you.'}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Tenancy Selection - For Tenants (auto-selected, read-only) */}
+        {isTenant && (
+          <div>
+            <label htmlFor="tenancyId" className="block text-sm font-medium text-gray-700">
+              Tenancy <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="tenancyId"
+              name="tenancyId"
+              value={formData.tenancyId}
+              onChange={handleChange}
+              required
+              disabled={tenancies.length === 1}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+            >
+              {tenancies.length === 0 ? (
+                <option value="">No active tenancy found</option>
+              ) : (
+                tenancies.map((tenancy: any) => {
+                  const property = tenancy.property || {};
+                  const address = property.addressLine1 || property.address1 || 'Property';
+                  const startDate = tenancy.start ? new Date(tenancy.start).toLocaleDateString() : '';
+                  const endDate = tenancy.end ? new Date(tenancy.end).toLocaleDateString() : 'Present';
+                  return (
+                    <option key={tenancy.id} value={tenancy.id}>
+                      {address} ({startDate} - {endDate})
+                    </option>
+                  );
+                })
+              )}
+            </select>
+            {tenancies.length === 0 && (
+              <p className="mt-1 text-sm text-red-500">
+                No active tenancy found. Please contact your landlord.
+              </p>
+            )}
           </div>
         )}
 
@@ -168,6 +267,29 @@ export default function TicketCreatePage() {
           />
         </div>
 
+        {/* Category Selection */}
+        <div>
+          <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+            Category
+          </label>
+          <select
+            id="category"
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Select category (optional)</option>
+            <option value="plumbing">Plumbing</option>
+            <option value="electrical">Electrical</option>
+            <option value="heating">Heating</option>
+            <option value="appliances">Appliances</option>
+            <option value="structural">Structural</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        {/* Priority Selection */}
         <div>
           <label htmlFor="priority" className="block text-sm font-medium text-gray-700">
             Priority
@@ -180,7 +302,7 @@ export default function TicketCreatePage() {
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
+            <option value="STANDARD">Standard</option>
             <option value="HIGH">High</option>
             <option value="URGENT">Urgent</option>
           </select>

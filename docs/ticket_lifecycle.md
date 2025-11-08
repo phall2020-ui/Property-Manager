@@ -71,35 +71,37 @@ stateDiagram-v2
 
 ### OPEN
 - **Description**: Initial state when a maintenance ticket is created by a tenant or landlord
-- **Visible to**: Tenant, Landlord, OPS
+- **Visible to**: Tenant, Landlord, OPS, All Contractors (for quoting)
 - **Allowed Actions**:
   - OPS can triage → `TRIAGED`
-  - OPS can assign contractor → `ASSIGNED`
-  - Contractor can submit quote → `QUOTED`
+  - OPS/Landlord can assign contractor (optional, before quote)
+  - **Any contractor can submit quote** → `QUOTED` (no assignment required)
   - OPS/Landlord can cancel → `CANCELLED`
 
 ### TRIAGED
 - **Description**: Ticket has been reviewed and categorized by operations team
-- **Visible to**: Tenant, Landlord, OPS, Assigned Contractor (if any)
+- **Visible to**: Tenant, Landlord, OPS, All Contractors (for quoting)
 - **Allowed Actions**:
-  - OPS can assign contractor → `ASSIGNED`
-  - Contractor can submit quote → `QUOTED`
+  - OPS/Landlord can assign contractor (optional, before quote)
+  - **Any contractor can submit quote** → `QUOTED` (no assignment required)
   - OPS/Landlord can cancel → `CANCELLED`
 
 ### ASSIGNED
-- **Description**: Ticket has been assigned to a contractor but no quote submitted yet
+- **Description**: Ticket has been assigned to a contractor but no quote submitted yet (optional state)
 - **Visible to**: Tenant, Landlord, OPS, Assigned Contractor
 - **Allowed Actions**:
-  - Contractor can submit quote → `QUOTED`
+  - Assigned contractor can submit quote → `QUOTED`
   - OPS can reassign contractor
   - OPS/Landlord can cancel → `CANCELLED`
+- **Note**: Assignment is optional. Contractors can quote without assignment.
 
 ### QUOTED
 - **Description**: Contractor has submitted a quote awaiting landlord approval
-- **Visible to**: Tenant, Landlord, OPS, Contractor
+- **Visible to**: Tenant, Landlord, OPS, All Contractors (can submit competing quotes)
 - **Allowed Actions**:
-  - Landlord can approve quote → `APPROVED`
+  - Landlord can approve quote → `APPROVED` (automatically assigns contractor)
   - Landlord can reject quote → `REJECTED`
+  - **Other contractors can submit competing quotes** → `QUOTED`
   - OPS/Landlord can cancel → `CANCELLED`
 
 ### REJECTED
@@ -111,13 +113,14 @@ stateDiagram-v2
   - OPS/Landlord can cancel → `CANCELLED`
 
 ### APPROVED
-- **Description**: Quote has been approved, awaiting scheduling
-- **Visible to**: Tenant, Landlord, OPS, Contractor
+- **Description**: Quote has been approved by landlord. Contractor is automatically assigned. Awaiting scheduling.
+- **Visible to**: Tenant, Landlord, OPS, Assigned Contractor
 - **Allowed Actions**:
-  - Contractor can propose appointment time
+  - **Assigned contractor** can propose appointment time
   - Tenant/Landlord can confirm appointment → `SCHEDULED`
   - Contractor can start work immediately → `IN_PROGRESS`
   - OPS/Landlord can cancel → `CANCELLED`
+- **Note**: Assignment happens automatically when quote is approved. Tenant and contractor arrange date/time after approval.
 
 ### SCHEDULED
 - **Description**: Appointment time confirmed, work scheduled
@@ -158,15 +161,16 @@ stateDiagram-v2
 | From State | To State | Allowed Roles | Conditions |
 |-----------|---------|---------------|------------|
 | OPEN | TRIAGED | OPS | Always allowed |
-| OPEN | ASSIGNED | OPS | Contractor must exist |
-| OPEN | QUOTED | CONTRACTOR | Must be assigned to ticket |
+| OPEN | ASSIGNED | OPS, LANDLORD | Contractor must exist (optional, before quote) |
+| OPEN | QUOTED | CONTRACTOR | **Any contractor can quote, no assignment required** |
 | OPEN | CANCELLED | OPS, LANDLORD | Always allowed |
-| TRIAGED | QUOTED | CONTRACTOR | Must be assigned to ticket |
-| TRIAGED | ASSIGNED | OPS | Contractor must exist |
+| TRIAGED | QUOTED | CONTRACTOR | **Any contractor can quote, no assignment required** |
+| TRIAGED | ASSIGNED | OPS, LANDLORD | Contractor must exist (optional, before quote) |
 | TRIAGED | CANCELLED | OPS, LANDLORD | Always allowed |
-| QUOTED | APPROVED | LANDLORD | Auto-approve if under threshold |
+| QUOTED | APPROVED | LANDLORD | **Auto-assigns contractor on approval** |
 | QUOTED | REJECTED | LANDLORD | Always allowed |
 | QUOTED | CANCELLED | OPS, LANDLORD | Always allowed |
+| QUOTED | QUOTED | CONTRACTOR | **Other contractors can submit competing quotes** |
 | APPROVED | SCHEDULED | CONTRACTOR + (TENANT \|\| LANDLORD) | Requires appointment confirmation |
 | APPROVED | IN_PROGRESS | CONTRACTOR | Can skip scheduling |
 | APPROVED | CANCELLED | OPS, LANDLORD | Always allowed |
@@ -210,15 +214,23 @@ Events trigger notifications to different roles:
 ## Business Rules
 
 ### Quote Approval
+- **Any contractor can submit quotes for unassigned tickets in OPEN/TRIAGED/QUOTED states**
+- No assignment required before quoting
+- Multiple contractors can submit competing quotes for the same ticket
 - Quotes under landlord's threshold are auto-approved
 - Quotes above threshold require explicit landlord approval
-- Multiple quotes can be submitted for the same ticket
+- **When a quote is approved, the contractor is automatically assigned to the ticket**
 - Only one quote can be in APPROVED state at a time
+- After approval, tenant and contractor arrange date/time for the work
 
 ### Contractor Assignment
-- Tickets can be assigned to contractors at any state before COMPLETED
+- **Assignment happens automatically when a quote is approved by the landlord**
+- Manual assignment is optional and can happen before quotes (OPEN/TRIAGED states)
+- After quote approval, the contractor who submitted the approved quote is automatically assigned
 - Reassignment is allowed but creates an audit trail
-- Contractors can only see tickets assigned to them
+- **Contractors can see:**
+  - Tickets assigned to them (for work)
+  - Unassigned tickets in OPEN/TRIAGED/QUOTED states (for quoting)
 
 ### Cancellation
 - OPEN, TRIAGED, QUOTED, APPROVED, SCHEDULED tickets can be cancelled

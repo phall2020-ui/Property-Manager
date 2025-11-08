@@ -43,16 +43,19 @@ export class TicketsController {
   constructor(private readonly ticketsService: TicketsService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 requests per minute
-  @Roles('TENANT')
+  @Roles('TENANT', 'CONTRACTOR')
   @Post()
   @ApiOperation({ 
     summary: 'Create a maintenance ticket',
-    description: 'Create a new maintenance ticket. Tenant must provide either propertyId or tenancyId. Ticket will be visible to the landlord immediately and appears in their list within 5 seconds via polling. Rate limited to 5 requests per minute.'
+    description: 'Create a new maintenance ticket. Tenant must provide either propertyId or tenancyId. Contractor must provide propertyId. Ticket will be visible to the landlord immediately and appears in their list within 5 seconds via polling. Rate limited to 5 requests per minute.'
   })
   @ApiBearerAuth()
   async create(@Body() dto: CreateTicketDto, @CurrentUser() user: any) {
     // Get landlordId from property or tenancy
     let landlordId: string;
+    const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    const isContractor = primaryRole === 'CONTRACTOR';
+    
     if (dto.propertyId) {
       const property = await this.ticketsService.findProperty(dto.propertyId);
       landlordId = property.ownerOrgId;
@@ -60,6 +63,9 @@ export class TicketsController {
       const tenancy = await this.ticketsService.findTenancy(dto.tenancyId);
       landlordId = tenancy.property.ownerOrgId;
     } else {
+      if (isContractor) {
+        throw new BadRequestException('Contractors must provide propertyId');
+      }
       throw new BadRequestException('Either propertyId or tenancyId must be provided');
     }
 
@@ -189,6 +195,7 @@ export class TicketsController {
 
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     const primaryRole = user.orgs?.[0]?.role || 'TENANT';
+    const userId = user.id; // Pass user ID for contractor filtering
     
     return this.ticketsService.findMany(userOrgIds, primaryRole, { 
       q: qStr,
@@ -203,7 +210,7 @@ export class TicketsController {
       pageSize: pageSizeStr ? parseInt(pageSizeStr, 10) : undefined,
       sortBy: sortByStr || 'created_at',
       sortDir: (sortDirStr === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc',
-    });
+    }, userId);
   }
 
   @Roles('CONTRACTOR')
