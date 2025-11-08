@@ -260,7 +260,7 @@ export class TicketsController {
   @ApiBearerAuth()
   async approveQuote(@Param('quoteId') quoteId: string, @CurrentUser() user: any) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
-    return this.ticketsService.approveQuote(quoteId, userOrgIds);
+    return this.ticketsService.approveQuote(quoteId, user.id, userOrgIds);
   }
 
   @Roles('CONTRACTOR')

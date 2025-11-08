@@ -366,7 +366,7 @@ export class TicketsService {
     return quote;
   }
 
-  async approveQuote(quoteId: string, userOrgIds: string[]) {
+  async approveQuote(quoteId: string, userId: string, userOrgIds: string[]) {
     const quote = await this.prisma.quote.findUnique({
       where: { id: quoteId },
       include: {
@@ -408,7 +408,7 @@ export class TicketsService {
       data: {
         ticketId: quote.ticketId,
         eventType: 'quote_approved',
-        actorId: null, // TODO: Get from context
+        actorId: userId,
         details: JSON.stringify({
           quoteId,
           amount: quote.amount,
@@ -433,7 +433,7 @@ export class TicketsService {
     await this.jobsService.enqueueTicketApproved({
       ticketId: quote.ticketId,
       quoteId,
-      approvedBy: 'landlord', // TODO: Get from context
+      approvedBy: userId,
       landlordId: quote.ticket.landlordId,
     });
 
@@ -747,7 +747,7 @@ export class TicketsService {
     // TODO: Check idempotency key if provided
 
     // Approve the quote
-    return this.approveQuote(quote.id, userOrgIds);
+    return this.approveQuote(quote.id, userId, userOrgIds);
   }
 
   /**
