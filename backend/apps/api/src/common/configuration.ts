@@ -16,6 +16,24 @@ export default registerAs('app', () => ({
   },
   refreshCookieName: process.env.REFRESH_COOKIE_NAME || 'refresh_token',
   refreshCookieSecure: process.env.REFRESH_COOKIE_SECURE === 'true',
+  storage: {
+    provider: process.env.STORAGE_PROVIDER || process.env.STORAGE_DRIVER || 'LOCAL',
+    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB default
+    allowedMimeTypes: process.env.ALLOWED_MIME_TYPES?.split(',') || [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain',
+      'text/csv',
+    ],
+  },
   s3: {
     accessKeyId: process.env.S3_ACCESS_KEY_ID,
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,

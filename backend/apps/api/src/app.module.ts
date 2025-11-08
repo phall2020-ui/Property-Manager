@@ -27,6 +27,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { TraceIdMiddleware } from './common/middleware/trace-id.middleware';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
 import { IdempotencyMiddleware } from './common/middleware/idempotency.middleware';
+import { NormalizePathMiddleware } from './common/middleware/normalize-path.middleware';
 import { AppController } from './app.controller';
 
 @Module({
@@ -84,6 +85,11 @@ import { AppController } from './app.controller';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
+    // Apply path normalization middleware first to handle double slashes
+    consumer
+      .apply(NormalizePathMiddleware)
+      .forRoutes('*');
+    
     consumer
       .apply(TraceIdMiddleware, TenantMiddleware)
       .forRoutes('*');
