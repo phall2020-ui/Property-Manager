@@ -8,9 +8,10 @@ import {
   Body,
   UseInterceptors,
   UploadedFile,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiForbiddenResponse, ApiNotFoundResponse } from '@nestjs/swagger';
 import { TenanciesService } from './tenancies.service';
 import { CreateTenancyDto } from './dto/create-tenancy.dto';
 import { UpdateTenancyDto } from './dto/update-tenancy.dto';
@@ -20,6 +21,8 @@ import { RentIncreaseDto } from './dto/rent-increase.dto';
 import { CreateGuarantorDto } from './dto/create-guarantor.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { ResourceType } from '../../common/decorators/resource-type.decorator';
+import { LandlordResourceGuard } from '../../common/guards/landlord-resource.guard';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
@@ -32,6 +35,7 @@ export class TenanciesController {
   @Post()
   @ApiOperation({ summary: 'Create a new tenancy' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'User is not a landlord' })
   async create(@Body() dto: CreateTenancyDto, @CurrentUser() user: any) {
     const landlordOrg = user.orgs?.find((o: any) => o.role === 'LANDLORD');
     if (!landlordOrg) {
@@ -46,9 +50,12 @@ export class TenanciesController {
     });
   }
 
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('tenancy')
   @Get(':id')
   @ApiOperation({ summary: 'Get tenancy by ID' })
   @ApiBearerAuth()
+  @ApiNotFoundResponse({ description: 'Tenancy not found or access denied' })
   async findOne(@Param('id') id: string, @CurrentUser() user: any) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     return this.tenanciesService.findOne(id, userOrgIds);
@@ -64,9 +71,13 @@ export class TenanciesController {
   }
 
   @Roles('LANDLORD', 'OPS')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('tenancy')
   @Patch(':id')
   @ApiOperation({ summary: 'Update tenancy details' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  @ApiNotFoundResponse({ description: 'Tenancy not found or access denied' })
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateTenancyDto,
@@ -77,9 +88,13 @@ export class TenanciesController {
   }
 
   @Roles('LANDLORD', 'OPS')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('tenancy')
   @Post(':id/terminate')
   @ApiOperation({ summary: 'Terminate tenancy' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  @ApiNotFoundResponse({ description: 'Tenancy not found or access denied' })
   async terminate(
     @Param('id') id: string,
     @Body() dto: TerminateTenancyDto,
@@ -90,9 +105,13 @@ export class TenanciesController {
   }
 
   @Roles('LANDLORD', 'OPS')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('tenancy')
   @Post(':id/renew')
   @ApiOperation({ summary: 'Renew tenancy' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  @ApiNotFoundResponse({ description: 'Tenancy not found or access denied' })
   async renew(
     @Param('id') id: string,
     @Body() dto: RenewTenancyDto,
@@ -103,9 +122,13 @@ export class TenanciesController {
   }
 
   @Roles('LANDLORD', 'OPS')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('tenancy')
   @Post(':id/rent-increase')
   @ApiOperation({ summary: 'Apply rent increase' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  @ApiNotFoundResponse({ description: 'Tenancy not found or access denied' })
   async rentIncrease(
     @Param('id') id: string,
     @Body() dto: RentIncreaseDto,
@@ -116,9 +139,13 @@ export class TenanciesController {
   }
 
   @Roles('LANDLORD', 'OPS')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('tenancy')
   @Post(':id/guarantors')
   @ApiOperation({ summary: 'Add guarantor to tenancy' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  @ApiNotFoundResponse({ description: 'Tenancy not found or access denied' })
   async addGuarantor(
     @Param('id') id: string,
     @Body() dto: CreateGuarantorDto,
@@ -132,14 +159,18 @@ export class TenanciesController {
   @Delete('guarantors/:id')
   @ApiOperation({ summary: 'Remove guarantor' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
   async removeGuarantor(@Param('id') id: string, @CurrentUser() user: any) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     return this.tenanciesService.removeGuarantor(id, userOrgIds, user.id);
   }
 
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('tenancy')
   @Get(':id/payments')
   @ApiOperation({ summary: 'Get tenancy payments (read-only)' })
   @ApiBearerAuth()
+  @ApiNotFoundResponse({ description: 'Tenancy not found or access denied' })
   async getPayments(@Param('id') id: string, @CurrentUser() user: any) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     return this.tenanciesService.getPayments(id, userOrgIds);

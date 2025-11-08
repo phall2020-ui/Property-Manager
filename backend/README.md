@@ -33,8 +33,53 @@ The most important variables are:
 - `DATABASE_URL` – Database connection string (defaults to SQLite: `file:./dev.db`, no Docker required)
 - `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET` – secrets for signing JWTs (change from defaults for production)
 - `REDIS_URL` – Redis connection string (optional, only needed for background jobs)
+- `NOTIFICATIONS_ENABLED` – Enable/disable notification processing (default: `true`). Set to `false` to disable email/notification delivery while keeping the API functional.
 - `S3_ACCESS_KEY_ID`/`S3_SECRET_ACCESS_KEY`/`S3_BUCKET` – credentials for object storage (optional)
 - `SENDGRID_API_KEY`, `TWILIO_ACCOUNT_SID`, etc. – credentials for email/SMS providers (optional)
+
+#### Background Jobs Configuration
+
+The application uses **BullMQ** with Redis for background job processing:
+
+- **Queue name**: `notifications` (for email/notification delivery), `tickets` (for ticket lifecycle events)
+- **Concurrency**: 5 jobs processed concurrently for notifications
+- **Retry strategy**: 3 attempts with exponential backoff (2s, 4s, 8s)
+- **Failed job retention**: 24 hours in queue for debugging
+- **Graceful degradation**: If Redis is unavailable, jobs are logged but not queued
+
+To enable background jobs, set `REDIS_URL` in your environment:
+
+```bash
+REDIS_URL=redis://localhost:6379
+```
+
+If Redis is not available, the application will still start successfully and log warnings. To completely disable notification processing, set:
+
+```bash
+NOTIFICATIONS_ENABLED=false
+```
+
+#### Security Guards
+
+The application enforces security through multiple layers of guards:
+
+1. **AuthGuard** (global): Validates JWT tokens and attaches authenticated user to requests
+2. **RolesGuard** (global): Enforces role-based access control (LANDLORD, TENANT, CONTRACTOR, OPS)
+3. **LandlordResourceGuard** (per-endpoint): Ensures cross-tenant isolation by returning **404** (not 403) when users try to access resources owned by other landlords
+
+**Key behaviors**:
+- Unauthorized role access returns **403 Forbidden** with JSON error
+- Cross-landlord resource access returns **404 Not Found** (to hide resource existence)
+- Guards are applied to Properties, Tenancies, Tickets, Finance (invoices/payments) endpoints
+
+Example Swagger annotations for guarded endpoints:
+```typescript
+@UseGuards(LandlordResourceGuard)
+@ResourceType('property')
+@Get(':id')
+@ApiForbiddenResponse({ description: 'User is not a landlord' })
+@ApiNotFoundResponse({ description: 'Property not found or access denied' })
+```
 
 ### Installation
 

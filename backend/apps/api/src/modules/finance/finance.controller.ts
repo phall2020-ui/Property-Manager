@@ -8,10 +8,13 @@ import {
   Query,
   Headers,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiNotFoundResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { ResourceType } from '../../common/decorators/resource-type.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { LandlordResourceGuard } from '../../common/guards/landlord-resource.guard';
 import { FinanceService } from './finance.service';
 import { InvoiceService } from './services/invoice.service';
 import { PaymentService } from './services/payment.service';
@@ -135,18 +138,26 @@ export class FinanceController {
   }
 
   @Roles('LANDLORD')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('invoice')
   @Get('invoices/:id')
   @ApiOperation({ summary: 'Get invoice by ID' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'User is not a landlord' })
+  @ApiNotFoundResponse({ description: 'Invoice not found or access denied' })
   async getInvoice(@Param('id') id: string, @CurrentUser() user: any) {
     const landlordId = this.getLandlordId(user);
     return this.invoiceService.getInvoice(id, landlordId);
   }
 
   @Roles('LANDLORD')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('invoice')
   @Post('invoices/:id/void')
   @ApiOperation({ summary: 'Void an invoice' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'User is not a landlord' })
+  @ApiNotFoundResponse({ description: 'Invoice not found or access denied' })
   async voidInvoice(@Param('id') id: string, @CurrentUser() user: any) {
     const landlordId = this.getLandlordId(user);
     return this.invoiceService.voidInvoice(id, landlordId);
@@ -195,18 +206,26 @@ export class FinanceController {
   }
 
   @Roles('LANDLORD')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('payment')
   @Get('payments/:id')
   @ApiOperation({ summary: 'Get payment by ID' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'User is not a landlord' })
+  @ApiNotFoundResponse({ description: 'Payment not found or access denied' })
   async getPayment(@Param('id') id: string, @CurrentUser() user: any) {
     const landlordId = this.getLandlordId(user);
     return this.paymentService.getPayment(id, landlordId);
   }
 
   @Roles('LANDLORD')
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('payment')
   @Post('payments/:id/allocate')
   @ApiOperation({ summary: 'Manually allocate payment to invoices' })
   @ApiBearerAuth()
+  @ApiForbiddenResponse({ description: 'User is not a landlord' })
+  @ApiNotFoundResponse({ description: 'Payment not found or access denied' })
   async allocatePayment(
     @Param('id') id: string,
     @Body() dto: AllocatePaymentDto,

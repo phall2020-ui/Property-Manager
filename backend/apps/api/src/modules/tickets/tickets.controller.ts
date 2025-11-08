@@ -9,11 +9,13 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
   Headers,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiQuery, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes, ApiQuery, ApiResponse, ApiNotFoundResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { BulkResponseInterceptor } from '../../common/interceptors/bulk-response.interceptor';
 import { TicketsService } from './tickets.service';
@@ -32,6 +34,8 @@ import { BulkTagDto } from './dto/bulk-tag.dto';
 import { BulkCategoryDto } from './dto/bulk-category.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { ResourceType } from '../../common/decorators/resource-type.decorator';
+import { LandlordResourceGuard } from '../../common/guards/landlord-resource.guard';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 
@@ -114,9 +118,12 @@ export class TicketsController {
     return ticket;
   }
 
+  @UseGuards(LandlordResourceGuard)
+  @ResourceType('ticket')
   @Get(':id')
   @ApiOperation({ summary: 'Get ticket by ID' })
   @ApiBearerAuth()
+  @ApiNotFoundResponse({ description: 'Ticket not found or access denied' })
   async findOne(@Param('id') id: string, @CurrentUser() user: any) {
     const userOrgIds = user.orgs?.map((o: any) => o.orgId) || [];
     return this.ticketsService.findOne(id, userOrgIds);
