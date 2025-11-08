@@ -263,6 +263,11 @@ export const ticketsApi = {
     const response = await api.get(`/appointments/${appointmentId}`);
     return response.data;
   },
+
+  assign: async (id: string, contractorId: string) => {
+    const response = await api.patch(`/tickets/${id}/assign`, { contractorId });
+    return response.data;
+  },
 };
 
 // Compliance API

@@ -5,6 +5,7 @@ import { ticketsApi } from '../../lib/api';
 import { validateFile, validateTotalSize, formatFileSize, isImageFile } from '../../lib/file-utils';
 import type { UploadProgress } from '../../types/attachments';
 import { Upload, X, FileText, Image, AlertCircle, CheckCircle } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 interface AttachmentUploaderProps {
   ticketId: string;
@@ -13,6 +14,7 @@ interface AttachmentUploaderProps {
 
 export default function AttachmentUploader({ ticketId, onUploadComplete }: AttachmentUploaderProps) {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -45,9 +47,11 @@ export default function AttachmentUploader({ ticketId, onUploadComplete }: Attac
           error: message
         } : u)
       );
+      toast.error(`Failed to upload ${file.name}: ${message}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attachments', ticketId] });
+      toast.success('File uploaded successfully!');
       onUploadComplete?.();
     },
   });

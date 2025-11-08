@@ -3,6 +3,7 @@ import { ticketsApi } from '../../lib/api';
 import { formatDateRange } from '../../lib/date-utils';
 import type { Appointment } from '../../types/appointments';
 import { Calendar, CheckCircle } from 'lucide-react';
+import { useToast } from '../../contexts/ToastContext';
 
 interface AppointmentConfirmBannerProps {
   appointment: Appointment;
@@ -11,12 +12,17 @@ interface AppointmentConfirmBannerProps {
 
 export default function AppointmentConfirmBanner({ appointment, ticketId }: AppointmentConfirmBannerProps) {
   const queryClient = useQueryClient();
+  const toast = useToast();
 
   const confirmMutation = useMutation({
     mutationFn: () => ticketsApi.confirmAppointment(appointment.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments', ticketId] });
       queryClient.invalidateQueries({ queryKey: ['tickets', ticketId] });
+      toast.success('Appointment confirmed successfully!');
+    },
+    onError: () => {
+      toast.error('Failed to confirm appointment. Please try again.');
     },
   });
 

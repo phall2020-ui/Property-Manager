@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useEventContext } from '../contexts/EventContext';
+import { useToast } from '../contexts/ToastContext';
 import Sidebar from './Sidebar';
-import ToastContainer, { useToast } from './ToastContainer';
+import ToastContainer from './ToastContainer';
 
 interface LayoutProps {
   children: React.ReactNode;
