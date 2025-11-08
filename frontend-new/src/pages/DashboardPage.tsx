@@ -5,7 +5,7 @@ import KpiCard from '../components/KpiCard';
 import ActivityList from '../components/ActivityList';
 import QuickActions from '../components/QuickActions';
 import PropertyMap from '../components/PropertyMap';
-import { enhancedPropertiesApi } from '../lib/api';
+import { enhancedPropertiesApi, notificationsApi } from '../lib/api';
 import { Building2, TrendingUp, DollarSign } from 'lucide-react';
 import type { Property, MapPin, ActivityItem } from '../lib/types';
 
@@ -15,6 +15,13 @@ export default function DashboardPage() {
   const { data: properties } = useQuery<Property[]>({
     queryKey: ['enhanced-properties'],
     queryFn: enhancedPropertiesApi.list,
+    retry: 1,
+  });
+
+  // Fetch recent notifications/activity
+  const { data: notifications } = useQuery({
+    queryKey: ['notifications', { limit: 10 }],
+    queryFn: () => notificationsApi.list({ limit: 10 }),
     retry: 1,
   });
 
@@ -51,12 +58,12 @@ export default function DashboardPage() {
         position: [p.lat!, p.lng!] as [number, number],
       })) || [];
 
-  // Mock activity data
-  const activity: ActivityItem[] = [
-    { id: 'a1', text: 'Tenant request – Faucet leak (12A High St)', date: new Date().toISOString() },
-    { id: 'a2', text: 'Payment received – 2B Park Avenue', date: new Date(Date.now() - 86400000).toISOString() },
-    { id: 'a3', text: 'Compliance alert – Gas safety due in 30 days', date: new Date(Date.now() - 172800000).toISOString() },
-  ];
+  // Transform notifications into activity items
+  const activity: ActivityItem[] = (notifications || []).map((notification: any) => ({
+    id: notification.id,
+    text: notification.message,
+    date: notification.createdAt,
+  }));
 
   return (
     <div className="space-y-6">
