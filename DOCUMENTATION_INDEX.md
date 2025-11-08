@@ -26,7 +26,7 @@ This document serves as your navigation guide to all documentation in this repos
 
 ### **2. [QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** ⚡ FASTEST
 **Condensed cheat sheet for daily use**
-- TL;DR setup commands
+- TL;DR setup commands (SQLite + frontend-new)
 - Project health dashboard
 - Test credentials table
 - API quick reference
