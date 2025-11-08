@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRouterService } from '../notifications/notification-router.service';
 import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class TicketsService {
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
     private readonly notificationsService: NotificationsService,
+    private readonly notificationRouter: NotificationRouterService,
     private readonly jobsService: JobsService,
   ) {}
 
@@ -67,6 +69,21 @@ export class TicketsService {
       ],
     });
 
+    // Route notifications using notification router
+    await this.notificationRouter.routeNotification({
+      type: 'ticket.created',
+      entityId: ticket.id,
+      entityType: 'ticket',
+      actorId: data.createdById,
+      landlordId: ticket.landlordId,
+      tenantId: ticket.tenancy?.tenantOrgId,
+      metadata: {
+        title: ticket.title,
+        priority: ticket.priority,
+        category: ticket.category,
+      },
+    });
+
     // Enqueue background job for notifications
     await this.jobsService.enqueueTicketCreated({
       ticketId: ticket.id,
@@ -74,35 +91,6 @@ export class TicketsService {
       createdById: data.createdById,
       landlordId: ticket.landlordId,
     });
-
-    // Create notifications for landlord users
-    const landlordUsers = await this.prisma.orgMember.findMany({
-      where: {
-        orgId: ticket.landlordId,
-        role: { in: ['LANDLORD', 'ADMIN'] },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    // Create notification for each landlord user
-    for (const member of landlordUsers) {
-      await this.notificationsService.create({
-        userId: member.userId,
-        type: 'ticket.created',
-        title: 'New Maintenance Ticket',
-        message: `New ticket created: ${ticket.title}`,
-        resourceType: 'ticket',
-        resourceId: ticket.id,
-      });
-    }
     
     return ticket;
   }
