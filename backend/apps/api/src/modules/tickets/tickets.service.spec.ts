@@ -860,9 +860,7 @@ describe('TicketsService - Landlord & Scheduling', () => {
     });
 
     it('should show only unassigned tickets for quoting when contractor has no userId', async () => {
-      const unassignedTicket = { ...mockTicket };
-      unassignedTicket.assignedToId = null;
-      unassignedTicket.status = 'OPEN';
+      const unassignedTicket = { ...mockTicket, assignedToId: null, status: 'OPEN' };
       
       jest.spyOn(prisma.ticket, 'findMany').mockResolvedValue([unassignedTicket] as any);
       jest.spyOn(prisma.ticket, 'count').mockResolvedValue(1);

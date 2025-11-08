@@ -1,0 +1,48 @@
+{
+  "errors": [
+    {
+      "type": "console",
+      "message": "Failed to connect: JSHandle@error",
+      "timestamp": "2025-11-08T15:27:55.432Z",
+      "context": {
+        "location": {
+          "url": "http://localhost:5173/src/hooks/useEventStream.ts",
+          "lineNumber": 146,
+          "columnNumber": 14
+        }
+      }
+    },
+    {
+      "type": "console",
+      "message": "EventSource error: JSHandle@object",
+      "timestamp": "2025-11-08T15:27:55.433Z",
+      "context": {
+        "location": {
+          "url": "http://localhost:5173/src/hooks/useEventStream.ts",
+          "lineNumber": 59,
+          "columnNumber": 14
+        }
+      }
+    },
+    {
+      "type": "console",
+      "message": "Event stream error: JSHandle@object",
+      "timestamp": "2025-11-08T15:27:55.433Z",
+      "context": {
+        "location": {
+          "url": "http://localhost:5173/src/contexts/EventContext.tsx",
+          "lineNumber": 27,
+          "columnNumber": 14
+        }
+      }
+    },
+    {
+      "type": "pageerror",
+      "message": "properties?.filter is not a function",
+      "timestamp": "2025-11-08T15:27:55.640Z",
+      "context": {
+        "stack": "TypeError: properties?.filter is not a function\n    at DashboardPage (http://localhost:5173/src/pages/DashboardPage.tsx:38:42)\n    at react_stack_bottom_frame (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:18509:20)\n    at renderWithHooks (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:5654:24)\n    at updateFunctionComponent (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:7475:21)\n    at beginWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:8525:20)\n    at runWithFiberInDEV (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:997:72)\n    at performUnitOfWork (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:12561:98)\n    at workLoopSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:12424:43)\n    at renderRootSync (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:12408:13)\n    at performWorkOnRoot (http://localhost:5173/node_modules/.vite/deps/react-dom_client.js?v=92f67176:11827:37)"
+      }
+    }
+  ]
+}
