@@ -6,10 +6,10 @@ export default function Sidebar() {
   const location = useLocation();
   const { user } = useAuth();
 
-  if (!user) return null;
+  if (!user || !user.organisations || user.organisations.length === 0) return null;
 
   const primaryOrg = user.organisations[0];
-  const isLandlord = primaryOrg.role === 'LANDLORD';
+  const isLandlord = primaryOrg?.role === 'LANDLORD';
 
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/dashboard', show: true },

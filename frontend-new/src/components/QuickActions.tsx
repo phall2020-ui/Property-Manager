@@ -5,10 +5,10 @@ import { useAuth } from '../contexts/AuthContext';
 export default function QuickActions() {
   const { user } = useAuth();
   
-  if (!user) return null;
+  if (!user || !user.organisations || user.organisations.length === 0) return null;
   
   const primaryOrg = user.organisations[0];
-  const isLandlord = primaryOrg.role === 'LANDLORD';
+  const isLandlord = primaryOrg?.role === 'LANDLORD';
 
   const actions = [
     { icon: Plus, label: 'Add Property', path: '/properties/new', show: isLandlord, tone: 'blue' },
