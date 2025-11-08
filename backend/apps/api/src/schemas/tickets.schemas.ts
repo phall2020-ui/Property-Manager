@@ -79,7 +79,7 @@ export const TicketTimelineEventSchema = z.object({
   id: z.string(),
   ticketId: z.string(),
   eventType: z.string(),
-  eventData: z.record(z.any()),
+  eventData: z.record(z.string(), z.any()),
   createdAt: z.string().datetime(),
 });
 
