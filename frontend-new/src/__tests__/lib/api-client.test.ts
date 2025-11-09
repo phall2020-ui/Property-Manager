@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 import { parseApiError, createApiClient } from '../../lib/api-client';
 import type { ProblemDetails } from '../../lib/api-client';
 
@@ -149,11 +149,11 @@ describe('createApiClient', () => {
     const mockRequest = {
       headers: {},
       url: '/test',
-    };
+    } as unknown as Parameters<typeof client.interceptors.request['handlers'][0]['fulfilled']>[0];
 
     // Get the request interceptor
     const interceptor = client.interceptors.request['handlers'][0];
-    const result = await interceptor.fulfilled(mockRequest as any);
+    const result = await interceptor.fulfilled(mockRequest);
 
     expect(result.headers.Authorization).toBe(`Bearer ${mockToken}`);
     

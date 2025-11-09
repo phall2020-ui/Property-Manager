@@ -170,7 +170,7 @@ export function addSentryBreadcrumb(
  */
 export function captureException(
   error: Error,
-  context?: Record<string, any>
+  context?: Record<string, string | number | boolean>
 ): void {
   if (!getSentryConfig().enabled) {
     console.error('Error:', error, context);
@@ -186,7 +186,7 @@ export function captureException(
 export function captureMessage(
   message: string,
   level: 'fatal' | 'error' | 'warning' | 'info' | 'debug' = 'info',
-  context?: Record<string, any>
+  context?: Record<string, string | number | boolean>
 ): void {
   if (!getSentryConfig().enabled) {
     console.log(`[${level}]`, message, context);
