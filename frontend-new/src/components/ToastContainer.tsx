@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 
 interface Toast {
   id: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning';
   message: string;
 }
 
@@ -39,6 +39,8 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         return <AlertCircle className="w-5 h-5 text-red-500" />;
       case 'info':
         return <Info className="w-5 h-5 text-blue-500" />;
+      case 'warning':
+        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
     }
   };
 
@@ -50,6 +52,8 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         return 'bg-red-50 border-red-200';
       case 'info':
         return 'bg-blue-50 border-blue-200';
+      case 'warning':
+        return 'bg-yellow-50 border-yellow-200';
     }
   };
 
@@ -74,7 +78,7 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
 export function useToast() {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = (type: 'success' | 'error' | 'info', message: string) => {
+  const addToast = (type: Toast['type'], message: string) => {
     const id = Math.random().toString(36).substring(2, 11);
     setToasts((prev) => [...prev, { id, type, message }]);
   };
@@ -90,5 +94,6 @@ export function useToast() {
     success: (message: string) => addToast('success', message),
     error: (message: string) => addToast('error', message),
     info: (message: string) => addToast('info', message),
+    warning: (message: string) => addToast('warning', message),
   };
 }

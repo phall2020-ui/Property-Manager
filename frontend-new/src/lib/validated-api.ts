@@ -1,5 +1,6 @@
-import axios, { AxiosResponse } from 'axios';
+import type { AxiosResponse } from 'axios';
 import { z } from 'zod';
+import { apiClient } from './api-client';
 import {
   SignupRequestSchema,
   LoginRequestSchema,
@@ -32,58 +33,6 @@ import {
   type Ticket,
   type TicketListResponse,
 } from '../schemas/api-schemas';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
-
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor to add access token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor to handle token refresh
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const { data } = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
-
-        localStorage.setItem('accessToken', data.accessToken);
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        localStorage.removeItem('accessToken');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
 
 /**
  * Helper function to validate request and response with Zod schemas
@@ -127,7 +76,7 @@ async function validatedRequest<TRequest, TResponse>(
 export const validatedAuthApi = {
   signup: async (data: SignupRequest): Promise<AuthResponse> => {
     return validatedRequest(
-      api.post('/auth/signup', data),
+      apiClient.post('/auth/signup', data),
       SignupRequestSchema,
       AuthResponseSchema,
       data
@@ -139,7 +88,7 @@ export const validatedAuthApi = {
 
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     return validatedRequest(
-      api.post('/auth/login', data),
+      apiClient.post('/auth/login', data),
       LoginRequestSchema,
       AuthResponseSchema,
       data
@@ -151,7 +100,7 @@ export const validatedAuthApi = {
 
   logout: async (): Promise<void> => {
     try {
-      await api.post('/auth/logout');
+      await apiClient.post('/auth/logout');
     } catch (error) {
       console.error('Logout API error:', error);
     } finally {
@@ -161,14 +110,14 @@ export const validatedAuthApi = {
 
   refresh: async (): Promise<RefreshResponse> => {
     return validatedRequest(
-      api.post('/auth/refresh'),
+      apiClient.post('/auth/refresh'),
       null,
       RefreshResponseSchema
     );
   },
 
   getMe: async () => {
-    const response = await api.get('/users/me');
+    const response = await apiClient.get('/users/me');
     return response.data;
   },
 };
@@ -177,7 +126,7 @@ export const validatedAuthApi = {
 export const validatedPropertiesApi = {
   list: async (): Promise<PropertyListResponse> => {
     return validatedRequest(
-      api.get('/properties'),
+      apiClient.get('/properties'),
       null,
       PropertyListResponseSchema
     );
@@ -185,7 +134,7 @@ export const validatedPropertiesApi = {
 
   create: async (data: CreatePropertyRequest): Promise<Property> => {
     return validatedRequest(
-      api.post('/properties', data),
+      apiClient.post('/properties', data),
       CreatePropertyRequestSchema,
       PropertySchema,
       data
@@ -194,7 +143,7 @@ export const validatedPropertiesApi = {
 
   getById: async (id: string): Promise<Property> => {
     return validatedRequest(
-      api.get(`/properties/${id}`),
+      apiClient.get(`/properties/${id}`),
       null,
       PropertySchema
     );
@@ -202,7 +151,7 @@ export const validatedPropertiesApi = {
 
   update: async (id: string, data: UpdatePropertyRequest): Promise<Property> => {
     return validatedRequest(
-      api.patch(`/properties/${id}`, data),
+      apiClient.patch(`/properties/${id}`, data),
       UpdatePropertyRequestSchema,
       PropertySchema,
       data
@@ -214,7 +163,7 @@ export const validatedPropertiesApi = {
 export const validatedTenanciesApi = {
   list: async (): Promise<TenancyListResponse> => {
     return validatedRequest(
-      api.get('/tenancies'),
+      apiClient.get('/tenancies'),
       null,
       TenancyListResponseSchema
     );
@@ -222,7 +171,7 @@ export const validatedTenanciesApi = {
 
   create: async (data: CreateTenancyRequest): Promise<Tenancy> => {
     return validatedRequest(
-      api.post('/tenancies', data),
+      apiClient.post('/tenancies', data),
       CreateTenancyRequestSchema,
       TenancySchema,
       data
@@ -231,7 +180,7 @@ export const validatedTenanciesApi = {
 
   getById: async (id: string): Promise<Tenancy> => {
     return validatedRequest(
-      api.get(`/tenancies/${id}`),
+      apiClient.get(`/tenancies/${id}`),
       null,
       TenancySchema
     );
@@ -240,7 +189,7 @@ export const validatedTenanciesApi = {
   uploadDocument: async (id: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await api.post(`/tenancies/${id}/documents`, formData, {
+    const response = await apiClient.post(`/tenancies/${id}/documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
@@ -251,7 +200,7 @@ export const validatedTenanciesApi = {
 export const validatedTicketsApi = {
   list: async (): Promise<TicketListResponse> => {
     return validatedRequest(
-      api.get('/tickets'),
+      apiClient.get('/tickets'),
       null,
       TicketListResponseSchema
     );
@@ -259,7 +208,7 @@ export const validatedTicketsApi = {
 
   create: async (data: CreateTicketRequest): Promise<Ticket> => {
     return validatedRequest(
-      api.post('/tickets', data),
+      apiClient.post('/tickets', data),
       CreateTicketRequestSchema,
       TicketSchema,
       data
@@ -268,7 +217,7 @@ export const validatedTicketsApi = {
 
   getById: async (id: string): Promise<Ticket> => {
     return validatedRequest(
-      api.get(`/tickets/${id}`),
+      apiClient.get(`/tickets/${id}`),
       null,
       TicketSchema
     );
@@ -276,7 +225,7 @@ export const validatedTicketsApi = {
 
   updateStatus: async (id: string, data: UpdateTicketStatusRequest): Promise<Ticket> => {
     return validatedRequest(
-      api.patch(`/tickets/${id}/status`, data),
+      apiClient.patch(`/tickets/${id}/status`, data),
       UpdateTicketStatusRequestSchema,
       TicketSchema,
       data
@@ -284,7 +233,7 @@ export const validatedTicketsApi = {
   },
 
   getTimeline: async (id: string) => {
-    const response = await api.get(`/tickets/${id}/timeline`);
+    const response = await apiClient.get(`/tickets/${id}/timeline`);
     return response.data;
   },
 
@@ -293,22 +242,22 @@ export const validatedTicketsApi = {
     if (idempotencyKey) {
       headers['Idempotency-Key'] = idempotencyKey;
     }
-    const response = await api.post(`/tickets/${id}/approve`, {}, { headers });
+    const response = await apiClient.post(`/tickets/${id}/approve`, {}, { headers });
     return response.data;
   },
 
   createQuote: async (id: string, data: { amount: number; notes?: string }) => {
-    const response = await api.post(`/tickets/${id}/quote`, data);
+    const response = await apiClient.post(`/tickets/${id}/quote`, data);
     return response.data;
   },
 
   approveQuote: async (quoteId: string) => {
-    const response = await api.post(`/tickets/quotes/${quoteId}/approve`);
+    const response = await apiClient.post(`/tickets/quotes/${quoteId}/approve`);
     return response.data;
   },
 
   complete: async (id: string, completionNotes?: string) => {
-    const response = await api.post(`/tickets/${id}/complete`, { completionNotes });
+    const response = await apiClient.post(`/tickets/${id}/complete`, { completionNotes });
     return response.data;
   },
 
@@ -318,47 +267,44 @@ export const validatedTicketsApi = {
     if (category) {
       formData.append('category', category);
     }
-    const response = await api.post(`/tickets/${id}/attachments`, formData, {
+    const response = await apiClient.post(`/tickets/${id}/attachments`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
 
   getAttachments: async (id: string) => {
-    const response = await api.get(`/tickets/${id}/attachments`);
+    const response = await apiClient.get(`/tickets/${id}/attachments`);
     return response.data;
   },
 
   deleteAttachment: async (ticketId: string, attachmentId: string) => {
-    const response = await api.delete(`/tickets/${ticketId}/attachments/${attachmentId}`);
+    const response = await apiClient.delete(`/tickets/${ticketId}/attachments/${attachmentId}`);
     return response.data;
   },
 
   proposeAppointment: async (id: string, data: { startAt: string; endAt?: string; notes?: string }) => {
-    const response = await api.post(`/tickets/${id}/appointments`, data);
+    const response = await apiClient.post(`/tickets/${id}/appointments`, data);
     return response.data;
   },
 
   getAppointments: async (id: string) => {
-    const response = await api.get(`/tickets/${id}/appointments`);
+    const response = await apiClient.get(`/tickets/${id}/appointments`);
     return response.data;
   },
 
   confirmAppointment: async (appointmentId: string) => {
-    const response = await api.post(`/appointments/${appointmentId}/confirm`, {});
+    const response = await apiClient.post(`/appointments/${appointmentId}/confirm`, {});
     return response.data;
   },
 
   getAppointment: async (appointmentId: string) => {
-    const response = await api.get(`/appointments/${appointmentId}`);
+    const response = await apiClient.get(`/appointments/${appointmentId}`);
     return response.data;
   },
 
   assign: async (id: string, contractorId: string) => {
-    const response = await api.patch(`/tickets/${id}/assign`, { contractorId });
+    const response = await apiClient.patch(`/tickets/${id}/assign`, { contractorId });
     return response.data;
   },
 };
-
-// Export original unvalidated API for backward compatibility and non-validated endpoints
-export { api };

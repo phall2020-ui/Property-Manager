@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import axios from 'axios';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { EventProvider } from './contexts/EventContext';
 import { ToastProvider } from './contexts/ToastContext';
@@ -24,8 +25,27 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5000, // 5 seconds
+      retry: (failureCount, error) => {
+        // Only retry on network errors, max 2 times
+        if (failureCount >= 2) return false;
+        
+        // Don't retry on 4xx errors (client errors)
+        if (axios.isAxiosError(error) && error.response) {
+          const status = error.response.status;
+          if (status >= 400 && status < 500) return false;
+        }
+        
+        // Retry on network errors or 5xx errors
+        return true;
+      },
+      retryDelay: (attemptIndex) => {
+        // Exponential backoff: 1s, 2s
+        return Math.min(1000 * 2 ** attemptIndex, 30000);
+      },
+      staleTime: 60000, // 1 minute - data is considered fresh for 1 minute
+    },
+    mutations: {
+      retry: false, // Don't retry mutations by default
     },
   },
 });
