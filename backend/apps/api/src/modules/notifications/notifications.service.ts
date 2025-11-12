@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { EmailService } from './email.service';
 
 export interface CreateNotificationDto {
   userId: string;
@@ -12,7 +13,12 @@ export interface CreateNotificationDto {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(NotificationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+  ) {}
 
   /**
    * Create a notification for a user
@@ -331,13 +337,69 @@ export class NotificationsService {
   }
 
   /**
-   * Send email notification (placeholder)
+   * Send email notification using EmailService
    */
   private async sendEmail(notification: any) {
-    // TODO: Implement actual email sending logic using EmailService
-    console.log(`Sending email notification: ${notification.title}`);
-    // For now, just log
-    return Promise.resolve();
+    // Get user details for email
+    const user = await this.prisma.user.findUnique({
+      where: { id: notification.userId },
+      select: { email: true, name: true },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Send email using EmailService with a generic template
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #f9fafb; }
+          .notification-body { background-color: white; padding: 15px; margin: 20px 0; border-radius: 5px; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>${notification.title}</h2>
+          </div>
+          <div class="content">
+            <p>Dear ${user.name},</p>
+            <div class="notification-body">
+              <p>${notification.message}</p>
+            </div>
+          </div>
+          <div class="footer">
+            <p>This is an automated notification from Property Manager.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      ${notification.title}
+      
+      Dear ${user.name},
+      
+      ${notification.message}
+      
+      ---
+      This is an automated notification from Property Manager.
+    `;
+
+    await this.emailService.sendEmail({
+      to: user.email,
+      subject: notification.title,
+      html,
+      text,
+    });
   }
 
   /**
