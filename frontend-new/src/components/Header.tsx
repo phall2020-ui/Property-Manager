@@ -35,8 +35,8 @@ export default function Header() {
         <NotificationDropdown />
         <button 
           className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-          title="Settings (Coming soon)"
-          disabled
+          title="Notification Settings"
+          onClick={() => navigate('/settings/notifications')}
         >
           <Settings className="h-5 w-5 text-brand-subtle" />
         </button>
