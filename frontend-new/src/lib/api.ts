@@ -405,6 +405,26 @@ export const notificationsApi = {
     const response = await api.post('/notifications/read-all');
     return response.data;
   },
+
+  getPreferences: async () => {
+    const response = await api.get('/notifications/preferences');
+    return response.data;
+  },
+
+  updatePreferences: async (data: {
+    emailEnabled?: boolean;
+    inAppEnabled?: boolean;
+    webhookEnabled?: boolean;
+    webhookUrl?: string;
+    notifyTicketCreated?: boolean;
+    notifyTicketAssigned?: boolean;
+    notifyQuoteSubmitted?: boolean;
+    notifyQuoteApproved?: boolean;
+    notifyTicketCompleted?: boolean;
+  }) => {
+    const response = await api.put('/notifications/preferences', data);
+    return response.data;
+  },
 };
 
 // Finance API

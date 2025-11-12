@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import NotificationSettingsPage from './pages/NotificationSettingsPage';
 
 // Lazy load pages for better performance
 const PropertiesListPage = lazy(() => import('./pages/properties/PropertiesListPage'));
@@ -145,6 +146,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <TicketDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings/notifications"
+                  element={
+                    <ProtectedRoute>
+                      <NotificationSettingsPage />
                     </ProtectedRoute>
                   }
                 />

@@ -2,7 +2,7 @@
  * Backend test data fixtures
  */
 
-import { Role } from '../../apps/api/src/modules/common/types/role.type';
+import { Role } from '../../apps/api/src/common/types/role.type';
 
 export const testUsers = {
   landlord: {

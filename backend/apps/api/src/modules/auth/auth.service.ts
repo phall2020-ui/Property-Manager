@@ -1,17 +1,21 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { EmailService } from '../notifications/email.service';
 import * as argon2 from 'argon2';
 import { v4 as uuidv4 } from 'uuid';
 import { Role } from '../../common/types/role.type';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   async signup(email: string, password: string, name: string, role: Role = 'LANDLORD') {
@@ -59,6 +63,21 @@ export class AuthService {
         },
       },
     });
+
+    // Send welcome email with password
+    try {
+      const frontendUrl = this.config.get<string>('FRONTEND_URL', 'http://localhost:5173');
+      await this.emailService.sendWelcomeEmail(
+        email,
+        name,
+        password,
+        `${frontendUrl}/login`,
+      );
+      this.logger.log(`Welcome email sent to ${email}`);
+    } catch (error) {
+      // Log error but don't fail the signup
+      this.logger.error(`Failed to send welcome email to ${email}: ${error.message}`);
+    }
 
     // Generate tokens with new session-based approach
     const { accessToken, refreshToken } = await this.generateTokens(user.id, user.role, user.landlordId);

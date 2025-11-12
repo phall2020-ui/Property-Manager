@@ -326,4 +326,98 @@ export class EmailService {
       text,
     });
   }
+
+  /**
+   * Send welcome email to new user with credentials
+   */
+  async sendWelcomeEmail(
+    recipientEmail: string,
+    recipientName: string,
+    password: string,
+    loginUrl?: string,
+  ): Promise<boolean> {
+    const subject = `Welcome to Property Manager - Your Account is Ready`;
+    const loginLink = loginUrl || 'https://propertymanager.com/login';
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #4F46E5; color: white; padding: 30px; text-align: center; }
+          .content { padding: 30px; background-color: #f9fafb; }
+          .credentials { background-color: white; padding: 20px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #4F46E5; }
+          .credential-item { margin: 10px 0; }
+          .credential-label { font-weight: bold; color: #4F46E5; }
+          .credential-value { font-family: monospace; background-color: #f3f4f6; padding: 5px 10px; border-radius: 3px; display: inline-block; margin-left: 10px; }
+          .button { display: inline-block; background-color: #4F46E5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .warning { background-color: #FEF2F2; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #EF4444; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎉 Welcome to Property Manager!</h1>
+          </div>
+          <div class="content">
+            <p>Dear ${recipientName},</p>
+            <p>Your account has been successfully created. You can now access the Property Manager platform with the credentials below.</p>
+            
+            <div class="credentials">
+              <div class="credential-item">
+                <span class="credential-label">Email:</span>
+                <span class="credential-value">${recipientEmail}</span>
+              </div>
+              <div class="credential-item">
+                <span class="credential-label">Password:</span>
+                <span class="credential-value">${password}</span>
+              </div>
+            </div>
+            
+            <div class="warning">
+              <p><strong>⚠️ Important Security Notice:</strong></p>
+              <p>Please change your password immediately after your first login for security purposes.</p>
+            </div>
+            
+            <div style="text-align: center;">
+              <a href="${loginLink}" class="button">Login to Your Account</a>
+            </div>
+            
+            <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      Welcome to Property Manager!
+      
+      Dear ${recipientName},
+      
+      Your account has been successfully created. You can now access the Property Manager platform with the credentials below.
+      
+      Email: ${recipientEmail}
+      Password: ${password}
+      
+      ⚠️ IMPORTANT: Please change your password immediately after your first login for security purposes.
+      
+      Login at: ${loginLink}
+      
+      If you have any questions or need assistance, please contact our support team.
+    `;
+
+    return this.sendEmail({
+      to: recipientEmail,
+      subject,
+      html,
+      text,
+    });
+  }
 }
