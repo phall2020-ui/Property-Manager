@@ -3,7 +3,8 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../../apps/api/src/modules/auth/auth.service';
-import { PrismaService } from '../../apps/api/src/modules/common/prisma/prisma.service';
+import { PrismaService } from '../../apps/api/src/common/prisma/prisma.service';
+import { EmailService } from '../../apps/api/src/modules/notifications/email.service';
 import { testUsers } from '../fixtures/test-data';
 import * as argon2 from 'argon2';
 
@@ -12,6 +13,7 @@ describe('AuthService', () => {
   let prisma: PrismaService;
   let jwt: JwtService;
   let config: ConfigService;
+  let emailService: EmailService;
 
   const mockPrismaService = {
     user: {
@@ -41,9 +43,14 @@ describe('AuthService', () => {
         JWT_REFRESH_SECRET: 'test-refresh-secret',
         JWT_ACCESS_EXPIRY: '15m',
         JWT_REFRESH_EXPIRY: '7d',
+        FRONTEND_URL: 'http://localhost:5173',
       };
       return config[key];
     }),
+  };
+
+  const mockEmailService = {
+    sendWelcomeEmail: jest.fn().mockResolvedValue(true),
   };
 
   beforeEach(async () => {
@@ -53,6 +60,7 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: mockPrismaService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: EmailService, useValue: mockEmailService },
       ],
     }).compile();
 
@@ -60,6 +68,7 @@ describe('AuthService', () => {
     prisma = module.get<PrismaService>(PrismaService);
     jwt = module.get<JwtService>(JwtService);
     config = module.get<ConfigService>(ConfigService);
+    emailService = module.get<EmailService>(EmailService);
 
     jest.clearAllMocks();
   });
@@ -74,8 +83,10 @@ describe('AuthService', () => {
         email: userData.email,
         name: userData.name,
         role: userData.role,
+        orgMemberships: [{ org: { id: 'org-123', name: 'Test Org' }, orgId: 'org-123', role: 'LANDLORD' }],
       });
       mockJwtService.sign.mockReturnValue('mock-token');
+      mockPrismaService.refreshToken.create.mockResolvedValue({ id: 'token-123' });
 
       const result = await service.signup(
         userData.email,
@@ -87,6 +98,64 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
       expect(mockPrismaService.user.create).toHaveBeenCalled();
+    });
+
+    it('should send welcome email on signup', async () => {
+      const userData = testUsers.landlord;
+      const password = 'testPassword123';
+      
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockPrismaService.org.create.mockResolvedValue({ id: 'org-123' });
+      mockPrismaService.user.create.mockResolvedValue({
+        id: 'user-123',
+        email: userData.email,
+        name: userData.name,
+        role: userData.role,
+        orgMemberships: [{ org: { id: 'org-123', name: 'Test Org' }, orgId: 'org-123', role: 'LANDLORD' }],
+      });
+      mockJwtService.sign.mockReturnValue('mock-token');
+      mockPrismaService.refreshToken.create.mockResolvedValue({ id: 'token-123' });
+
+      await service.signup(
+        userData.email,
+        password,
+        userData.name,
+        userData.role
+      );
+
+      expect(mockEmailService.sendWelcomeEmail).toHaveBeenCalledWith(
+        userData.email,
+        userData.name,
+        password,
+        'http://localhost:5173/login'
+      );
+    });
+
+    it('should still create user even if email fails', async () => {
+      const userData = testUsers.landlord;
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      mockPrismaService.org.create.mockResolvedValue({ id: 'org-123' });
+      mockPrismaService.user.create.mockResolvedValue({
+        id: 'user-123',
+        email: userData.email,
+        name: userData.name,
+        role: userData.role,
+        orgMemberships: [{ org: { id: 'org-123', name: 'Test Org' }, orgId: 'org-123', role: 'LANDLORD' }],
+      });
+      mockJwtService.sign.mockReturnValue('mock-token');
+      mockPrismaService.refreshToken.create.mockResolvedValue({ id: 'token-123' });
+      mockEmailService.sendWelcomeEmail.mockRejectedValue(new Error('Email service unavailable'));
+
+      const result = await service.signup(
+        userData.email,
+        userData.password,
+        userData.name,
+        userData.role
+      );
+
+      // Should still succeed even if email fails
+      expect(result).toHaveProperty('accessToken');
+      expect(result).toHaveProperty('refreshToken');
     });
 
     it('should throw ConflictException if email already exists', async () => {
